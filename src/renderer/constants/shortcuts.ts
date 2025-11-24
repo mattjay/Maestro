@@ -1,8 +1,8 @@
 import type { Shortcut } from '../types';
 
 export const DEFAULT_SHORTCUTS: Record<string, Shortcut> = {
-  toggleSidebar: { id: 'toggleSidebar', label: 'Toggle Sidebar', keys: ['Meta', 'b'] },
-  toggleRightPanel: { id: 'toggleRightPanel', label: 'Toggle Right Panel', keys: ['Meta', '\\'] },
+  toggleSidebar: { id: 'toggleSidebar', label: 'Toggle Sidebar', keys: ['Alt', 'Meta', 'ArrowLeft'] },
+  toggleRightPanel: { id: 'toggleRightPanel', label: 'Toggle Right Panel', keys: ['Alt', 'Meta', 'ArrowRight'] },
   cyclePrev: { id: 'cyclePrev', label: 'Previous Agent', keys: ['Meta', 'Shift', '{'] },
   cycleNext: { id: 'cycleNext', label: 'Next Agent', keys: ['Meta', 'Shift', '}'] },
   newInstance: { id: 'newInstance', label: 'New Agent', keys: ['Meta', 'n'] },
@@ -19,4 +19,5 @@ export const DEFAULT_SHORTCUTS: Record<string, Shortcut> = {
   toggleMarkdownMode: { id: 'toggleMarkdownMode', label: 'Toggle Markdown Raw/Preview', keys: ['Meta', 'e'] },
   focusInput: { id: 'focusInput', label: 'Focus Input Field', keys: ['Meta', '.'] },
   focusSidebar: { id: 'focusSidebar', label: 'Focus Left Sidebar', keys: ['Meta', 'Shift', 'a'] },
+  viewGitDiff: { id: 'viewGitDiff', label: 'View Git Diff', keys: ['Meta', 'Shift', 'd'] },
 };

@@ -105,6 +105,9 @@ export default function MaestroConsole() {
   const [fileTreeFilter, setFileTreeFilter] = useState('');
   const [fileTreeFilterOpen, setFileTreeFilterOpen] = useState(false);
 
+  // Git Diff State
+  const [gitDiffPreview, setGitDiffPreview] = useState<string | null>(null);
+
   // Renaming State
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
@@ -780,7 +783,7 @@ export default function MaestroConsole() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't intercept if modals are open
-      const modalOpen = quickActionOpen || settingsModalOpen || shortcutsHelpOpen || newInstanceModalOpen || aboutModalOpen || processMonitorOpen || logViewerOpen || createGroupModalOpen || confirmModalOpen || renameInstanceModalOpen || renameGroupModalOpen;
+      const modalOpen = quickActionOpen || settingsModalOpen || shortcutsHelpOpen || newInstanceModalOpen || aboutModalOpen || processMonitorOpen || logViewerOpen || createGroupModalOpen || confirmModalOpen || renameInstanceModalOpen || renameGroupModalOpen || gitDiffPreview !== null;
 
       // If any modal is open, only handle Escape key here and let modals handle everything else
       if (modalOpen) {
@@ -811,6 +814,8 @@ export default function MaestroConsole() {
             setLogViewerOpen(false);
           } else if (settingsModalOpen) {
             setSettingsModalOpen(false);
+          } else if (gitDiffPreview) {
+            setGitDiffPreview(null);
           } else if (lightboxImage) {
             setLightboxImage(null);
           } else if (previewFile) {
@@ -974,6 +979,10 @@ export default function MaestroConsole() {
         // Focus the sidebar
         setActiveFocus('sidebar');
       }
+      else if (isShortcut(e, 'viewGitDiff')) {
+        e.preventDefault();
+        handleViewGitDiff();
+      }
 
       // Forward slash to open file tree filter when file tree has focus
       if (e.key === '/' && activeFocus === 'right' && activeRightTab === 'files') {
@@ -991,7 +1000,7 @@ export default function MaestroConsole() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [shortcuts, activeFocus, activeRightTab, sessions, selectedSidebarIndex, activeSessionId, quickActionOpen, settingsModalOpen, shortcutsHelpOpen, newInstanceModalOpen, aboutModalOpen, activeSession, previewFile, fileTreeFilter, fileTreeFilterOpen]);
+  }, [shortcuts, activeFocus, activeRightTab, sessions, selectedSidebarIndex, activeSessionId, quickActionOpen, settingsModalOpen, shortcutsHelpOpen, newInstanceModalOpen, aboutModalOpen, activeSession, previewFile, fileTreeFilter, fileTreeFilterOpen, gitDiffPreview]);
 
   // Sync selectedSidebarIndex with activeSessionId
   useEffect(() => {
@@ -1200,6 +1209,17 @@ export default function MaestroConsole() {
          tunnelUrl: isActive ? `https://${generateId()}.${tunnelProvider === 'ngrok' ? 'ngrok.io' : 'trycloudflare.com'}` : undefined
        };
     }));
+  };
+
+  const handleViewGitDiff = async () => {
+    if (!activeSession || !activeSession.isGitRepo) return;
+
+    const cwd = activeSession.inputMode === 'terminal' ? (activeSession.shellCwd || activeSession.cwd) : activeSession.cwd;
+    const diff = await gitService.getDiff(cwd);
+
+    if (diff.diff) {
+      setGitDiffPreview(diff.diff);
+    }
   };
 
   const toggleGroup = (groupId: string) => {
@@ -2125,6 +2145,8 @@ export default function MaestroConsole() {
         shortcuts={shortcuts}
         rightPanelOpen={rightPanelOpen}
         maxOutputLines={maxOutputLines}
+        gitDiffPreview={gitDiffPreview}
+        setGitDiffPreview={setGitDiffPreview}
         setLogViewerOpen={setLogViewerOpen}
         setActiveFocus={setActiveFocus}
         setOutputSearchOpen={setOutputSearchOpen}

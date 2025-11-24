@@ -1,0 +1,257 @@
+import React, { useState, useMemo, useEffect } from 'react';
+import { Diff, Hunk, tokenize } from 'react-diff-view';
+import { X, Plus, Minus } from 'lucide-react';
+import type { Theme } from '../types';
+import { parseGitDiff, getFileName, getDiffStats, ParsedFileDiff } from '../utils/gitDiffParser';
+import 'react-diff-view/style/index.css';
+
+interface GitDiffViewerProps {
+  diffText: string;
+  cwd: string;
+  theme: Theme;
+  onClose: () => void;
+}
+
+export function GitDiffViewer({ diffText, cwd, theme, onClose }: GitDiffViewerProps) {
+  const [activeTab, setActiveTab] = useState(0);
+
+  // Parse the diff into separate files
+  const parsedFiles = useMemo(() => parseGitDiff(diffText), [diffText]);
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+      // Cmd+Shift+[ - Previous tab
+      else if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === '[') {
+        e.preventDefault();
+        setActiveTab(prev => prev === 0 ? parsedFiles.length - 1 : prev - 1);
+      }
+      // Cmd+Shift+] - Next tab
+      else if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === ']') {
+        e.preventDefault();
+        setActiveTab(prev => (prev + 1) % parsedFiles.length);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose, parsedFiles.length]);
+
+  if (parsedFiles.length === 0) {
+    return (
+      <div
+        className="fixed inset-0 z-[100] flex items-center justify-center backdrop-blur-sm"
+        style={{ backgroundColor: 'rgba(0,0,0,0.8)' }}
+        onClick={onClose}
+      >
+        <div
+          className="w-[90%] h-[90%] rounded-lg shadow-2xl flex flex-col overflow-hidden"
+          style={{ backgroundColor: theme.colors.bgMain, borderColor: theme.colors.border, border: '1px solid' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div
+            className="flex items-center justify-between px-6 py-4 border-b"
+            style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.bgSidebar }}
+          >
+            <span className="text-lg font-semibold" style={{ color: theme.colors.textMain }}>Git Diff</span>
+            <button
+              onClick={onClose}
+              className="px-3 py-1 rounded text-sm hover:bg-white/10 transition-colors"
+              style={{ color: theme.colors.textDim }}
+            >
+              Close (Esc)
+            </button>
+          </div>
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-sm" style={{ color: theme.colors.textDim }}>No changes to display</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const activeFile = parsedFiles[activeTab];
+  const stats = activeFile ? getDiffStats(activeFile.parsedDiff) : { additions: 0, deletions: 0 };
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center backdrop-blur-sm"
+      style={{ backgroundColor: 'rgba(0,0,0,0.8)' }}
+      onClick={onClose}
+    >
+      <div
+        className="w-[90%] h-[90%] rounded-lg shadow-2xl flex flex-col overflow-hidden"
+        style={{ backgroundColor: theme.colors.bgMain, borderColor: theme.colors.border, border: '1px solid' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-6 py-4 border-b"
+          style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.bgSidebar }}
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-lg font-semibold" style={{ color: theme.colors.textMain }}>Git Diff</span>
+            <span className="text-xs px-2 py-1 rounded" style={{ backgroundColor: theme.colors.bgActivity, color: theme.colors.textDim }}>
+              {cwd}
+            </span>
+            <span className="text-xs" style={{ color: theme.colors.textDim }}>
+              {parsedFiles.length} {parsedFiles.length === 1 ? 'file' : 'files'} changed
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            className="px-3 py-1 rounded text-sm hover:bg-white/10 transition-colors"
+            style={{ color: theme.colors.textDim }}
+          >
+            Close (Esc)
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div
+          className="flex gap-0 border-b overflow-x-auto scrollbar-thin"
+          style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.bgSidebar }}
+        >
+          {parsedFiles.map((file, index) => {
+            const fileStats = getDiffStats(file.parsedDiff);
+            return (
+              <button
+                key={index}
+                onClick={() => setActiveTab(index)}
+                className={`px-4 py-3 text-sm whitespace-nowrap transition-colors ${
+                  activeTab === index ? 'border-b-2' : 'hover:bg-white/5'
+                }`}
+                style={{
+                  color: activeTab === index ? theme.colors.accent : theme.colors.textDim,
+                  borderColor: activeTab === index ? theme.colors.accent : 'transparent',
+                  backgroundColor: activeTab === index ? theme.colors.bgMain : 'transparent'
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-mono">{getFileName(file.newPath)}</span>
+                  <div className="flex items-center gap-1 text-xs">
+                    {fileStats.additions > 0 && (
+                      <span className="text-green-500 flex items-center gap-0.5">
+                        <Plus className="w-3 h-3" />
+                        {fileStats.additions}
+                      </span>
+                    )}
+                    {fileStats.deletions > 0 && (
+                      <span className="text-red-500 flex items-center gap-0.5">
+                        <Minus className="w-3 h-3" />
+                        {fileStats.deletions}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Diff Content */}
+        <div className="flex-1 overflow-auto p-6">
+          {activeFile && activeFile.parsedDiff.length > 0 ? (
+            <div className="font-mono text-sm">
+              <style>{`
+                /* Override react-diff-view default colors with theme */
+                .diff-gutter {
+                  background-color: ${theme.colors.bgSidebar} !important;
+                  color: ${theme.colors.textDim} !important;
+                  border-right: 1px solid ${theme.colors.border} !important;
+                }
+                .diff-code {
+                  background-color: ${theme.colors.bgMain} !important;
+                  color: ${theme.colors.textMain} !important;
+                }
+                .diff-gutter-insert {
+                  background-color: rgba(34, 197, 94, 0.1) !important;
+                }
+                .diff-code-insert {
+                  background-color: rgba(34, 197, 94, 0.15) !important;
+                  color: ${theme.colors.textMain} !important;
+                }
+                .diff-gutter-delete {
+                  background-color: rgba(239, 68, 68, 0.1) !important;
+                }
+                .diff-code-delete {
+                  background-color: rgba(239, 68, 68, 0.15) !important;
+                  color: ${theme.colors.textMain} !important;
+                }
+                .diff-code-insert .diff-code-edit {
+                  background-color: rgba(34, 197, 94, 0.3) !important;
+                }
+                .diff-code-delete .diff-code-edit {
+                  background-color: rgba(239, 68, 68, 0.3) !important;
+                }
+                .diff-hunk-header {
+                  background-color: ${theme.colors.bgActivity} !important;
+                  color: ${theme.colors.accent} !important;
+                  border-bottom: 1px solid ${theme.colors.border} !important;
+                }
+                .diff-line {
+                  color: ${theme.colors.textMain} !important;
+                }
+              `}</style>
+              {activeFile.parsedDiff.map((file, fileIndex) => (
+                <div key={fileIndex}>
+                  {/* File header */}
+                  <div
+                    className="mb-4 p-2 rounded font-semibold text-xs"
+                    style={{ backgroundColor: theme.colors.bgActivity, color: theme.colors.textMain }}
+                  >
+                    {file.oldPath} → {file.newPath}
+                  </div>
+
+                  {/* Render each hunk */}
+                  <Diff
+                    viewType="unified"
+                    diffType={file.type}
+                    hunks={file.hunks}
+                  >
+                    {hunks => hunks.map(hunk => (
+                      <Hunk key={hunk.content} hunk={hunk} />
+                    ))}
+                  </Diff>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-sm" style={{ color: theme.colors.textDim }}>Unable to parse diff for this file</p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer with stats */}
+        <div
+          className="flex items-center justify-between px-6 py-3 border-t text-xs"
+          style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.bgSidebar }}
+        >
+          <div className="flex items-center gap-4">
+            <span style={{ color: theme.colors.textDim }}>
+              Current file: <span className="font-mono" style={{ color: theme.colors.textMain }}>{getFileName(activeFile.newPath)}</span>
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-green-500 flex items-center gap-1">
+                <Plus className="w-3 h-3" />
+                {stats.additions} additions
+              </span>
+              <span className="text-red-500 flex items-center gap-1">
+                <Minus className="w-3 h-3" />
+                {stats.deletions} deletions
+              </span>
+            </div>
+          </div>
+          <span style={{ color: theme.colors.textDim }}>
+            File {activeTab + 1} of {parsedFiles.length}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}

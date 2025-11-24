@@ -6,6 +6,7 @@ import { InputArea } from './InputArea';
 import { FilePreview } from './FilePreview';
 import { ErrorBoundary } from './ErrorBoundary';
 import { GitStatusWidget } from './GitStatusWidget';
+import { GitDiffViewer } from './GitDiffViewer';
 import { gitService } from '../services/git';
 import type { Session, Theme, Shortcut, FocusArea } from '../types';
 
@@ -37,8 +38,10 @@ interface MainPanelProps {
   shortcuts: Record<string, Shortcut>;
   rightPanelOpen: boolean;
   maxOutputLines: number;
+  gitDiffPreview: string | null;
 
   // Setters
+  setGitDiffPreview: (preview: string | null) => void;
   setLogViewerOpen: (open: boolean) => void;
   setActiveFocus: (focus: FocusArea) => void;
   setOutputSearchOpen: (open: boolean) => void;
@@ -80,8 +83,8 @@ export function MainPanel(props: MainPanelProps) {
     logViewerOpen, activeSession, theme, activeFocus, outputSearchOpen, outputSearchQuery,
     inputValue, enterToSendAI, enterToSendTerminal, stagedImages, commandHistoryOpen, commandHistoryFilter,
     commandHistorySelectedIndex, slashCommandOpen, slashCommands, selectedSlashCommandIndex,
-    previewFile, markdownRawMode, shortcuts, rightPanelOpen, maxOutputLines,
-    setLogViewerOpen, setActiveFocus, setOutputSearchOpen, setOutputSearchQuery,
+    previewFile, markdownRawMode, shortcuts, rightPanelOpen, maxOutputLines, gitDiffPreview,
+    setGitDiffPreview, setLogViewerOpen, setActiveFocus, setOutputSearchOpen, setOutputSearchQuery,
     setInputValue, setEnterToSendAI, setEnterToSendTerminal, setStagedImages, setLightboxImage, setCommandHistoryOpen,
     setCommandHistoryFilter, setCommandHistorySelectedIndex, setSlashCommandOpen,
     setSelectedSlashCommandIndex, setPreviewFile, setMarkdownRawMode,
@@ -89,9 +92,6 @@ export function MainPanel(props: MainPanelProps) {
     fileTreeContainerRef, toggleTunnel, toggleInputMode, processInput, handleInterrupt,
     handleInputKeyDown, handlePaste, handleDrop, getContextColor
   } = props;
-
-  // Git diff preview state
-  const [gitDiffPreview, setGitDiffPreview] = useState<string | null>(null);
 
   // Tunnel tooltip hover state
   const [tunnelTooltipOpen, setTunnelTooltipOpen] = useState(false);
@@ -116,21 +116,6 @@ export function MainPanel(props: MainPanelProps) {
       console.error('Failed to copy to clipboard:', err);
     }
   };
-
-  // Keyboard handler for git diff preview
-  React.useEffect(() => {
-    if (!gitDiffPreview) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        setGitDiffPreview(null);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gitDiffPreview]);
 
   // Show log viewer
   if (logViewerOpen) {
@@ -334,48 +319,13 @@ export function MainPanel(props: MainPanelProps) {
           )}
 
           {/* Git Diff Preview Overlay */}
-          {gitDiffPreview && (
-            <div
-              className="fixed inset-0 z-[60] flex items-center justify-center backdrop-blur-sm"
-              style={{ backgroundColor: 'rgba(0,0,0,0.8)' }}
-              onClick={() => setGitDiffPreview(null)}
-            >
-              <div
-                className="w-[90%] h-[90%] rounded-lg shadow-2xl flex flex-col overflow-hidden"
-                style={{ backgroundColor: theme.colors.bgMain, borderColor: theme.colors.border, border: '1px solid' }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                {/* Header */}
-                <div
-                  className="flex items-center justify-between px-6 py-4 border-b"
-                  style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.bgSidebar }}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-lg font-semibold" style={{ color: theme.colors.textMain }}>Git Diff</span>
-                    <span className="text-xs px-2 py-1 rounded" style={{ backgroundColor: theme.colors.bgActivity, color: theme.colors.textDim }}>
-                      {activeSession.inputMode === 'terminal' ? (activeSession.shellCwd || activeSession.cwd) : activeSession.cwd}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => setGitDiffPreview(null)}
-                    className="px-3 py-1 rounded text-sm hover:bg-white/10 transition-colors"
-                    style={{ color: theme.colors.textDim }}
-                  >
-                    Close (Esc)
-                  </button>
-                </div>
-
-                {/* Diff Content */}
-                <div className="flex-1 overflow-auto p-6">
-                  <pre
-                    className="text-xs font-mono whitespace-pre-wrap break-words"
-                    style={{ color: theme.colors.textMain }}
-                  >
-                    {gitDiffPreview}
-                  </pre>
-                </div>
-              </div>
-            </div>
+          {gitDiffPreview && activeSession && (
+            <GitDiffViewer
+              diffText={gitDiffPreview}
+              cwd={activeSession.inputMode === 'terminal' ? (activeSession.shellCwd || activeSession.cwd) : activeSession.cwd}
+              theme={theme}
+              onClose={() => setGitDiffPreview(null)}
+            />
           )}
         </div>
       </ErrorBoundary>

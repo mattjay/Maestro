@@ -140,7 +140,7 @@ export function GitStatusWidget({ cwd, isGitRepo, theme, onViewDiff }: GitStatus
 
       {/* Hover tooltip showing file list */}
       <div
-        className="absolute top-full left-0 mt-2 w-80 rounded shadow-xl z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+        className="absolute top-full left-0 mt-2 w-80 rounded shadow-xl z-50 opacity-0 group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity pointer-events-none"
         style={{
           backgroundColor: theme.colors.bgSidebar,
           borderColor: theme.colors.border,
