@@ -1,0 +1,52 @@
+import React, { useState } from 'react';
+import type { Theme, Shortcut } from '../types';
+
+interface ShortcutEditorProps {
+  theme: Theme;
+  shortcuts: Record<string, Shortcut>;
+  setShortcuts: (shortcuts: Record<string, Shortcut>) => void;
+}
+
+export function ShortcutEditor({ theme, shortcuts, setShortcuts }: ShortcutEditorProps) {
+  const [recordingId, setRecordingId] = useState<string | null>(null);
+
+  const handleRecord = (e: React.KeyboardEvent, actionId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const keys = [];
+    if (e.metaKey) keys.push('Meta');
+    if (e.ctrlKey) keys.push('Ctrl');
+    if (e.altKey) keys.push('Alt');
+    if (e.shiftKey) keys.push('Shift');
+    if (['Meta', 'Control', 'Alt', 'Shift'].includes(e.key)) return;
+    keys.push(e.key);
+    setShortcuts({
+      ...shortcuts,
+      [actionId]: { ...shortcuts[actionId], keys }
+    });
+    setRecordingId(null);
+  };
+
+  return (
+    <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+      {Object.values(shortcuts).map(sc => (
+        <div key={sc.id} className="flex items-center justify-between p-3 rounded border" style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.bgMain }}>
+          <span className="text-sm font-medium" style={{ color: theme.colors.textMain }}>{sc.label}</span>
+          <button
+            onClick={() => setRecordingId(sc.id)}
+            onKeyDown={(e) => recordingId === sc.id && handleRecord(e, sc.id)}
+            className={`px-3 py-1.5 rounded border text-xs font-mono min-w-[80px] text-center transition-colors ${recordingId === sc.id ? 'ring-2' : ''}`}
+            style={{
+              borderColor: recordingId === sc.id ? theme.colors.accent : theme.colors.border,
+              backgroundColor: recordingId === sc.id ? theme.colors.accentDim : theme.colors.bgActivity,
+              color: recordingId === sc.id ? theme.colors.accent : theme.colors.textDim,
+              ringColor: theme.colors.accent
+            }}
+          >
+            {recordingId === sc.id ? 'Press keys...' : sc.keys.join(' + ')}
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}

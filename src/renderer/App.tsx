@@ -37,6 +37,7 @@ import { DEFAULT_SHORTCUTS } from './constants/shortcuts';
 import { generateId } from './utils/ids';
 import { getContextColor, getStatusColor, getFileIcon } from './utils/theme';
 import { fuzzyMatch } from './utils/search';
+import { shouldOpenExternally, loadFileTree, getAllFolderPaths, flattenTree } from './utils/fileExplorer';
 
 export default function MaestroConsole() {
   // --- STATE ---
@@ -1080,112 +1081,9 @@ export default function MaestroConsole() {
     }
   };
 
-  // --- SUBCOMPONENTS ---
-
-  const ShortcutEditor = () => {
-    const [recordingId, setRecordingId] = useState<string | null>(null);
-
-    const handleRecord = (e: React.KeyboardEvent, actionId: string) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const keys = [];
-      if (e.metaKey) keys.push('Meta');
-      if (e.ctrlKey) keys.push('Ctrl');
-      if (e.altKey) keys.push('Alt');
-      if (e.shiftKey) keys.push('Shift');
-      if (['Meta', 'Control', 'Alt', 'Shift'].includes(e.key)) return;
-      keys.push(e.key);
-      setShortcuts(prev => ({
-        ...prev,
-        [actionId]: { ...prev[actionId], keys }
-      }));
-      setRecordingId(null);
-    };
-
-    return (
-      <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
-        {Object.values(shortcuts).map(sc => (
-          <div key={sc.id} className="flex items-center justify-between p-3 rounded border" style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.bgMain }}>
-            <span className="text-sm font-medium" style={{ color: theme.colors.textMain }}>{sc.label}</span>
-            <button 
-              onClick={() => setRecordingId(sc.id)}
-              onKeyDown={(e) => recordingId === sc.id && handleRecord(e, sc.id)}
-              className={`px-3 py-1.5 rounded border text-xs font-mono min-w-[80px] text-center transition-colors ${recordingId === sc.id ? 'ring-2' : ''}`}
-              style={{ 
-                borderColor: recordingId === sc.id ? theme.colors.accent : theme.colors.border,
-                backgroundColor: recordingId === sc.id ? theme.colors.accentDim : theme.colors.bgActivity,
-                color: recordingId === sc.id ? theme.colors.accent : theme.colors.textDim,
-                ringColor: theme.colors.accent
-              }}
-            >
-              {recordingId === sc.id ? 'Press keys...' : sc.keys.join(' + ')}
-            </button>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  const ThemePicker = () => {
-    const grouped = Object.values(THEMES).reduce((acc, t) => {
-      if (!acc[t.mode]) acc[t.mode] = [];
-      acc[t.mode].push(t);
-      return acc;
-    }, {} as Record<string, Theme[]>);
-
-    return (
-      <div className="space-y-6">
-        {['dark', 'light'].map(mode => (
-          <div key={mode}>
-            <div className="text-xs font-bold uppercase mb-3 flex items-center gap-2" style={{ color: theme.colors.textDim }}>
-              {mode === 'dark' ? <Moon className="w-3 h-3" /> : <Sun className="w-3 h-3" />}
-              {mode} Mode
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {grouped[mode]?.map(t => (
-                 <button
-                   key={t.id}
-                   onClick={() => setActiveThemeId(t.id)}
-                   className={`p-3 rounded-lg border text-left transition-all ${activeThemeId === t.id ? 'ring-2' : ''}`}
-                   style={{ 
-                     borderColor: theme.colors.border,
-                     backgroundColor: t.colors.bgSidebar,
-                     ringColor: theme.colors.accent
-                   }}
-                 >
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-bold" style={{ color: t.colors.textMain }}>{t.name}</span>
-                      {activeThemeId === t.id && <div className="w-2 h-2 rounded-full" style={{ backgroundColor: theme.colors.accent }} />}
-                    </div>
-                    <div className="flex h-3 rounded overflow-hidden">
-                      <div className="flex-1" style={{ backgroundColor: t.colors.bgMain }} />
-                      <div className="flex-1" style={{ backgroundColor: t.colors.bgActivity }} />
-                      <div className="flex-1" style={{ backgroundColor: t.colors.accent }} />
-                    </div>
-                 </button>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
   // --- RENDER ---
 
   // Recursive File Tree Renderer
-  // Check if file should be opened in external app
-  const shouldOpenExternally = (filename: string): boolean => {
-    const ext = filename.split('.').pop()?.toLowerCase();
-    // File types that should open in default system app
-    const externalExtensions = [
-      'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', // Documents
-      'zip', 'tar', 'gz', 'rar', '7z', // Archives
-      'exe', 'dmg', 'app', 'deb', 'rpm', // Executables/Installers
-      'mp4', 'avi', 'mov', 'mkv', 'mp3', 'wav', 'flac', // Media files
-    ];
-    return externalExtensions.includes(ext || '');
-  };
 
   const handleFileClick = async (node: any, path: string) => {
     if (node.type === 'file') {
@@ -1212,46 +1110,6 @@ export default function MaestroConsole() {
     }
   };
 
-  // Load file tree from directory
-  const loadFileTree = async (dirPath: string, maxDepth = 3, currentDepth = 0): Promise<any[]> => {
-    if (currentDepth >= maxDepth) return [];
-
-    try {
-      const entries = await window.maestro.fs.readDir(dirPath);
-      const tree: any[] = [];
-
-      for (const entry of entries) {
-        // Skip hidden files and common ignore patterns
-        if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === '__pycache__') {
-          continue;
-        }
-
-        if (entry.isDirectory) {
-          const children = await loadFileTree(`${dirPath}/${entry.name}`, maxDepth, currentDepth + 1);
-          tree.push({
-            name: entry.name,
-            type: 'folder',
-            children
-          });
-        } else if (entry.isFile) {
-          tree.push({
-            name: entry.name,
-            type: 'file'
-          });
-        }
-      }
-
-      return tree.sort((a, b) => {
-        // Folders first, then alphabetically
-        if (a.type === 'folder' && b.type !== 'folder') return -1;
-        if (a.type !== 'folder' && b.type === 'folder') return 1;
-        return a.name.localeCompare(b.name);
-      });
-    } catch (error) {
-      console.error('Error loading file tree:', error);
-      throw error; // Propagate error to be caught in useEffect
-    }
-  };
 
   const updateSessionWorkingDirectory = async () => {
     const newPath = await window.maestro.dialog.selectFolder();
@@ -1285,20 +1143,6 @@ export default function MaestroConsole() {
 
   // Expand all folders in file tree
   const expandAllFolders = () => {
-    const getAllFolderPaths = (nodes: any[], currentPath = ''): string[] => {
-      let paths: string[] = [];
-      nodes.forEach((node) => {
-        if (node.type === 'folder') {
-          const fullPath = currentPath ? `${currentPath}/${node.name}` : node.name;
-          paths.push(fullPath);
-          if (node.children) {
-            paths = paths.concat(getAllFolderPaths(node.children, fullPath));
-          }
-        }
-      });
-      return paths;
-    };
-
     setSessions(prev => prev.map(s => {
       if (s.id !== activeSessionId) return s;
       if (!s.fileTree) return s;
@@ -1315,20 +1159,6 @@ export default function MaestroConsole() {
     }));
   };
 
-  // Flatten file tree for keyboard navigation
-  const flattenTree = (nodes: any[], expandedSet: Set<string>, currentPath = ''): any[] => {
-    let result: any[] = [];
-    nodes.forEach((node) => {
-      const fullPath = currentPath ? `${currentPath}/${node.name}` : node.name;
-      const isFolder = node.type === 'folder';
-      result.push({ ...node, fullPath, isFolder });
-
-      if (isFolder && expandedSet.has(fullPath) && node.children) {
-        result = result.concat(flattenTree(node.children, expandedSet, fullPath));
-      }
-    });
-    return result;
-  };
 
   // Load file tree when active session changes
   useEffect(() => {
