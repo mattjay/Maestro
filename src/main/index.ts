@@ -125,6 +125,31 @@ function createWindow() {
   });
 }
 
+// Set up global error handlers for uncaught exceptions
+process.on('uncaughtException', (error: Error) => {
+  logger.error(
+    `Uncaught Exception: ${error.message}`,
+    'UncaughtException',
+    {
+      stack: error.stack,
+      name: error.name,
+    }
+  );
+  // Don't exit the process - let it continue running
+});
+
+process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
+  logger.error(
+    `Unhandled Promise Rejection: ${reason?.message || String(reason)}`,
+    'UnhandledRejection',
+    {
+      reason: reason,
+      stack: reason?.stack,
+      promise: String(promise),
+    }
+  );
+});
+
 app.whenReady().then(() => {
   // Load logger settings first
   const logLevel = store.get('logLevel', 'info');
