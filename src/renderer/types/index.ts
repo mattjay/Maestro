@@ -74,7 +74,9 @@ export interface Session {
   scratchPadContent: string;
   contextUsage: number;
   inputMode: 'terminal' | 'ai';
-  pid: number;
+  // Dual-process PIDs: each session has both AI and terminal processes
+  aiPid: number;
+  terminalPid: number;
   port: number;
   tunnelActive: boolean;
   tunnelUrl?: string;

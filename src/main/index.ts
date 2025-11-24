@@ -341,6 +341,19 @@ function setupIpcHandlers() {
     return webServer?.getUrl();
   });
 
+  // Helper to strip non-serializable functions from agent configs
+  const stripAgentFunctions = (agent: any) => {
+    if (!agent) return null;
+
+    return {
+      ...agent,
+      configOptions: agent.configOptions?.map((opt: any) => {
+        const { argBuilder, ...serializableOpt } = opt;
+        return serializableOpt;
+      })
+    };
+  };
+
   // Agent management
   ipcMain.handle('agents:detect', async () => {
     if (!agentDetector) throw new Error('Agent detector not initialized');
@@ -349,13 +362,16 @@ function setupIpcHandlers() {
     logger.info(`Detected ${agents.length} agents`, 'AgentDetector', {
       agents: agents.map(a => a.id)
     });
-    return agents;
+    // Strip argBuilder functions before sending over IPC
+    return agents.map(stripAgentFunctions);
   });
 
   ipcMain.handle('agents:get', async (_event, agentId: string) => {
     if (!agentDetector) throw new Error('Agent detector not initialized');
     logger.debug(`Getting agent: ${agentId}`, 'AgentDetector');
-    return agentDetector.getAgent(agentId);
+    const agent = await agentDetector.getAgent(agentId);
+    // Strip argBuilder functions before sending over IPC
+    return stripAgentFunctions(agent);
   });
 
   // Agent configuration management

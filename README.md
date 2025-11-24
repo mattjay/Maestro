@@ -97,6 +97,8 @@ maestro/
 - Lucide React (icons)
 - marked (Markdown rendering)
 - react-syntax-highlighter (code highlighting)
+- ansi-to-html (ANSI escape code rendering)
+- dompurify (HTML sanitization)
 - emoji-mart (emoji picker)
 
 ### Development Scripts
@@ -180,12 +182,12 @@ Settings are stored in:
 
 ### Process Management
 
-Maestro uses a dual-process model:
+Maestro uses a dual-process architecture where **each session runs two processes simultaneously**:
 
-1. **PTY Processes** - For terminal sessions (full shell emulation)
-2. **Child Processes** - For AI tools (Claude Code, Aider, etc.)
+1. **AI Agent Process** - Runs the selected AI tool (Claude Code, Aider, etc.) as a child process
+2. **Terminal Process** - Runs a PTY shell session for command execution
 
-All processes are managed through IPC (Inter-Process Communication) with secure context isolation.
+This architecture enables seamless switching between AI and terminal modes without process restarts. All processes are managed through IPC (Inter-Process Communication) with secure context isolation.
 
 ### Security
 

@@ -57,12 +57,23 @@ export class ProcessManager extends EventEmitter {
 
         // Handle output
         ptyProcess.onData((data) => {
+          console.log(`[ProcessManager] PTY onData for session ${sessionId} (PID ${ptyProcess.pid}):`, data.substring(0, 100));
           this.emit('data', sessionId, data);
         });
 
         ptyProcess.onExit(({ exitCode }) => {
+          console.log(`[ProcessManager] PTY onExit for session ${sessionId}:`, exitCode);
           this.emit('exit', sessionId, exitCode);
           this.processes.delete(sessionId);
+        });
+
+        console.log(`[ProcessManager] PTY process created:`, {
+          sessionId,
+          toolType,
+          isTerminal: true,
+          pid: ptyProcess.pid,
+          shell,
+          cwd
         });
 
         return { pid: ptyProcess.pid, success: true };
@@ -119,16 +130,34 @@ export class ProcessManager extends EventEmitter {
    */
   write(sessionId: string, data: string): boolean {
     const process = this.processes.get(sessionId);
-    if (!process) return false;
+    if (!process) {
+      console.error(`[ProcessManager] write() - No process found for session: ${sessionId}`);
+      return false;
+    }
+
+    console.log('[ProcessManager] write() - Process info:', {
+      sessionId,
+      toolType: process.toolType,
+      isTerminal: process.isTerminal,
+      pid: process.pid,
+      hasPtyProcess: !!process.ptyProcess,
+      hasChildProcess: !!process.childProcess,
+      hasStdin: !!process.childProcess?.stdin,
+      dataLength: data.length,
+      dataPreview: data.substring(0, 50)
+    });
 
     try {
       if (process.isTerminal && process.ptyProcess) {
+        console.log(`[ProcessManager] Writing to PTY process (PID ${process.pid})`);
         process.ptyProcess.write(data);
         return true;
       } else if (process.childProcess?.stdin) {
+        console.log(`[ProcessManager] Writing to child process stdin (PID ${process.pid})`);
         process.childProcess.stdin.write(data);
         return true;
       }
+      console.error(`[ProcessManager] No valid input stream for session: ${sessionId}`);
       return false;
     } catch (error) {
       console.error('Failed to write to process:', error);

@@ -154,18 +154,46 @@ export function useSessionManager(): UseSessionManagerReturn {
   const createNewSession = async (agentId: string, workingDir: string, name: string) => {
     const newId = generateId();
 
-    // Spawn the process first to get the real PID
+    // Get agent definition to get correct command
+    const agent = await window.maestro.agents.get(agentId);
+    if (!agent) {
+      console.error(`Agent not found: ${agentId}`);
+      return;
+    }
+
+    // Get terminal agent definition
+    const terminalAgent = await window.maestro.agents.get('terminal');
+    if (!terminalAgent) {
+      console.error('Terminal agent not found');
+      return;
+    }
+
+    // Spawn BOTH processes - this is the dual-process architecture
     try {
-      const spawnResult = await window.maestro.process.spawn({
-        sessionId: newId,
+      // 1. Spawn AI agent process
+      const aiSpawnResult = await window.maestro.process.spawn({
+        sessionId: `${newId}-ai`,
         toolType: agentId,
         cwd: workingDir,
-        command: agentId === 'terminal' ? 'bash' : agentId, // For terminal, command is ignored by ProcessManager
-        args: []
+        command: agent.command,
+        args: agent.args || []
       });
 
-      if (!spawnResult.success || spawnResult.pid <= 0) {
-        throw new Error('Failed to spawn process');
+      if (!aiSpawnResult.success || aiSpawnResult.pid <= 0) {
+        throw new Error('Failed to spawn AI agent process');
+      }
+
+      // 2. Spawn terminal process
+      const terminalSpawnResult = await window.maestro.process.spawn({
+        sessionId: `${newId}-terminal`,
+        toolType: 'terminal',
+        cwd: workingDir,
+        command: terminalAgent.command,
+        args: terminalAgent.args || []
+      });
+
+      if (!terminalSpawnResult.success || terminalSpawnResult.pid <= 0) {
+        throw new Error('Failed to spawn terminal process');
       }
 
       const newSession: Session = {
@@ -182,7 +210,9 @@ export function useSessionManager(): UseSessionManagerReturn {
         scratchPadContent: '',
         contextUsage: 0,
         inputMode: agentId === 'terminal' ? 'terminal' : 'ai',
-        pid: spawnResult.pid, // Use real PID from spawned process
+        // Store both PIDs - each session now has two processes
+        aiPid: aiSpawnResult.pid,
+        terminalPid: terminalSpawnResult.pid,
         port: 3000 + Math.floor(Math.random() * 100),
         tunnelActive: false,
         changedFiles: [],

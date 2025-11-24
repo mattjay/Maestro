@@ -106,12 +106,16 @@ Events are emitted back to renderer via:
 
 ### Session Model
 
-Each "session" is a unified abstraction with these attributes:
-- `sessionId` - Unique identifier
+Each "session" is a unified abstraction running **two processes simultaneously** (dual-process architecture):
+- `sessionId` - Unique identifier (suffixed with `-ai` or `-terminal` for each process)
 - `toolType` - Agent type (claude-code, aider, terminal, custom)
 - `cwd` - Working directory
 - `state` - Current state (idle, busy, error)
-- `stdinMode` - Input routing mode (terminal vs AI)
+- `inputMode` - Input routing mode ('terminal' or 'ai')
+- `aiPid` - Process ID for the AI agent process
+- `terminalPid` - Process ID for the terminal process
+
+This dual-process model allows seamless switching between AI and terminal modes without restarting processes. Input is routed to the appropriate process based on `inputMode`.
 
 ### IPC Security Model
 
@@ -744,6 +748,7 @@ export async function buildFileTree(dirPath: string): Promise<FileTreeNode[]> {
 - Lucide React - Icons
 - react-syntax-highlighter - Code display
 - marked - Markdown rendering
+- ansi-to-html - ANSI escape code rendering for terminal output
 - dompurify - XSS prevention
 
 ## Settings Storage
@@ -935,6 +940,11 @@ Currently no test suite implemented. When adding tests, use the `test` script in
 
 ## Recent Features Added
 
+- **Dual-Process Architecture** - Each session now runs two processes simultaneously (AI agent + terminal) enabling seamless mode switching without process restarts
+- **ANSI Terminal Rendering** - Terminal output now properly renders ANSI escape codes with theme-aware colors using ansi-to-html
+- **Terminal Output Filtering** - Bash prompts automatically filtered from terminal output for cleaner display
+- **Session Restoration Improvements** - Automatic detection and fixing of corrupted sessions with mismatched inputMode/toolType
+- **Agent Config Serialization** - Non-serializable functions stripped from agent configs before IPC transmission
 - **System Log Viewer** - Cmd+K → "View System Logs" for internal logging with color-coded levels, search, and export
 - **Structured Logging** - Configurable log levels (Debug, Info, Warn, Error) with persistence and UI controls
 - **Component Extraction** - MainPanel component to keep App.tsx minimal and maintainable

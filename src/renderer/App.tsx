@@ -260,37 +260,99 @@ export default function MaestroConsole() {
   // Restore a persisted session by respawning its process
   const restoreSession = async (session: Session): Promise<Session> => {
     try {
-      // Spawn new process for this session
-      const spawnResult = await window.maestro.process.spawn({
-        sessionId: session.id,
-        toolType: session.toolType,
-        cwd: session.cwd,
-        command: session.toolType === 'terminal' ? 'bash' : session.toolType,
-        args: []
+      // Detect and fix inputMode/toolType mismatch
+      // If inputMode is 'terminal' but toolType is not 'terminal', fix it
+      let correctedSession = { ...session };
+      if (session.inputMode === 'terminal' && session.toolType !== 'terminal') {
+        console.warn(`[restoreSession] Fixing corrupted session: inputMode='terminal' but toolType='${session.toolType}'`);
+        correctedSession.toolType = 'terminal' as ToolType;
+
+        const targetLogKey = 'shellLogs';
+        correctedSession[targetLogKey] = [
+          ...correctedSession[targetLogKey],
+          {
+            id: generateId(),
+            timestamp: Date.now(),
+            source: 'system',
+            text: '⚠️ Session was corrupted (wrong process type). Fixed automatically.'
+          }
+        ];
+      }
+
+      // Get agent definitions for both processes
+      const agent = await window.maestro.agents.get(correctedSession.toolType);
+      if (!agent) {
+        console.error(`Agent not found for toolType: ${correctedSession.toolType}`);
+        return {
+          ...correctedSession,
+          aiPid: -1,
+          terminalPid: -1,
+          state: 'error' as SessionState
+        };
+      }
+
+      const terminalAgent = await window.maestro.agents.get('terminal');
+      if (!terminalAgent) {
+        console.error('Terminal agent not found');
+        return {
+          ...correctedSession,
+          aiPid: -1,
+          terminalPid: -1,
+          state: 'error' as SessionState
+        };
+      }
+
+      // Spawn BOTH processes for dual-process architecture
+      // 1. Spawn AI agent process
+      const aiSpawnResult = await window.maestro.process.spawn({
+        sessionId: `${correctedSession.id}-ai`,
+        toolType: correctedSession.toolType,
+        cwd: correctedSession.cwd,
+        command: agent.command,
+        args: agent.args || []
       });
 
-      if (spawnResult.success && spawnResult.pid > 0) {
-        // Add restoration message to logs
-        const targetLogKey = session.inputMode === 'ai' ? 'aiLogs' : 'shellLogs';
-        const restorationLog: LogEntry = {
+      // 2. Spawn terminal process
+      const terminalSpawnResult = await window.maestro.process.spawn({
+        sessionId: `${correctedSession.id}-terminal`,
+        toolType: 'terminal',
+        cwd: correctedSession.cwd,
+        command: terminalAgent.command,
+        args: terminalAgent.args || []
+      });
+
+      if (aiSpawnResult.success && aiSpawnResult.pid > 0 &&
+          terminalSpawnResult.success && terminalSpawnResult.pid > 0) {
+        // Add restoration messages to both log arrays
+        const aiRestorationLog: LogEntry = {
           id: generateId(),
           timestamp: Date.now(),
           source: 'system',
-          text: 'Session restored after app restart'
+          text: 'AI agent restored after app restart'
+        };
+
+        const terminalRestorationLog: LogEntry = {
+          id: generateId(),
+          timestamp: Date.now(),
+          source: 'system',
+          text: 'Terminal restored after app restart'
         };
 
         return {
-          ...session,
-          pid: spawnResult.pid, // Update with new PID
+          ...correctedSession,
+          aiPid: aiSpawnResult.pid,
+          terminalPid: terminalSpawnResult.pid,
           state: 'idle' as SessionState,
-          [targetLogKey]: [...session[targetLogKey], restorationLog]
+          aiLogs: [...correctedSession.aiLogs, aiRestorationLog],
+          shellLogs: [...correctedSession.shellLogs, terminalRestorationLog]
         };
       } else {
         // Process spawn failed
         console.error(`Failed to restore session ${session.id}`);
         return {
           ...session,
-          pid: -1,
+          aiPid: -1,
+          terminalPid: -1,
           state: 'error' as SessionState
         };
       }
@@ -298,7 +360,8 @@ export default function MaestroConsole() {
       console.error(`Error restoring session ${session.id}:`, error);
       return {
         ...session,
-        pid: -1,
+        aiPid: -1,
+        terminalPid: -1,
         state: 'error' as SessionState
       };
     }
@@ -393,11 +456,31 @@ export default function MaestroConsole() {
   // Set up process event listeners for real-time output
   useEffect(() => {
     // Handle process output data
+    // sessionId will be in format: "{id}-ai" or "{id}-terminal"
     const unsubscribeData = window.maestro.process.onData((sessionId: string, data: string) => {
-      setSessions(prev => prev.map(s => {
-        if (s.id !== sessionId) return s;
+      console.log('[onData] Received data for session:', sessionId, 'Data:', data);
 
-        const targetLogKey = s.inputMode === 'ai' ? 'aiLogs' : 'shellLogs';
+      // Parse sessionId to determine which process this is from
+      let actualSessionId: string;
+      let isFromAi: boolean;
+
+      if (sessionId.endsWith('-ai')) {
+        actualSessionId = sessionId.slice(0, -3); // Remove "-ai" suffix
+        isFromAi = true;
+      } else if (sessionId.endsWith('-terminal')) {
+        actualSessionId = sessionId.slice(0, -9); // Remove "-terminal" suffix
+        isFromAi = false;
+      } else {
+        // Fallback for old sessions without suffix
+        actualSessionId = sessionId;
+        isFromAi = false;
+      }
+
+      setSessions(prev => prev.map(s => {
+        if (s.id !== actualSessionId) return s;
+
+        // Route to correct log array based on which process sent the data
+        const targetLogKey = isFromAi ? 'aiLogs' : 'shellLogs';
         const newLog: LogEntry = {
           id: generateId(),
           timestamp: Date.now(),
@@ -405,8 +488,10 @@ export default function MaestroConsole() {
           text: data
         };
 
+        console.log('[onData] Adding to', targetLogKey, 'for session', actualSessionId);
         return {
           ...s,
+          state: 'idle' as SessionState, // Set back to idle when output arrives
           [targetLogKey]: [...s[targetLogKey], newLog]
         };
       }));
@@ -414,15 +499,32 @@ export default function MaestroConsole() {
 
     // Handle process exit
     const unsubscribeExit = window.maestro.process.onExit((sessionId: string, code: number) => {
-      setSessions(prev => prev.map(s => {
-        if (s.id !== sessionId) return s;
+      // Parse sessionId to determine which process exited
+      let actualSessionId: string;
+      let isFromAi: boolean;
 
-        const targetLogKey = s.inputMode === 'ai' ? 'aiLogs' : 'shellLogs';
+      if (sessionId.endsWith('-ai')) {
+        actualSessionId = sessionId.slice(0, -3);
+        isFromAi = true;
+      } else if (sessionId.endsWith('-terminal')) {
+        actualSessionId = sessionId.slice(0, -9);
+        isFromAi = false;
+      } else {
+        actualSessionId = sessionId;
+        isFromAi = false;
+      }
+
+      setSessions(prev => prev.map(s => {
+        if (s.id !== actualSessionId) return s;
+
+        // Route to correct log array based on which process exited
+        const targetLogKey = isFromAi ? 'aiLogs' : 'shellLogs';
+        const processType = isFromAi ? 'AI agent' : 'Terminal';
         const exitLog: LogEntry = {
           id: generateId(),
           timestamp: Date.now(),
           source: 'system',
-          text: `Process exited with code ${code}`
+          text: `${processType} process exited with code ${code}`
         };
 
         return {
@@ -876,7 +978,20 @@ export default function MaestroConsole() {
 
     showConfirmation(
       `Are you sure you want to delete "${session.name}"? This action cannot be undone.`,
-      () => {
+      async () => {
+        // Kill both processes for this session
+        try {
+          await window.maestro.process.kill(`${id}-ai`);
+        } catch (error) {
+          console.error('Failed to kill AI process:', error);
+        }
+
+        try {
+          await window.maestro.process.kill(`${id}-terminal`);
+        } catch (error) {
+          console.error('Failed to kill terminal process:', error);
+        }
+
         const newSessions = sessions.filter(s => s.id !== id);
         setSessions(newSessions);
         if (newSessions.length > 0) {
@@ -895,18 +1010,46 @@ export default function MaestroConsole() {
   const createNewSession = async (agentId: string, workingDir: string, name: string) => {
     const newId = generateId();
 
-    // Spawn the process first to get the real PID
+    // Get agent definition to get correct command
+    const agent = await window.maestro.agents.get(agentId);
+    if (!agent) {
+      console.error(`Agent not found: ${agentId}`);
+      return;
+    }
+
+    // Get terminal agent definition
+    const terminalAgent = await window.maestro.agents.get('terminal');
+    if (!terminalAgent) {
+      console.error('Terminal agent not found');
+      return;
+    }
+
+    // Spawn BOTH processes - this is the dual-process architecture
     try {
-      const spawnResult = await window.maestro.process.spawn({
-        sessionId: newId,
+      // 1. Spawn AI agent process
+      const aiSpawnResult = await window.maestro.process.spawn({
+        sessionId: `${newId}-ai`,
         toolType: agentId,
         cwd: workingDir,
-        command: agentId === 'terminal' ? 'bash' : agentId, // For terminal, command is ignored by ProcessManager
-        args: []
+        command: agent.command,
+        args: agent.args || []
       });
 
-      if (!spawnResult.success || spawnResult.pid <= 0) {
-        throw new Error('Failed to spawn process');
+      if (!aiSpawnResult.success || aiSpawnResult.pid <= 0) {
+        throw new Error('Failed to spawn AI agent process');
+      }
+
+      // 2. Spawn terminal process
+      const terminalSpawnResult = await window.maestro.process.spawn({
+        sessionId: `${newId}-terminal`,
+        toolType: 'terminal',
+        cwd: workingDir,
+        command: terminalAgent.command,
+        args: terminalAgent.args || []
+      });
+
+      if (!terminalSpawnResult.success || terminalSpawnResult.pid <= 0) {
+        throw new Error('Failed to spawn terminal process');
       }
 
       const newSession: Session = {
@@ -923,7 +1066,9 @@ export default function MaestroConsole() {
         scratchPadContent: '',
         contextUsage: 0,
         inputMode: agentId === 'terminal' ? 'terminal' : 'ai',
-        pid: spawnResult.pid, // Use real PID from spawned process
+        // Store both PIDs - each session now has two processes
+        aiPid: aiSpawnResult.pid,
+        terminalPid: terminalSpawnResult.pid,
         port: 3000 + Math.floor(Math.random() * 100),
         tunnelActive: false,
         changedFiles: [],
@@ -1129,11 +1274,15 @@ export default function MaestroConsole() {
     // Reset height
     if (inputRef.current) inputRef.current.style.height = 'auto';
 
-    // Write to process stdin
-    if (activeSession.pid > 0) {
+    // Write to the appropriate process based on inputMode
+    // Each session has TWO processes: AI agent and terminal
+    const targetPid = currentMode === 'ai' ? activeSession.aiPid : activeSession.terminalPid;
+    const targetSessionId = currentMode === 'ai' ? `${activeSession.id}-ai` : `${activeSession.id}-terminal`;
+
+    if (targetPid > 0) {
       // Add newline for terminal/shell commands
       const dataToSend = currentMode === 'terminal' ? inputValue + '\n' : inputValue;
-      window.maestro.process.write(activeSession.id, dataToSend).catch(error => {
+      window.maestro.process.write(targetSessionId, dataToSend).catch(error => {
         console.error('Failed to write to process:', error);
         setSessions(prev => prev.map(s => {
           if (s.id !== activeSessionId) return s;

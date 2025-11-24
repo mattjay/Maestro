@@ -1,6 +1,8 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import { Activity, X } from 'lucide-react';
 import type { Session, Theme, LogEntry } from '../types';
+import Convert from 'ansi-to-html';
+import DOMPurify from 'dompurify';
 
 interface TerminalOutputProps {
   session: Session;
@@ -31,6 +33,44 @@ export function TerminalOutput(props: TerminalOutputProps) {
       terminalOutputRef.current?.querySelector('input')?.focus();
     }
   }, [outputSearchOpen]);
+
+  // Create ANSI converter with theme-aware colors
+  const ansiConverter = useMemo(() => {
+    return new Convert({
+      fg: theme.colors.textMain,
+      bg: theme.colors.bgMain,
+      newline: false,
+      escapeXML: true,
+      stream: false,
+      colors: {
+        0: theme.colors.textMain,   // black -> textMain
+        1: theme.colors.error,       // red -> error
+        2: theme.colors.success,     // green -> success
+        3: theme.colors.warning,     // yellow -> warning
+        4: theme.colors.accent,      // blue -> accent
+        5: theme.colors.accentDim,   // magenta -> accentDim
+        6: theme.colors.accent,      // cyan -> accent
+        7: theme.colors.textDim,     // white -> textDim
+      }
+    });
+  }, [theme]);
+
+  // Filter out bash prompt lines and apply processing
+  const processLogText = (text: string, isTerminal: boolean): string => {
+    if (!isTerminal) return text;
+
+    // Remove bash prompt lines (e.g., "bash-3.2$", "zsh%", "$", "#")
+    const lines = text.split('\n');
+    const filteredLines = lines.filter(line => {
+      const trimmed = line.trim();
+      // Skip empty lines and common prompt patterns
+      if (!trimmed) return false;
+      if (/^(bash-\d+\.\d+\$|zsh[%#]|\$|#)\s*$/.test(trimmed)) return false;
+      return true;
+    });
+
+    return filteredLines.join('\n');
+  };
 
   const activeLogs: LogEntry[] = session.inputMode === 'ai' ? session.aiLogs : session.shellLogs;
 
@@ -74,27 +114,48 @@ export function TerminalOutput(props: TerminalOutputProps) {
       {activeLogs.filter(log => {
         if (!outputSearchQuery) return true;
         return log.text.toLowerCase().includes(outputSearchQuery.toLowerCase());
-      }).map(log => (
-        <div key={log.id} className={`flex gap-4 group ${log.source === 'user' ? 'flex-row-reverse' : ''}`}>
-          <div className="w-12 shrink-0 text-[10px] opacity-40 pt-2 font-mono text-center">
-            {new Date(log.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+      }).map(log => {
+        const isTerminal = session.inputMode === 'terminal';
+        const processedText = processLogText(log.text, isTerminal && log.source !== 'user');
+
+        // Skip rendering if text is empty after processing
+        if (!processedText.trim() && log.source !== 'user') return null;
+
+        // Convert ANSI codes to HTML for terminal output and sanitize
+        const htmlContent = isTerminal && log.source !== 'user'
+          ? DOMPurify.sanitize(ansiConverter.toHtml(processedText))
+          : processedText;
+
+        return (
+          <div key={log.id} className={`flex gap-4 group ${log.source === 'user' ? 'flex-row-reverse' : ''}`}>
+            <div className="w-12 shrink-0 text-[10px] opacity-40 pt-2 font-mono text-center">
+              {new Date(log.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+            </div>
+            <div className={`flex-1 p-4 rounded-xl border ${log.source === 'user' ? 'rounded-tr-none' : 'rounded-tl-none'}`}
+                 style={{
+                   backgroundColor: log.source === 'user' ? theme.colors.bgActivity : 'transparent',
+                   borderColor: theme.colors.border
+                 }}>
+              {log.images && log.images.length > 0 && (
+                <div className="flex gap-2 mb-2 overflow-x-auto">
+                  {log.images.map((img, idx) => (
+                    <img key={idx} src={img} className="h-20 rounded border cursor-zoom-in" onClick={() => setLightboxImage(img)} />
+                  ))}
+                </div>
+              )}
+              {isTerminal && log.source !== 'user' ? (
+                <div
+                  className="whitespace-pre-wrap text-sm font-mono overflow-x-auto"
+                  dangerouslySetInnerHTML={{ __html: htmlContent }}
+                  style={{ color: theme.colors.textMain }}
+                />
+              ) : (
+                <div className="whitespace-pre-wrap text-sm">{processedText}</div>
+              )}
+            </div>
           </div>
-          <div className={`max-w-[80%] p-4 rounded-xl border ${log.source === 'user' ? 'rounded-tr-none' : 'rounded-tl-none'}`}
-               style={{
-                 backgroundColor: log.source === 'user' ? theme.colors.bgActivity : 'transparent',
-                 borderColor: theme.colors.border
-               }}>
-            {log.images && log.images.length > 0 && (
-              <div className="flex gap-2 mb-2 overflow-x-auto">
-                {log.images.map((img, idx) => (
-                  <img key={idx} src={img} className="h-20 rounded border cursor-zoom-in" onClick={() => setLightboxImage(img)} />
-                ))}
-              </div>
-            )}
-            <div className="whitespace-pre-wrap text-sm">{log.text}</div>
-          </div>
-        </div>
-      ))}
+        );
+      })}
       {session.state === 'busy' && (
         <div className="flex items-center justify-center gap-2 text-xs opacity-50 animate-pulse py-4">
           <Activity className="w-4 h-4" />
