@@ -209,8 +209,11 @@ export function QuickActionsModal(props: QuickActionsModalProps) {
       setSelectedIndex(prev => Math.max(prev - 1, 0));
     } else if (e.key === 'Enter') {
       if (filtered[selectedIndex]) {
-        filtered[selectedIndex].action();
-        if (!renamingSession && mode === 'main') {
+        const selectedAction = filtered[selectedIndex];
+        // Don't close modal if action switches modes
+        const switchesModes = selectedAction.id === 'moveToGroup' || selectedAction.id === 'back';
+        selectedAction.action();
+        if (!renamingSession && mode === 'main' && !switchesModes) {
           setQuickActionOpen(false);
         }
       }
@@ -273,7 +276,11 @@ export function QuickActionsModal(props: QuickActionsModalProps) {
                 <button
                   key={a.id}
                   ref={i === selectedIndex ? selectedItemRef : null}
-                  onClick={() => { a.action(); if (mode === 'main') setQuickActionOpen(false); }}
+                  onClick={() => {
+                    const switchesModes = a.id === 'moveToGroup' || a.id === 'back';
+                    a.action();
+                    if (mode === 'main' && !switchesModes) setQuickActionOpen(false);
+                  }}
                   className={`w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-opacity-10 ${i === selectedIndex ? 'bg-opacity-10' : ''}`}
                   style={{
                     backgroundColor: i === selectedIndex ? theme.colors.accent : 'transparent',

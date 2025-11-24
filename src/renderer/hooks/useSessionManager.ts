@@ -272,6 +272,11 @@ export function useSessionManager(): UseSessionManagerReturn {
   };
 
   const toggleInputMode = () => {
+    // Don't toggle if no active session
+    if (!activeSessionId) {
+      console.warn('toggleInputMode: No active session');
+      return;
+    }
     setSessions(prev => prev.map(s => {
       if (s.id !== activeSessionId) return s;
       return { ...s, inputMode: s.inputMode === 'ai' ? 'terminal' : 'ai' };
