@@ -11,6 +11,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { Scratchpad } from './components/Scratchpad';
 import { FilePreview } from './components/FilePreview';
 import { SessionList } from './components/SessionList';
+import { RightPanel } from './components/RightPanel';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 
@@ -26,13 +27,16 @@ import type {
 import { THEMES } from './constants/themes';
 import { DEFAULT_SHORTCUTS } from './constants/shortcuts';
 import { generateId } from './utils/ids';
-import { getContextColor, getStatusColor } from './utils/theme';
+import { getContextColor, getStatusColor, getFileIcon } from './utils/theme';
 import { fuzzyMatch } from './utils/search';
 
 export default function MaestroConsole() {
   // --- STATE ---
   const [sessions, setSessions] = useState<Session[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
+
+  // Track if initial data has been loaded to prevent overwriting on mount
+  const initialLoadComplete = useRef(false);
 
   const [activeSessionId, setActiveSessionId] = useState<string>(sessions[0]?.id || 's1');
   
@@ -292,6 +296,9 @@ export default function MaestroConsole() {
         console.error('Failed to load sessions/groups:', e);
         setSessions([]);
         setGroups([]);
+      } finally {
+        // Mark initial load as complete to enable persistence
+        initialLoadComplete.current = true;
       }
     };
     loadSessionsAndGroups();
@@ -341,13 +348,17 @@ export default function MaestroConsole() {
     return sorted;
   }, [sessions, groups]);
 
-  // Persist sessions and groups to electron-store
+  // Persist sessions and groups to electron-store (only after initial load)
   useEffect(() => {
-    window.maestro.sessions.setAll(sessions);
+    if (initialLoadComplete.current) {
+      window.maestro.sessions.setAll(sessions);
+    }
   }, [sessions]);
 
   useEffect(() => {
-    window.maestro.groups.setAll(groups);
+    if (initialLoadComplete.current) {
+      window.maestro.groups.setAll(groups);
+    }
   }, [groups]);
 
   // Set CSS variable for accent color (for scrollbar styling)
@@ -390,16 +401,6 @@ export default function MaestroConsole() {
       scrollTimeouts.clear();
     };
   }, []);
-
-  // --- HELPERS ---
-  const getFileIcon = (type?: FileChangeType) => {
-    switch (type) {
-      case 'added': return <FilePlus className="w-3.5 h-3.5" style={{ color: theme.colors.success }} />;
-      case 'deleted': return <Trash2 className="w-3.5 h-3.5" style={{ color: theme.colors.error }} />;
-      case 'modified': return <FileCode className="w-3.5 h-3.5" style={{ color: theme.colors.warning }} />;
-      default: return <FileText className="w-3.5 h-3.5" style={{ color: theme.colors.textDim }} />;
-    }
-  };
 
   // --- KEYBOARD MANAGEMENT ---
   const isShortcut = (e: KeyboardEvent, actionId: string) => {
@@ -1728,7 +1729,7 @@ export default function MaestroConsole() {
             {isFolder && (
               isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />
             )}
-            {isFolder ? <Folder className="w-3.5 h-3.5" style={{ color: theme.colors.accentText }} /> : getFileIcon(change?.type)}
+            {isFolder ? <Folder className="w-3.5 h-3.5" style={{ color: theme.colors.accentText }} /> : getFileIcon(change?.type, theme)}
             <span className={change ? 'font-medium' : ''}>{node.name}</span>
             {change && (
               <span
@@ -2748,198 +2749,37 @@ export default function MaestroConsole() {
         )}
       </div>
 
-      {/* --- RIGHT PANEL (Restored) --- */}
-      <div
-        tabIndex={0}
-        className={`border-l flex flex-col transition-all duration-300 outline-none relative ${rightPanelOpen ? '' : 'w-0 overflow-hidden opacity-0'} ${activeFocus === 'right' ? 'ring-1 ring-inset z-10' : ''}`}
-        style={{
-          width: rightPanelOpen ? `${rightPanelWidthState}px` : '0',
-          backgroundColor: theme.colors.bgSidebar,
-          borderColor: theme.colors.border,
-          ringColor: theme.colors.accent
-        }}
-        onClick={() => setActiveFocus('right')}
-        onFocus={() => setActiveFocus('right')}
-      >
-        {/* Resize Handle */}
-        {rightPanelOpen && (
-          <div
-            className="absolute top-0 left-0 w-1 h-full cursor-col-resize hover:bg-blue-500 transition-colors z-20"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              const startX = e.clientX;
-              const startWidth = rightPanelWidthState;
-
-              const handleMouseMove = (e: MouseEvent) => {
-                const delta = startX - e.clientX; // Reversed for right panel
-                const newWidth = Math.max(384, Math.min(800, startWidth + delta)); // 384px = w-96 original size
-                setRightPanelWidthState(newWidth);
-              };
-
-              const handleMouseUp = () => {
-                window.maestro.settings.set('rightPanelWidth', rightPanelWidthState);
-                document.removeEventListener('mousemove', handleMouseMove);
-                document.removeEventListener('mouseup', handleMouseUp);
-              };
-
-              document.addEventListener('mousemove', handleMouseMove);
-              document.addEventListener('mouseup', handleMouseUp);
-            }}
-          />
-        )}
-         <div className="flex border-b h-16" style={{ borderColor: theme.colors.border }}>
-            <button
-              onClick={() => setRightPanelOpen(!rightPanelOpen)}
-              className="flex items-center justify-center p-2 rounded hover:bg-white/5 transition-colors w-12 shrink-0"
-              title={`${rightPanelOpen ? "Collapse" : "Expand"} Right Panel (${shortcuts.toggleRightPanel.keys.join('+').replace('Meta', 'Cmd')})`}
-            >
-              {rightPanelOpen ? <PanelRightClose className="w-4 h-4 opacity-50" /> : <PanelRightOpen className="w-4 h-4 opacity-50" />}
-            </button>
-            {['files', 'history', 'scratchpad'].map(tab => {
-              const isHistoryTab = tab === 'history';
-              const isDisabled = isHistoryTab && activeSession.inputMode !== 'ai';
-
-              return (
-                <button
-                  key={tab}
-                  onClick={() => !isDisabled && setActiveRightTab(tab as RightPanelTab)}
-                  disabled={isDisabled}
-                  className="flex-1 text-xs font-bold border-b-2 capitalize transition-colors disabled:cursor-not-allowed"
-                  style={{
-                    borderColor: activeRightTab === tab ? theme.colors.accent : 'transparent',
-                    color: isDisabled ? theme.colors.textDim + '40' : (activeRightTab === tab ? theme.colors.textMain : theme.colors.textDim),
-                    opacity: isDisabled ? 0.3 : 1
-                  }}
-                  title={isDisabled ? 'History is only available in AI mode' : undefined}
-                >
-                  {tab}
-                </button>
-              );
-            })}
-         </div>
-         <div
-           ref={fileTreeContainerRef}
-           className="flex-1 px-4 pb-4 overflow-y-auto min-w-[24rem] outline-none"
-           tabIndex={-1}
-           onScroll={(e) => {
-             const scrollTop = e.currentTarget.scrollTop;
-             setSessions(prev => prev.map(s =>
-               s.id === activeSessionId ? { ...s, fileExplorerScrollPos: scrollTop } : s
-             ));
-           }}
-         >
-            {/* RE-IMPLEMENTED: FILE TREE */}
-            {activeRightTab === 'files' && (
-              <div className="space-y-2">
-                 {/* File Tree Filter */}
-                 {fileTreeFilterOpen && (
-                   <div className="mb-3">
-                     <input
-                       autoFocus
-                       type="text"
-                       placeholder="Filter files..."
-                       value={fileTreeFilter}
-                       onChange={(e) => setFileTreeFilter(e.target.value)}
-                       onKeyDown={(e) => {
-                         if (e.key === 'Escape') {
-                           setFileTreeFilterOpen(false);
-                           setFileTreeFilter('');
-                         }
-                       }}
-                       className="w-full px-3 py-2 rounded border bg-transparent outline-none text-sm"
-                       style={{ borderColor: theme.colors.accent, color: theme.colors.textMain }}
-                     />
-                   </div>
-                 )}
-                 <div
-                   className="sticky top-0 z-10 flex items-center justify-between text-xs font-bold pt-4 pb-2 mb-2 -mx-4 px-4"
-                   style={{ backgroundColor: theme.colors.bgSidebar }}
-                 >
-                   <span className="opacity-50">{activeSession.cwd}</span>
-                   <div className="flex items-center gap-1">
-                     <button
-                       onClick={expandAllFolders}
-                       className="p-1 rounded hover:bg-white/10 transition-colors"
-                       title="Expand all folders"
-                       style={{ color: theme.colors.textDim }}
-                     >
-                       <div className="flex flex-col items-center -space-y-1.5">
-                         <ChevronUp className="w-3.5 h-3.5" />
-                         <ChevronDown className="w-3.5 h-3.5" />
-                       </div>
-                     </button>
-                     <button
-                       onClick={collapseAllFolders}
-                       className="p-1 rounded hover:bg-white/10 transition-colors"
-                       title="Collapse all folders"
-                       style={{ color: theme.colors.textDim }}
-                     >
-                       <div className="flex flex-col items-center -space-y-1.5">
-                         <ChevronDown className="w-3.5 h-3.5" />
-                         <ChevronUp className="w-3.5 h-3.5" />
-                       </div>
-                     </button>
-                   </div>
-                 </div>
-                 {activeSession.fileTreeError ? (
-                   <div className="flex flex-col items-center justify-center gap-3 py-8">
-                     <div className="text-xs text-center" style={{ color: theme.colors.error }}>
-                       {activeSession.fileTreeError}
-                     </div>
-                     <button
-                       onClick={updateSessionWorkingDirectory}
-                       className="flex items-center gap-2 px-3 py-2 rounded border hover:bg-white/5 transition-colors text-xs"
-                       style={{ borderColor: theme.colors.border, color: theme.colors.textMain }}
-                     >
-                       <Folder className="w-4 h-4" />
-                       Select New Directory
-                     </button>
-                   </div>
-                 ) : (
-                   <>
-                     {(!activeSession.fileTree || activeSession.fileTree.length === 0) && <div className="text-xs opacity-50 italic">Loading files...</div>}
-                     {filteredFileTree && renderTree(filteredFileTree)}
-                     {fileTreeFilter && filteredFileTree && filteredFileTree.length === 0 && (
-                       <div className="text-xs opacity-50 italic text-center py-4">No files match your search</div>
-                     )}
-                   </>
-                 )}
-              </div>
-            )}
-
-            {/* RE-IMPLEMENTED: SEMANTIC HISTORY */}
-            {activeRightTab === 'history' && (
-              <div className="space-y-4">
-                 {activeSession.workLog.length === 0 ? (
-                   <div className="text-center py-8 text-xs opacity-50">No semantic logs yet.</div>
-                 ) : (
-                   activeSession.workLog.map(item => (
-                      <div key={item.id} className="relative pl-4 border-l pb-4 last:pb-0" style={{ borderColor: theme.colors.border }}>
-                        <div className="absolute -left-[5px] top-0 w-2.5 h-2.5 rounded-full border" style={{ backgroundColor: theme.colors.bgSidebar, borderColor: theme.colors.textDim }}></div>
-                        <div className="text-xs font-bold" style={{ color: theme.colors.textMain }}>{item.title}</div>
-                        <div className="text-xs mt-1 leading-relaxed opacity-70">{item.description}</div>
-                        <div className="text-[10px] mt-2 opacity-50">{new Date(item.timestamp).toLocaleTimeString()}</div>
-                      </div>
-                   ))
-                 )}
-              </div>
-            )}
-
-            {/* RE-IMPLEMENTED: SCRATCHPAD TOOLBAR */}
-            {activeRightTab === 'scratchpad' && (
-              <Scratchpad
-                content={activeSession.scratchPadContent}
-                onChange={updateScratchPad}
-                theme={theme}
-                initialMode={activeSession.scratchPadMode || 'edit'}
-                initialCursorPosition={activeSession.scratchPadCursorPosition || 0}
-                initialEditScrollPos={activeSession.scratchPadEditScrollPos || 0}
-                initialPreviewScrollPos={activeSession.scratchPadPreviewScrollPos || 0}
-                onStateChange={updateScratchPadState}
-              />
-            )}
-         </div>
-      </div>
+      {/* --- RIGHT PANEL --- */}
+      <RightPanel
+        session={activeSession}
+        theme={theme}
+        shortcuts={shortcuts}
+        rightPanelOpen={rightPanelOpen}
+        setRightPanelOpen={setRightPanelOpen}
+        rightPanelWidth={rightPanelWidthState}
+        setRightPanelWidthState={setRightPanelWidthState}
+        activeRightTab={activeRightTab}
+        setActiveRightTab={setActiveRightTab}
+        activeFocus={activeFocus}
+        setActiveFocus={setActiveFocus}
+        fileTreeFilter={fileTreeFilter}
+        setFileTreeFilter={setFileTreeFilter}
+        fileTreeFilterOpen={fileTreeFilterOpen}
+        setFileTreeFilterOpen={setFileTreeFilterOpen}
+        filteredFileTree={filteredFileTree}
+        selectedFileIndex={selectedFileIndex}
+        setSelectedFileIndex={setSelectedFileIndex}
+        previewFile={previewFile}
+        fileTreeContainerRef={fileTreeContainerRef}
+        toggleFolder={toggleFolder}
+        handleFileClick={handleFileClick}
+        expandAllFolders={expandAllFolders}
+        collapseAllFolders={collapseAllFolders}
+        updateSessionWorkingDirectory={updateSessionWorkingDirectory}
+        setSessions={setSessions}
+        updateScratchPad={updateScratchPad}
+        updateScratchPadState={updateScratchPadState}
+      />
         </>
       )}
 
