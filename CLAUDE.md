@@ -406,6 +406,15 @@ The main application is structured in three columns:
 - Arrow keys for scrolling, Escape to close
 - Auto-focuses when opened for immediate keyboard control
 
+#### GitStatusWidget (`src/renderer/components/GitStatusWidget.tsx`)
+- GitHub-style file change tracking widget in the main panel header
+- Displays counts of additions (green +), deletions (red -), and modifications (orange)
+- Hover tooltip shows list of all changed files with their status
+- Click to view full git diff in modal overlay
+- Automatically polls git status every 5 seconds
+- Only renders when session is in a Git repository
+- Integration: Used in MainPanel.tsx between LIVE button and Context Window
+
 ### Keyboard Navigation Patterns
 
 The app is keyboard-first with these patterns:
@@ -970,6 +979,15 @@ Currently no test suite implemented. When adding tests, use the `test` script in
 
 ## Recent Features Added
 
+- **Git Status Widget** - GitHub-style tracking widget in the header for Git repositories (PED-TRACK-GIT)
+  - Displays between the LIVE/OFFLINE button and Context Window progress bar
+  - Shows real-time counts of additions (green), deletions (red), and modifications (orange)
+  - Hover tooltip shows list of all changed files with status indicators
+  - Click to view full git diff in a modal overlay
+  - Automatically refreshes every 5 seconds to detect new changes
+  - Only appears when the current session is in a Git repository
+  - Escape key or backdrop click closes the diff preview
+  - Implementation: `GitStatusWidget.tsx` component, git service integration in `MainPanel.tsx`
 - **Per-Mode Input Send Behavior** - Separate Enter-to-send settings for AI and Terminal modes (PED-SEND-CONFIG)
   - AI mode defaults to Command+Enter to send (Enter creates new line)
   - Terminal mode defaults to Enter to send (Shift+Enter creates new line)
