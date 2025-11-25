@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 import type { Theme, Group } from '../types';
+import { useLayerStack } from '../contexts/LayerStackContext';
+import { MODAL_PRIORITIES } from '../constants/modalPriorities';
 
 interface RenameGroupModalProps {
   theme: Theme;
@@ -23,6 +25,36 @@ export function RenameGroupModal(props: RenameGroupModalProps) {
   } = props;
 
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const { registerLayer, unregisterLayer, updateLayerHandler } = useLayerStack();
+  const layerIdRef = useRef<string>();
+
+  // Register layer on mount
+  useEffect(() => {
+    const id = registerLayer({
+      id: 'rename-group-modal',
+      type: 'modal',
+      priority: MODAL_PRIORITIES.RENAME_GROUP,
+      blocksLowerLayers: true,
+      capturesFocus: true,
+      focusTrap: 'strict',
+      ariaLabel: 'Rename Group',
+      onEscape: onClose
+    });
+    layerIdRef.current = id;
+
+    return () => {
+      if (layerIdRef.current) {
+        unregisterLayer(layerIdRef.current);
+      }
+    };
+  }, []);
+
+  // Update handler when dependencies change
+  useEffect(() => {
+    if (layerIdRef.current) {
+      updateLayerHandler(layerIdRef.current, onClose);
+    }
+  }, [onClose, updateLayerHandler]);
 
   const handleRename = () => {
     if (groupName.trim() && groupId) {
@@ -37,6 +69,11 @@ export function RenameGroupModal(props: RenameGroupModalProps) {
   return (
     <div
       className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[9999] animate-in fade-in duration-200"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Rename Group"
+      tabIndex={-1}
+      ref={(el) => el?.focus()}
       onKeyDown={(e) => {
         if (e.key !== 'Escape') {
           e.stopPropagation();
@@ -80,9 +117,6 @@ export function RenameGroupModal(props: RenameGroupModalProps) {
                   if (e.key === 'Enter') {
                     e.preventDefault();
                     handleRename();
-                  } else if (e.key === 'Escape') {
-                    e.preventDefault();
-                    onClose();
                   }
                 }}
                 placeholder="Enter group name..."
