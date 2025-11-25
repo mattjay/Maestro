@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { X } from 'lucide-react';
 import type { Theme, Session } from '../types';
+import { useLayerStack } from '../hooks/useLayerStack';
+import { MODAL_PRIORITIES } from '../constants/modalPriorities';
 
 interface RenameSessionModalProps {
   theme: Theme;
@@ -14,6 +16,9 @@ interface RenameSessionModalProps {
 
 export function RenameSessionModal(props: RenameSessionModalProps) {
   const { theme, value, setValue, onClose, sessions, setSessions, activeSessionId } = props;
+  const { registerLayer, unregisterLayer, updateLayerHandler } = useLayerStack();
+  const layerIdRef = useRef<string>();
+  const modalRef = useRef<HTMLDivElement>(null);
 
   const handleRename = () => {
     if (value.trim()) {
@@ -24,14 +29,47 @@ export function RenameSessionModal(props: RenameSessionModalProps) {
     }
   };
 
+  // Register layer on mount
+  useEffect(() => {
+    const id = registerLayer({
+      id: 'rename-session-modal',
+      type: 'modal',
+      priority: MODAL_PRIORITIES.RENAME_INSTANCE,
+      blocksLowerLayers: true,
+      capturesFocus: true,
+      focusTrap: 'strict',
+      ariaLabel: 'Rename Instance',
+      onEscape: onClose
+    });
+    layerIdRef.current = id;
+
+    return () => {
+      if (layerIdRef.current) {
+        unregisterLayer(layerIdRef.current);
+      }
+    };
+  }, [registerLayer, unregisterLayer]);
+
+  // Update handler when dependencies change
+  useEffect(() => {
+    if (layerIdRef.current) {
+      updateLayerHandler(layerIdRef.current, onClose);
+    }
+  }, [onClose, updateLayerHandler]);
+
+  // Auto-focus the modal on mount
+  useEffect(() => {
+    modalRef.current?.focus();
+  }, []);
+
   return (
     <div
-      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[9999] animate-in fade-in duration-200"
-      onKeyDown={(e) => {
-        if (e.key !== 'Escape') {
-          e.stopPropagation();
-        }
-      }}
+      ref={modalRef}
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[9999] animate-in fade-in duration-200 outline-none"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Rename Instance"
+      tabIndex={-1}
     >
       <div className="w-[400px] border rounded-lg shadow-2xl overflow-hidden" style={{ backgroundColor: theme.colors.bgSidebar, borderColor: theme.colors.border }}>
         <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: theme.colors.border }}>
@@ -49,9 +87,6 @@ export function RenameSessionModal(props: RenameSessionModalProps) {
               if (e.key === 'Enter') {
                 e.preventDefault();
                 handleRename();
-              } else if (e.key === 'Escape') {
-                e.preventDefault();
-                onClose();
               }
             }}
             placeholder="Enter agent name..."
