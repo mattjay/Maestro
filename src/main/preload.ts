@@ -132,6 +132,7 @@ contextBridge.exposeInMainWorld('maestro', {
   // Agent API
   agents: {
     detect: () => ipcRenderer.invoke('agents:detect'),
+    refresh: (agentId?: string) => ipcRenderer.invoke('agents:refresh', agentId),
     get: (agentId: string) => ipcRenderer.invoke('agents:get', agentId),
     getConfig: (agentId: string) => ipcRenderer.invoke('agents:getConfig', agentId),
     setConfig: (agentId: string, config: Record<string, any>) =>

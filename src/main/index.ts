@@ -482,6 +482,56 @@ function setupIpcHandlers() {
     return agents.map(stripAgentFunctions);
   });
 
+  // Refresh agent detection with debug info (clears cache and returns detailed error info)
+  ipcMain.handle('agents:refresh', async (_event, agentId?: string) => {
+    if (!agentDetector) throw new Error('Agent detector not initialized');
+
+    // Clear the cache to force re-detection
+    agentDetector.clearCache();
+
+    // Get environment info for debugging
+    const envPath = process.env.PATH || '';
+    const homeDir = process.env.HOME || '';
+
+    // Detect all agents fresh
+    const agents = await agentDetector.detectAgents();
+
+    // If a specific agent was requested, return detailed debug info
+    if (agentId) {
+      const agent = agents.find(a => a.id === agentId);
+      const command = process.platform === 'win32' ? 'where' : 'which';
+
+      // Try to find the binary manually to get error info
+      let debugInfo = {
+        agentId,
+        available: agent?.available || false,
+        path: agent?.path || null,
+        binaryName: agent?.binaryName || agentId,
+        envPath,
+        homeDir,
+        platform: process.platform,
+        whichCommand: command,
+        error: null as string | null,
+      };
+
+      if (!agent?.available) {
+        // Try running which/where to get error output
+        const result = await execFileNoThrow(command, [agent?.binaryName || agentId]);
+        debugInfo.error = result.exitCode !== 0
+          ? `${command} ${agent?.binaryName || agentId} failed (exit code ${result.exitCode}): ${result.stderr || 'Binary not found in PATH'}`
+          : null;
+      }
+
+      logger.info(`Agent refresh debug info for ${agentId}`, 'AgentDetector', debugInfo);
+      return { agents: agents.map(stripAgentFunctions), debugInfo };
+    }
+
+    logger.info(`Refreshed agent detection`, 'AgentDetector', {
+      agents: agents.map(a => ({ id: a.id, available: a.available, path: a.path }))
+    });
+    return { agents: agents.map(stripAgentFunctions), debugInfo: null };
+  });
+
   ipcMain.handle('agents:get', async (_event, agentId: string) => {
     if (!agentDetector) throw new Error('Agent detector not initialized');
     logger.debug(`Getting agent: ${agentId}`, 'AgentDetector');

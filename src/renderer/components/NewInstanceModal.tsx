@@ -1,8 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Folder, X } from 'lucide-react';
+import { Folder, X, RefreshCw } from 'lucide-react';
 import type { AgentConfig } from '../types';
 import { useLayerStack } from '../contexts/LayerStackContext';
 import { MODAL_PRIORITIES } from '../constants/modalPriorities';
+
+interface AgentDebugInfo {
+  agentId: string;
+  available: boolean;
+  path: string | null;
+  binaryName: string;
+  envPath: string;
+  homeDir: string;
+  platform: string;
+  whichCommand: string;
+  error: string | null;
+}
 
 interface NewInstanceModalProps {
   isOpen: boolean;
@@ -18,6 +30,8 @@ export function NewInstanceModal({ isOpen, onClose, onCreate, theme, defaultAgen
   const [workingDir, setWorkingDir] = useState('~');
   const [instanceName, setInstanceName] = useState('');
   const [loading, setLoading] = useState(true);
+  const [refreshingAgent, setRefreshingAgent] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<AgentDebugInfo | null>(null);
 
   // Layer stack integration
   const { registerLayer, unregisterLayer, updateLayerHandler } = useLayerStack();
@@ -51,6 +65,22 @@ export function NewInstanceModal({ isOpen, onClose, onCreate, theme, defaultAgen
     const folder = await window.maestro.dialog.selectFolder();
     if (folder) {
       setWorkingDir(folder);
+    }
+  }, []);
+
+  const handleRefreshAgent = React.useCallback(async (agentId: string) => {
+    setRefreshingAgent(agentId);
+    setDebugInfo(null);
+    try {
+      const result = await window.maestro.agents.refresh(agentId);
+      setAgents(result.agents);
+      if (result.debugInfo && !result.debugInfo.available) {
+        setDebugInfo(result.debugInfo);
+      }
+    } catch (error) {
+      console.error('Failed to refresh agent:', error);
+    } finally {
+      setRefreshingAgent(null);
     }
   }, []);
 
@@ -202,24 +232,75 @@ export function NewInstanceModal({ isOpen, onClose, onCreate, theme, defaultAgen
                           <div className="text-xs opacity-50 font-mono mt-1">{agent.path}</div>
                         )}
                       </div>
-                      {agent.id === 'claude-code' ? (
-                        agent.available ? (
-                          <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: theme.colors.success + '20', color: theme.colors.success }}>
-                            Available
-                          </span>
+                      <div className="flex items-center gap-2">
+                        {agent.id === 'claude-code' ? (
+                          <>
+                            {agent.available ? (
+                              <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: theme.colors.success + '20', color: theme.colors.success }}>
+                                Available
+                              </span>
+                            ) : (
+                              <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: theme.colors.error + '20', color: theme.colors.error }}>
+                                Not Found
+                              </span>
+                            )}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRefreshAgent(agent.id);
+                              }}
+                              className="p-1 rounded hover:bg-white/10 transition-colors"
+                              title="Refresh detection (shows debug info if not found)"
+                              style={{ color: theme.colors.textDim }}
+                            >
+                              <RefreshCw className={`w-4 h-4 ${refreshingAgent === agent.id ? 'animate-spin' : ''}`} />
+                            </button>
+                          </>
                         ) : (
-                          <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: theme.colors.error + '20', color: theme.colors.error }}>
-                            Not Found
+                          <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: theme.colors.warning + '20', color: theme.colors.warning }}>
+                            Coming Soon
                           </span>
-                        )
-                      ) : (
-                        <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: theme.colors.warning + '20', color: theme.colors.warning }}>
-                          Coming Soon
-                        </span>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </button>
                 ))}
+              </div>
+            )}
+
+            {/* Debug Info Display */}
+            {debugInfo && (
+              <div
+                className="mt-3 p-3 rounded border text-xs font-mono overflow-auto max-h-40"
+                style={{
+                  backgroundColor: theme.colors.error + '10',
+                  borderColor: theme.colors.error + '40',
+                  color: theme.colors.textMain,
+                }}
+              >
+                <div className="font-bold mb-2" style={{ color: theme.colors.error }}>
+                  Debug Info: {debugInfo.binaryName} not found
+                </div>
+                {debugInfo.error && (
+                  <div className="mb-2 text-red-400">{debugInfo.error}</div>
+                )}
+                <div className="space-y-1 opacity-70">
+                  <div><span className="opacity-50">Platform:</span> {debugInfo.platform}</div>
+                  <div><span className="opacity-50">Home:</span> {debugInfo.homeDir}</div>
+                  <div><span className="opacity-50">PATH:</span></div>
+                  <div className="pl-2 break-all text-[10px]">
+                    {debugInfo.envPath.split(':').map((p, i) => (
+                      <div key={i}>{p}</div>
+                    ))}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setDebugInfo(null)}
+                  className="mt-2 text-xs underline"
+                  style={{ color: theme.colors.textDim }}
+                >
+                  Dismiss
+                </button>
               </div>
             )}
           </div>
