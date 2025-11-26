@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Wand2, Radio, ExternalLink, Wifi, Info, Columns, Copy, List, Loader2, Clock } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Wand2, Radio, ExternalLink, Wifi, Info, Columns, Copy, List, Loader2, Clock, GitBranch, ArrowUp, ArrowDown, FileEdit } from 'lucide-react';
 import { LogViewer } from './LogViewer';
 import { TerminalOutput } from './TerminalOutput';
 import { InputArea } from './InputArea';
@@ -122,6 +122,40 @@ export function MainPanel(props: MainPanelProps) {
   const [contextTooltipOpen, setContextTooltipOpen] = useState(false);
   // Session ID copied notification
   const [showSessionIdCopied, setShowSessionIdCopied] = useState(false);
+  // Git pill tooltip hover state
+  const [gitTooltipOpen, setGitTooltipOpen] = useState(false);
+  // Git info state
+  const [gitInfo, setGitInfo] = useState<{
+    branch: string;
+    remote: string;
+    behind: number;
+    ahead: number;
+    uncommittedChanges: number;
+  } | null>(null);
+
+  // Fetch git info when session changes or becomes a git repo
+  useEffect(() => {
+    if (!activeSession?.isGitRepo) {
+      setGitInfo(null);
+      return;
+    }
+
+    const fetchGitInfo = async () => {
+      try {
+        const cwd = activeSession.inputMode === 'terminal' ? (activeSession.shellCwd || activeSession.cwd) : activeSession.cwd;
+        const info = await window.maestro.git.info(cwd);
+        setGitInfo(info);
+      } catch (error) {
+        console.error('Failed to fetch git info:', error);
+        setGitInfo(null);
+      }
+    };
+
+    fetchGitInfo();
+    // Refresh git info every 10 seconds
+    const interval = setInterval(fetchGitInfo, 10000);
+    return () => clearInterval(interval);
+  }, [activeSession?.id, activeSession?.isGitRepo, activeSession?.cwd, activeSession?.shellCwd, activeSession?.inputMode]);
 
   // Handler for input focus - select session in sidebar
   const handleInputFocus = () => {
@@ -222,9 +256,98 @@ export function MainPanel(props: MainPanelProps) {
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 text-sm font-medium">
                 {activeSession.name}
-                <span className={`text-xs px-2 py-0.5 rounded-full border ${activeSession.isGitRepo ? 'border-orange-500/30 text-orange-500 bg-orange-500/10' : 'border-blue-500/30 text-blue-500 bg-blue-500/10'}`}>
-                  {activeSession.isGitRepo ? 'GIT' : 'LOCAL'}
-                </span>
+                <div className="relative">
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded-full border cursor-pointer ${activeSession.isGitRepo ? 'border-orange-500/30 text-orange-500 bg-orange-500/10 hover:bg-orange-500/20' : 'border-blue-500/30 text-blue-500 bg-blue-500/10'}`}
+                    onMouseEnter={() => activeSession.isGitRepo && setGitTooltipOpen(true)}
+                    onMouseLeave={() => setGitTooltipOpen(false)}
+                  >
+                    {activeSession.isGitRepo ? 'GIT' : 'LOCAL'}
+                  </span>
+                  {activeSession.isGitRepo && gitTooltipOpen && gitInfo && (
+                    <div
+                      className="absolute top-full left-0 mt-2 w-80 rounded shadow-xl z-50"
+                      style={{
+                        backgroundColor: theme.colors.bgSidebar,
+                        borderColor: theme.colors.border,
+                        border: '1px solid'
+                      }}
+                      onMouseEnter={() => setGitTooltipOpen(true)}
+                      onMouseLeave={() => setGitTooltipOpen(false)}
+                    >
+                      {/* Branch */}
+                      <div className="p-3 border-b" style={{ borderColor: theme.colors.border }}>
+                        <div className="text-[10px] uppercase font-bold mb-2" style={{ color: theme.colors.textDim }}>Branch</div>
+                        <div className="flex items-center gap-2">
+                          <GitBranch className="w-4 h-4 text-orange-500" />
+                          <span className="text-sm font-mono font-medium" style={{ color: theme.colors.textMain }}>
+                            {gitInfo.branch}
+                          </span>
+                          {(gitInfo.ahead > 0 || gitInfo.behind > 0) && (
+                            <div className="flex items-center gap-2 ml-auto">
+                              {gitInfo.ahead > 0 && (
+                                <span className="flex items-center gap-0.5 text-xs text-green-500">
+                                  <ArrowUp className="w-3 h-3" />
+                                  {gitInfo.ahead}
+                                </span>
+                              )}
+                              {gitInfo.behind > 0 && (
+                                <span className="flex items-center gap-0.5 text-xs text-red-500">
+                                  <ArrowDown className="w-3 h-3" />
+                                  {gitInfo.behind}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Remote Origin */}
+                      {gitInfo.remote && (
+                        <div className="p-3 border-b" style={{ borderColor: theme.colors.border }}>
+                          <div className="text-[10px] uppercase font-bold mb-2" style={{ color: theme.colors.textDim }}>Origin</div>
+                          <div className="flex items-center gap-2">
+                            <ExternalLink className="w-3 h-3 shrink-0" style={{ color: theme.colors.textDim }} />
+                            <span
+                              className="text-xs font-mono truncate flex-1"
+                              style={{ color: theme.colors.textMain }}
+                              title={gitInfo.remote}
+                            >
+                              {gitInfo.remote.replace(/^https?:\/\//, '').replace(/\.git$/, '')}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyToClipboard(gitInfo.remote);
+                              }}
+                              className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                              title="Copy remote URL"
+                            >
+                              <Copy className="w-3 h-3" style={{ color: theme.colors.textDim }} />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Status Summary */}
+                      <div className="p-3">
+                        <div className="text-[10px] uppercase font-bold mb-2" style={{ color: theme.colors.textDim }}>Status</div>
+                        <div className="flex items-center gap-4 text-xs">
+                          {gitInfo.uncommittedChanges > 0 ? (
+                            <span className="flex items-center gap-1.5" style={{ color: theme.colors.textMain }}>
+                              <FileEdit className="w-3 h-3 text-orange-500" />
+                              {gitInfo.uncommittedChanges} uncommitted {gitInfo.uncommittedChanges === 1 ? 'change' : 'changes'}
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1.5 text-green-500">
+                              Working tree clean
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="relative">

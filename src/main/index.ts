@@ -422,6 +422,48 @@ function setupIpcHandlers() {
     return { stdout: result.stdout, stderr: result.stderr };
   });
 
+  ipcMain.handle('git:branch', async (_, cwd: string) => {
+    const result = await execFileNoThrow('git', ['rev-parse', '--abbrev-ref', 'HEAD'], cwd);
+    return { stdout: result.stdout.trim(), stderr: result.stderr };
+  });
+
+  ipcMain.handle('git:remote', async (_, cwd: string) => {
+    const result = await execFileNoThrow('git', ['remote', 'get-url', 'origin'], cwd);
+    return { stdout: result.stdout.trim(), stderr: result.stderr };
+  });
+
+  ipcMain.handle('git:info', async (_, cwd: string) => {
+    // Get comprehensive git info in a single call
+    const [branchResult, remoteResult, statusResult, behindAheadResult] = await Promise.all([
+      execFileNoThrow('git', ['rev-parse', '--abbrev-ref', 'HEAD'], cwd),
+      execFileNoThrow('git', ['remote', 'get-url', 'origin'], cwd),
+      execFileNoThrow('git', ['status', '--porcelain'], cwd),
+      execFileNoThrow('git', ['rev-list', '--left-right', '--count', '@{upstream}...HEAD'], cwd)
+    ]);
+
+    // Parse behind/ahead counts
+    let behind = 0;
+    let ahead = 0;
+    if (behindAheadResult.exitCode === 0 && behindAheadResult.stdout.trim()) {
+      const parts = behindAheadResult.stdout.trim().split(/\s+/);
+      behind = parseInt(parts[0], 10) || 0;
+      ahead = parseInt(parts[1], 10) || 0;
+    }
+
+    // Count uncommitted changes
+    const uncommittedChanges = statusResult.stdout.trim()
+      ? statusResult.stdout.trim().split('\n').filter(l => l.length > 0).length
+      : 0;
+
+    return {
+      branch: branchResult.stdout.trim(),
+      remote: remoteResult.stdout.trim(),
+      behind,
+      ahead,
+      uncommittedChanges
+    };
+  });
+
   // File system operations
   ipcMain.handle('fs:readDir', async (_, dirPath: string) => {
     const entries = await fs.readdir(dirPath, { withFileTypes: true });

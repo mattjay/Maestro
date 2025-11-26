@@ -116,6 +116,9 @@ contextBridge.exposeInMainWorld('maestro', {
     diff: (cwd: string, file?: string) => ipcRenderer.invoke('git:diff', cwd, file),
     isRepo: (cwd: string) => ipcRenderer.invoke('git:isRepo', cwd),
     numstat: (cwd: string) => ipcRenderer.invoke('git:numstat', cwd),
+    branch: (cwd: string) => ipcRenderer.invoke('git:branch', cwd),
+    remote: (cwd: string) => ipcRenderer.invoke('git:remote', cwd),
+    info: (cwd: string) => ipcRenderer.invoke('git:info', cwd),
   },
 
   // File System API
@@ -254,6 +257,16 @@ export interface MaestroAPI {
     status: (cwd: string) => Promise<string>;
     diff: (cwd: string, file?: string) => Promise<string>;
     isRepo: (cwd: string) => Promise<boolean>;
+    numstat: (cwd: string) => Promise<{ stdout: string; stderr: string }>;
+    branch: (cwd: string) => Promise<{ stdout: string; stderr: string }>;
+    remote: (cwd: string) => Promise<{ stdout: string; stderr: string }>;
+    info: (cwd: string) => Promise<{
+      branch: string;
+      remote: string;
+      behind: number;
+      ahead: number;
+      uncommittedChanges: number;
+    }>;
   };
   fs: {
     readDir: (dirPath: string) => Promise<DirectoryEntry[]>;
