@@ -54,6 +54,7 @@ export function AgentSessionsBrowser({
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [searchMode, setSearchMode] = useState<SearchMode>('title');
+  const [showAllSessions, setShowAllSessions] = useState(false);
   const [searchModeDropdownOpen, setSearchModeDropdownOpen] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -287,28 +288,39 @@ export function AgentSessionsBrowser({
     }
   }, [hasMoreMessages, messagesLoading, handleLoadMore]);
 
-  // Calculate stats from all sessions
+  // Helper to check if a session should be visible based on showAllSessions
+  const isSessionVisible = useCallback((session: ClaudeSession) => {
+    if (showAllSessions) return true;
+    // Hide sessions that start with "agent-" (only show UUID-style sessions by default)
+    return !session.sessionId.startsWith('agent-');
+  }, [showAllSessions]);
+
+  // Calculate stats from visible sessions
   const stats = useMemo(() => {
-    const totalSessions = sessions.length;
-    const totalMessages = sessions.reduce((sum, s) => sum + s.messageCount, 0);
-    const totalSize = sessions.reduce((sum, s) => sum + s.sizeBytes, 0);
-    const totalCost = sessions.reduce((sum, s) => sum + (s.costUsd || 0), 0);
-    const oldestSession = sessions.length > 0
-      ? new Date(Math.min(...sessions.map(s => new Date(s.timestamp).getTime())))
+    const visibleSessions = sessions.filter(isSessionVisible);
+    const totalSessions = visibleSessions.length;
+    const totalMessages = visibleSessions.reduce((sum, s) => sum + s.messageCount, 0);
+    const totalSize = visibleSessions.reduce((sum, s) => sum + s.sizeBytes, 0);
+    const totalCost = visibleSessions.reduce((sum, s) => sum + (s.costUsd || 0), 0);
+    const oldestSession = visibleSessions.length > 0
+      ? new Date(Math.min(...visibleSessions.map(s => new Date(s.timestamp).getTime())))
       : null;
     return { totalSessions, totalMessages, totalSize, totalCost, oldestSession };
-  }, [sessions]);
+  }, [sessions, isSessionVisible]);
 
   // Filter sessions by search - use different strategies based on search mode
   const filteredSessions = useMemo(() => {
+    // First filter by showAllSessions
+    const visibleSessions = sessions.filter(isSessionVisible);
+
     if (!search.trim()) {
-      return sessions;
+      return visibleSessions;
     }
 
     // For title search, filter locally (fast)
     if (searchMode === 'title') {
       const searchLower = search.toLowerCase();
-      return sessions.filter(s =>
+      return visibleSessions.filter(s =>
         s.firstMessage.toLowerCase().includes(searchLower) ||
         s.sessionId.toLowerCase().includes(searchLower)
       );
@@ -317,12 +329,12 @@ export function AgentSessionsBrowser({
     // For content searches, use backend results to filter sessions
     if (searchResults.length > 0) {
       const matchingIds = new Set(searchResults.map(r => r.sessionId));
-      return sessions.filter(s => matchingIds.has(s.sessionId));
+      return visibleSessions.filter(s => matchingIds.has(s.sessionId));
     }
 
     // If searching but no results yet, return empty (or all if still loading)
-    return isSearching ? sessions : [];
-  }, [sessions, search, searchMode, searchResults, isSearching]);
+    return isSearching ? visibleSessions : [];
+  }, [sessions, search, searchMode, searchResults, isSearching, isSessionVisible]);
 
   // Get search result info for a session (for display purposes)
   const getSearchResultInfo = useCallback((sessionId: string): SearchResult | undefined => {
@@ -619,6 +631,20 @@ export function AgentSessionsBrowser({
                   <X className="w-3 h-3" />
                 </button>
               )}
+              {/* Show All checkbox */}
+              <label
+                className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
+                style={{ color: theme.colors.textDim }}
+              >
+                <input
+                  type="checkbox"
+                  checked={showAllSessions}
+                  onChange={(e) => setShowAllSessions(e.target.checked)}
+                  className="w-3.5 h-3.5 rounded cursor-pointer accent-current"
+                  style={{ accentColor: theme.colors.accent }}
+                />
+                <span>Show All</span>
+              </label>
               {/* Search mode dropdown */}
               <div className="relative" ref={searchModeDropdownRef}>
                 <button
