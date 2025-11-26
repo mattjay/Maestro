@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useMemo, forwardRef, useState, useCallback } from 'react';
-import { Activity, X, ChevronDown, ChevronUp, Filter, PlusCircle, MinusCircle, Trash2 } from 'lucide-react';
+import { Activity, X, ChevronDown, ChevronUp, Filter, PlusCircle, MinusCircle, Trash2, Copy } from 'lucide-react';
 import type { Session, Theme, LogEntry } from '../types';
 import Convert from 'ansi-to-html';
 import DOMPurify from 'dompurify';
@@ -53,6 +53,20 @@ export const TerminalOutput = forwardRef<HTMLDivElement, TerminalOutputProps>((p
 
   // Queue removal confirmation state
   const [queueRemoveConfirmId, setQueueRemoveConfirmId] = useState<string | null>(null);
+
+  // Copy to clipboard notification state
+  const [showCopiedNotification, setShowCopiedNotification] = useState(false);
+
+  // Copy text to clipboard with notification
+  const copyToClipboard = useCallback(async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setShowCopiedNotification(true);
+      setTimeout(() => setShowCopiedNotification(false), 1500);
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+    }
+  }, []);
 
   // Elapsed time for thinking indicator (in seconds)
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -785,13 +799,24 @@ export const TerminalOutput = forwardRef<HTMLDivElement, TerminalOutputProps>((p
               )}
             </>
           )}
+          {/* Copy to Clipboard Button - bottom right corner */}
+          {isAIMode && (
+            <button
+              onClick={() => copyToClipboard(log.text)}
+              className="absolute bottom-2 right-2 p-1.5 rounded opacity-0 group-hover:opacity-50 hover:!opacity-100 transition-opacity"
+              style={{ color: theme.colors.textDim }}
+              title="Copy to clipboard"
+            >
+              <Copy className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
     );
   }, [session.inputMode, filteredLogs, theme, fontFamily, outputSearchQuery, localFilters, filterModes,
       expandedLogs, maxOutputLines, deleteConfirmLogId, activeLocalFilter, onDeleteLog, ansiConverter,
       toggleExpanded, toggleLocalFilter, setLocalFilterQuery, setLightboxImage, highlightMatches,
-      addHighlightMarkers, filterTextByLines, processLogText]);
+      addHighlightMarkers, filterTextByLines, processLogText, copyToClipboard]);
 
   return (
     <div
@@ -1031,6 +1056,20 @@ export const TerminalOutput = forwardRef<HTMLDivElement, TerminalOutputProps>((p
           )
         }}
       />
+
+      {/* Copied to Clipboard Notification */}
+      {showCopiedNotification && (
+        <div
+          className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 px-6 py-4 rounded-lg shadow-2xl text-base font-bold animate-in fade-in zoom-in-95 duration-200 z-50"
+          style={{
+            backgroundColor: theme.colors.accent,
+            color: '#FFFFFF',
+            textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
+          }}
+        >
+          Copied to Clipboard
+        </div>
+      )}
     </div>
   );
 });
