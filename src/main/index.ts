@@ -90,6 +90,15 @@ interface HistoryEntry {
   claudeSessionId?: string;
   projectPath: string;
   sessionId?: string; // Maestro session ID for isolation
+  contextUsage?: number; // Context window usage percentage at time of entry
+  usageStats?: { // Token usage and cost at time of entry
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadInputTokens: number;
+    cacheCreationInputTokens: number;
+    totalCostUsd: number;
+    contextWindow: number;
+  };
 }
 
 interface HistoryData {

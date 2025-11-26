@@ -72,6 +72,8 @@ export interface HistoryEntry {
   claudeSessionId?: string; // For clicking to jump to session
   projectPath: string; // For per-project filtering
   sessionId?: string; // Maestro session ID for isolation (interactive sessions exclude batch entries)
+  contextUsage?: number; // Context window usage percentage at time of entry
+  usageStats?: UsageStats; // Token usage and cost at time of entry
 }
 
 // Batch processing state

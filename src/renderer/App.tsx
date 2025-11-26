@@ -891,7 +891,9 @@ export default function MaestroConsole() {
       timestamp: Date.now(),
       summary: entry.summary,
       claudeSessionId: entry.claudeSessionId,
-      projectPath: activeSession.cwd
+      projectPath: activeSession.cwd,
+      contextUsage: activeSession.contextUsage,
+      usageStats: activeSession.usageStats
     });
   }, [activeSession]);
 

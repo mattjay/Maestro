@@ -37,7 +37,7 @@ export const slashCommands: SlashCommand[] = [
     description: 'Get a synopsis of recent work and add to history',
     aiOnly: true,
     execute: async (context: SlashCommandContext) => {
-      const { activeSessionId, sessions, sendPromptToAgent, addHistoryEntry } = context;
+      const { activeSessionId, sessions, setSessions, spawnBackgroundSynopsis, addHistoryEntry } = context;
 
       const actualActiveId = activeSessionId || (sessions.length > 0 ? sessions[0].id : '');
       if (!actualActiveId) return;
@@ -45,14 +45,35 @@ export const slashCommands: SlashCommand[] = [
       const activeSession = sessions.find((s: any) => s.id === actualActiveId);
       if (!activeSession) return;
 
-      // Request synopsis from agent
-      if (sendPromptToAgent) {
-        const result = await sendPromptToAgent(SYNOPSIS_PROMPT);
-        if (result.success && result.response && addHistoryEntry) {
+      // Need a claudeSessionId to resume the conversation
+      if (!activeSession.claudeSessionId) return;
+
+      // Request synopsis from agent by resuming the existing session
+      if (spawnBackgroundSynopsis && addHistoryEntry) {
+        // Set session to busy while synopsizing
+        setSessions(prev => prev.map(s => {
+          if (s.id !== actualActiveId) return s;
+          return { ...s, state: 'busy', thinkingStartTime: Date.now(), statusMessage: 'Agent is synopsizing...' };
+        }));
+
+        const result = await spawnBackgroundSynopsis(
+          actualActiveId,
+          activeSession.cwd,
+          activeSession.claudeSessionId,
+          SYNOPSIS_PROMPT
+        );
+
+        // Clear busy state
+        setSessions(prev => prev.map(s => {
+          if (s.id !== actualActiveId) return s;
+          return { ...s, state: 'idle', thinkingStartTime: undefined, statusMessage: undefined };
+        }));
+
+        if (result.success && result.response) {
           addHistoryEntry({
             type: 'USER',
             summary: result.response,
-            claudeSessionId: result.claudeSessionId || activeSession.claudeSessionId
+            claudeSessionId: activeSession.claudeSessionId
           });
         }
       }

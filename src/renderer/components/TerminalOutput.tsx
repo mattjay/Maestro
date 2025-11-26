@@ -385,6 +385,21 @@ export const TerminalOutput = forwardRef<HTMLDivElement, TerminalOutputProps>((p
     prevLogCountRef.current = filteredLogs.length;
   }, [filteredLogs.length]);
 
+  // Auto-scroll to bottom when session becomes busy to show thinking indicator
+  const prevBusyStateRef = useRef(session.state === 'busy');
+  useEffect(() => {
+    const isBusy = session.state === 'busy';
+    // Scroll when transitioning to busy state
+    if (isBusy && !prevBusyStateRef.current && filteredLogs.length > 0) {
+      virtuosoRef.current?.scrollToIndex({
+        index: filteredLogs.length - 1,
+        align: 'end',
+        behavior: 'auto'
+      });
+    }
+    prevBusyStateRef.current = isBusy;
+  }, [session.state, filteredLogs.length]);
+
   // Render a single log item - used by Virtuoso
   const LogItem = useCallback(({ index, log }: { index: number; log: LogEntry }) => {
     const isTerminal = session.inputMode === 'terminal';
@@ -840,6 +855,12 @@ export const TerminalOutput = forwardRef<HTMLDivElement, TerminalOutputProps>((p
         ref={virtuosoRef}
         data={filteredLogs}
         className="flex-1"
+        followOutput={(isAtBottom) => {
+          // Always scroll when session becomes busy to show the thinking indicator
+          if (session.state === 'busy') return 'smooth';
+          // Otherwise, only follow if user is already at bottom
+          return isAtBottom ? 'smooth' : false;
+        }}
         itemContent={(index, log) => <LogItem index={index} log={log} />}
         components={{
           Footer: () => (

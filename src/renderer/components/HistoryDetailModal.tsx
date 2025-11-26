@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { X, Bot, User, ExternalLink } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { X, Bot, User, ExternalLink, Copy, Check } from 'lucide-react';
 import type { Theme, HistoryEntry } from '../types';
 import { useLayerStack } from '../contexts/LayerStackContext';
 import { MODAL_PRIORITIES } from '../constants/modalPriorities';
@@ -11,6 +11,13 @@ interface HistoryDetailModalProps {
   onJumpToClaudeSession?: (claudeSessionId: string) => void;
 }
 
+// Get context bar color based on usage percentage
+const getContextColor = (usage: number, theme: Theme) => {
+  if (usage >= 90) return theme.colors.error;
+  if (usage >= 70) return theme.colors.warning;
+  return theme.colors.success;
+};
+
 export function HistoryDetailModal({
   theme,
   entry,
@@ -21,6 +28,7 @@ export function HistoryDetailModal({
   const layerIdRef = useRef<string>();
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  const [copiedSessionId, setCopiedSessionId] = useState(false);
 
   // Register layer on mount
   useEffect(() => {
@@ -110,24 +118,50 @@ export function HistoryDetailModal({
               {entry.type}
             </span>
 
-            {/* Session ID Octet (clickable) */}
-            {entry.claudeSessionId && onJumpToClaudeSession && (
-              <button
-                onClick={() => {
-                  onJumpToClaudeSession(entry.claudeSessionId!);
-                  onClose();
-                }}
-                className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase transition-colors hover:opacity-80"
-                style={{
-                  backgroundColor: theme.colors.accent + '20',
-                  color: theme.colors.accent,
-                  border: `1px solid ${theme.colors.accent}40`
-                }}
-                title={`Jump to session ${entry.claudeSessionId}`}
-              >
-                {entry.claudeSessionId.split('-')[0].toUpperCase()}
-                <ExternalLink className="w-2.5 h-2.5" />
-              </button>
+            {/* Session ID Octet - copyable with optional jump */}
+            {entry.claudeSessionId && (
+              <div className="flex items-center gap-1">
+                {/* Copy button */}
+                <button
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(entry.claudeSessionId!);
+                    setCopiedSessionId(true);
+                    setTimeout(() => setCopiedSessionId(false), 2000);
+                  }}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase transition-colors hover:opacity-80"
+                  style={{
+                    backgroundColor: theme.colors.accent + '20',
+                    color: theme.colors.accent,
+                    border: `1px solid ${theme.colors.accent}40`
+                  }}
+                  title={`Copy session ID: ${entry.claudeSessionId}`}
+                >
+                  {entry.claudeSessionId.split('-')[0].toUpperCase()}
+                  {copiedSessionId ? (
+                    <Check className="w-2.5 h-2.5" />
+                  ) : (
+                    <Copy className="w-2.5 h-2.5" />
+                  )}
+                </button>
+                {/* Jump button */}
+                {onJumpToClaudeSession && (
+                  <button
+                    onClick={() => {
+                      onJumpToClaudeSession(entry.claudeSessionId!);
+                      onClose();
+                    }}
+                    className="p-1 rounded-full transition-colors hover:opacity-80"
+                    style={{
+                      backgroundColor: theme.colors.accent + '20',
+                      color: theme.colors.accent,
+                      border: `1px solid ${theme.colors.accent}40`
+                    }}
+                    title={`Jump to session ${entry.claudeSessionId}`}
+                  >
+                    <ExternalLink className="w-2.5 h-2.5" />
+                  </button>
+                )}
+              </div>
             )}
 
             {/* Timestamp */}
@@ -136,12 +170,38 @@ export function HistoryDetailModal({
             </span>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-1 rounded hover:bg-white/10 transition-colors"
-          >
-            <X className="w-5 h-5" style={{ color: theme.colors.textDim }} />
-          </button>
+          {/* Right side widgets */}
+          <div className="flex items-center gap-3">
+            {/* Cost Tracker - styled as pill */}
+            {entry.usageStats && entry.usageStats.totalCostUsd > 0 && (
+              <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full border border-green-500/30 text-green-500 bg-green-500/10">
+                ${entry.usageStats.totalCostUsd.toFixed(2)}
+              </span>
+            )}
+
+            {/* Context Window Widget */}
+            {entry.contextUsage !== undefined && (
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] font-bold uppercase" style={{ color: theme.colors.textDim }}>Context Window</span>
+                <div className="w-24 h-1.5 rounded-full mt-1 overflow-hidden" style={{ backgroundColor: theme.colors.border }}>
+                  <div
+                    className="h-full transition-all duration-500 ease-out"
+                    style={{
+                      width: `${entry.contextUsage}%`,
+                      backgroundColor: getContextColor(entry.contextUsage, theme)
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={onClose}
+              className="p-1 rounded hover:bg-white/10 transition-colors"
+            >
+              <X className="w-5 h-5" style={{ color: theme.colors.textDim }} />
+            </button>
+          </div>
         </div>
 
         {/* Content */}
