@@ -66,7 +66,7 @@ const ActivityGraph: React.FC<ActivityGraphProps> = ({ entries, theme }) => {
 
   return (
     <div
-      className="flex-1 min-w-0 flex flex-col relative"
+      className="flex-1 min-w-0 flex flex-col relative mt-0.5"
       title={hoveredIndex === null ? `Last 24h: ${totalAuto} auto, ${totalUser} user` : undefined}
     >
       {/* Hover tooltip */}
@@ -417,7 +417,7 @@ export const HistoryPanel = React.memo(forwardRef<HistoryPanelHandle, HistoryPan
   return (
     <div className="flex flex-col h-full">
       {/* Filter Pills + Activity Graph */}
-      <div className="flex items-center gap-3 mb-4 pt-2">
+      <div className="flex items-start gap-3 mb-4 pt-2">
         {/* Left-justified filter pills */}
         <div className="flex gap-2 flex-shrink-0">
           {(['AUTO', 'USER'] as HistoryEntryType[]).map(type => {
