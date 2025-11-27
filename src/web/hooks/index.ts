@@ -74,3 +74,16 @@ export type {
   UseSwipeUpOptions,
   UseSwipeUpReturn,
 } from './useSwipeUp';
+
+export {
+  useNotifications,
+  default as useNotificationsDefault,
+  isNotificationSupported,
+  getNotificationPermission,
+} from './useNotifications';
+
+export type {
+  NotificationPermission,
+  UseNotificationsOptions,
+  UseNotificationsReturn,
+} from './useNotifications';

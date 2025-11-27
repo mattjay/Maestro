@@ -11,6 +11,7 @@ import React, { useEffect, useCallback, useState, useMemo } from 'react';
 import { useThemeColors } from '../components/ThemeProvider';
 import { useWebSocket, type WebSocketState } from '../hooks/useWebSocket';
 import { useCommandHistory } from '../hooks/useCommandHistory';
+import { useNotifications } from '../hooks/useNotifications';
 import { Badge, type BadgeVariant } from '../components/Badge';
 import { PullToRefreshIndicator } from '../components/PullToRefresh';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
@@ -154,6 +155,25 @@ export default function MobileApp() {
     clearHistory,
     getUniqueCommands,
   } = useCommandHistory();
+
+  // Notification permission hook - requests permission on first visit
+  // Note: These values will be used in upcoming notification features (tasks 1.39-1.42)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const {
+    permission: notificationPermission,
+    isSupported: notificationsSupported,
+    hasPrompted: notificationPrompted,
+  } = useNotifications({
+    autoRequest: true,
+    requestDelay: 3000, // Wait 3 seconds before prompting
+    onGranted: () => {
+      console.log('[Mobile] Notification permission granted');
+      triggerHaptic(HAPTIC_PATTERNS.success);
+    },
+    onDenied: () => {
+      console.log('[Mobile] Notification permission denied');
+    },
+  });
 
   const { state: connectionState, connect, send, error, reconnectAttempts } = useWebSocket({
     autoReconnect: true,
