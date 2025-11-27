@@ -586,9 +586,16 @@ export default function MaestroConsole() {
       }));
     });
 
-    // Handle Claude session ID capture from batch mode
+    // Handle Claude session ID capture for interactive sessions only
     const unsubscribeSessionId = window.maestro.process.onSessionId(async (sessionId: string, claudeSessionId: string) => {
       console.log('[onSessionId] Received Claude session ID:', claudeSessionId, 'for session:', sessionId);
+
+      // Ignore batch sessions - they have their own isolated session IDs that should NOT
+      // contaminate the interactive session's claudeSessionId
+      if (sessionId.includes('-batch-')) {
+        console.log('[onSessionId] Ignoring batch session ID:', sessionId);
+        return;
+      }
 
       // Parse sessionId to get actual session ID
       let actualSessionId: string;
