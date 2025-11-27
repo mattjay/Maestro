@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Wand2, Radio, ExternalLink, Columns, Copy, List, Loader2, Clock, GitBranch, ArrowUp, ArrowDown, FileEdit, Play } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Wand2, Radio, ExternalLink, Columns, Copy, List, Loader2, Clock, GitBranch, ArrowUp, ArrowDown, FileEdit, Play, Star, Edit2, Check, X } from 'lucide-react';
 import { LogViewer } from './LogViewer';
 import { TerminalOutput } from './TerminalOutput';
 import { InputArea } from './InputArea';
@@ -141,6 +141,14 @@ export function MainPanel(props: MainPanelProps) {
   const [gitTooltipOpen, setGitTooltipOpen] = useState(false);
   // Agent sessions tooltip hover state
   const [sessionsTooltipOpen, setSessionsTooltipOpen] = useState(false);
+  // Session ID pill overlay state
+  const [sessionPillOverlayOpen, setSessionPillOverlayOpen] = useState(false);
+  const [sessionPillRenaming, setSessionPillRenaming] = useState(false);
+  const [sessionPillRenameValue, setSessionPillRenameValue] = useState('');
+  // Bookmarked and named Claude sessions (stored globally)
+  const [bookmarkedSessions, setBookmarkedSessions] = useState<Set<string>>(new Set());
+  const [namedSessions, setNamedSessions] = useState<Record<string, string>>({});
+  const sessionPillRef = useRef<HTMLDivElement>(null);
   // Panel width for responsive hiding of widgets
   const [panelWidth, setPanelWidth] = useState(Infinity); // Start with Infinity so widgets show by default
   const headerRef = useRef<HTMLDivElement>(null);
@@ -202,6 +210,76 @@ export function MainPanel(props: MainPanelProps) {
     const interval = setInterval(fetchGitInfo, 10000);
     return () => clearInterval(interval);
   }, [activeSession?.id, activeSession?.isGitRepo, activeSession?.cwd, activeSession?.shellCwd, activeSession?.inputMode]);
+
+  // Load bookmarked and named Claude sessions from settings
+  useEffect(() => {
+    const loadSessionMetadata = async () => {
+      try {
+        const savedBookmarked = await window.maestro.settings.get('bookmarkedClaudeSessions');
+        if (savedBookmarked && Array.isArray(savedBookmarked)) {
+          setBookmarkedSessions(new Set(savedBookmarked));
+        }
+        const savedNamed = await window.maestro.settings.get('namedClaudeSessions');
+        if (savedNamed && typeof savedNamed === 'object') {
+          setNamedSessions(savedNamed as Record<string, string>);
+        }
+      } catch (error) {
+        console.error('Failed to load session metadata:', error);
+      }
+    };
+    loadSessionMetadata();
+  }, []);
+
+  // Toggle bookmark for current session
+  const toggleBookmark = useCallback(async () => {
+    if (!activeSession?.claudeSessionId) return;
+    const sessionId = activeSession.claudeSessionId;
+    const newBookmarked = new Set(bookmarkedSessions);
+    if (newBookmarked.has(sessionId)) {
+      newBookmarked.delete(sessionId);
+    } else {
+      newBookmarked.add(sessionId);
+    }
+    setBookmarkedSessions(newBookmarked);
+    try {
+      await window.maestro.settings.set('bookmarkedClaudeSessions', Array.from(newBookmarked));
+    } catch (error) {
+      console.error('Failed to save bookmarked sessions:', error);
+    }
+  }, [activeSession?.claudeSessionId, bookmarkedSessions]);
+
+  // Rename current session
+  const saveSessionName = useCallback(async () => {
+    if (!activeSession?.claudeSessionId) return;
+    const sessionId = activeSession.claudeSessionId;
+    const name = sessionPillRenameValue.trim();
+    const newNamed = { ...namedSessions };
+    if (name) {
+      newNamed[sessionId] = name;
+    } else {
+      delete newNamed[sessionId];
+    }
+    setNamedSessions(newNamed);
+    setSessionPillRenaming(false);
+    setSessionPillRenameValue('');
+    try {
+      await window.maestro.settings.set('namedClaudeSessions', newNamed);
+    } catch (error) {
+      console.error('Failed to save session name:', error);
+    }
+  }, [activeSession?.claudeSessionId, sessionPillRenameValue, namedSessions]);
+
+  // Close session pill overlay when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sessionPillOverlayOpen && sessionPillRef.current && !sessionPillRef.current.contains(event.target as Node)) {
+        setSessionPillOverlayOpen(false);
+        setSessionPillRenaming(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [sessionPillOverlayOpen]);
 
   // Handler for input focus - select session in sidebar
   const handleInputFocus = () => {
@@ -483,16 +561,133 @@ export function MainPanel(props: MainPanelProps) {
                 onViewDiff={handleViewGitDiff}
               />
 
-              {/* Session ID - moved after Git Status */}
+              {/* Session ID Pill with Overlay */}
               {activeSession.inputMode === 'ai' && activeSession.claudeSessionId && (
-                <button
-                  onClick={copySessionIdToClipboard}
-                  className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border cursor-pointer hover:opacity-80 transition-opacity"
-                  style={{ backgroundColor: theme.colors.accent + '20', color: theme.colors.accent, borderColor: theme.colors.accent + '30' }}
-                  title={`Click to copy Session ID: ${activeSession.claudeSessionId}`}
-                >
-                  {activeSession.claudeSessionId.split('-')[0].toUpperCase()}
-                </button>
+                <div className="relative" ref={sessionPillRef}>
+                  <button
+                    onClick={() => setSessionPillOverlayOpen(!sessionPillOverlayOpen)}
+                    className="flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border cursor-pointer hover:opacity-80 transition-opacity"
+                    style={{ backgroundColor: theme.colors.accent + '20', color: theme.colors.accent, borderColor: theme.colors.accent + '30' }}
+                    title={namedSessions[activeSession.claudeSessionId] || `Session: ${activeSession.claudeSessionId}`}
+                  >
+                    {bookmarkedSessions.has(activeSession.claudeSessionId) && (
+                      <Star className="w-2.5 h-2.5 fill-current" />
+                    )}
+                    {namedSessions[activeSession.claudeSessionId] || activeSession.claudeSessionId.split('-')[0].toUpperCase()}
+                  </button>
+
+                  {/* Overlay dropdown */}
+                  {sessionPillOverlayOpen && (
+                    <div
+                      className="absolute top-full left-0 mt-1 z-50 rounded-lg border shadow-xl overflow-hidden"
+                      style={{
+                        backgroundColor: theme.colors.bgSidebar,
+                        borderColor: theme.colors.border,
+                        minWidth: '200px'
+                      }}
+                    >
+                      {/* Session ID display */}
+                      <div
+                        className="px-3 py-2 text-[10px] font-mono border-b"
+                        style={{ borderColor: theme.colors.border, color: theme.colors.textDim }}
+                      >
+                        {activeSession.claudeSessionId}
+                      </div>
+
+                      {/* Rename input */}
+                      {sessionPillRenaming ? (
+                        <div className="p-2 border-b" style={{ borderColor: theme.colors.border }}>
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="text"
+                              value={sessionPillRenameValue}
+                              onChange={(e) => setSessionPillRenameValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  saveSessionName();
+                                } else if (e.key === 'Escape') {
+                                  setSessionPillRenaming(false);
+                                  setSessionPillRenameValue('');
+                                }
+                              }}
+                              placeholder="Enter name..."
+                              autoFocus
+                              className="flex-1 px-2 py-1 text-xs rounded border bg-transparent outline-none"
+                              style={{
+                                borderColor: theme.colors.border,
+                                color: theme.colors.textMain
+                              }}
+                            />
+                            <button
+                              onClick={saveSessionName}
+                              className="p-1 rounded hover:bg-white/10"
+                              style={{ color: theme.colors.success }}
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSessionPillRenaming(false);
+                                setSessionPillRenameValue('');
+                              }}
+                              className="p-1 rounded hover:bg-white/10"
+                              style={{ color: theme.colors.error }}
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {/* Actions */}
+                      <div className="py-1">
+                        {/* Copy */}
+                        <button
+                          onClick={() => {
+                            copySessionIdToClipboard();
+                            setSessionPillOverlayOpen(false);
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-white/5 transition-colors"
+                          style={{ color: theme.colors.textMain }}
+                        >
+                          <Copy className="w-3.5 h-3.5" style={{ color: theme.colors.textDim }} />
+                          Copy Session ID
+                          {showSessionIdCopied && (
+                            <span className="ml-auto text-[10px]" style={{ color: theme.colors.success }}>Copied!</span>
+                          )}
+                        </button>
+
+                        {/* Bookmark */}
+                        <button
+                          onClick={() => {
+                            toggleBookmark();
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-white/5 transition-colors"
+                          style={{ color: theme.colors.textMain }}
+                        >
+                          <Star
+                            className={`w-3.5 h-3.5 ${bookmarkedSessions.has(activeSession.claudeSessionId!) ? 'fill-current' : ''}`}
+                            style={{ color: bookmarkedSessions.has(activeSession.claudeSessionId!) ? theme.colors.warning : theme.colors.textDim }}
+                          />
+                          {bookmarkedSessions.has(activeSession.claudeSessionId!) ? 'Remove Bookmark' : 'Bookmark Session'}
+                        </button>
+
+                        {/* Rename */}
+                        <button
+                          onClick={() => {
+                            setSessionPillRenameValue(namedSessions[activeSession.claudeSessionId!] || '');
+                            setSessionPillRenaming(true);
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-white/5 transition-colors"
+                          style={{ color: theme.colors.textMain }}
+                        >
+                          <Edit2 className="w-3.5 h-3.5" style={{ color: theme.colors.textDim }} />
+                          {namedSessions[activeSession.claudeSessionId!] ? 'Rename Session' : 'Name Session'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
