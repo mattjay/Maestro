@@ -123,7 +123,10 @@ export function AboutModal({ theme, sessions, persistedStats, onClose }: AboutMo
           <div className="flex items-center gap-4">
             <Wand2 className="w-12 h-12" style={{ color: theme.colors.accent }} />
             <div>
-              <h1 className="text-2xl font-bold tracking-widest" style={{ color: theme.colors.textMain }}>MAESTRO</h1>
+              <div className="flex items-baseline gap-2">
+                <h1 className="text-2xl font-bold tracking-widest" style={{ color: theme.colors.textMain }}>MAESTRO</h1>
+                <span className="text-xs font-mono" style={{ color: theme.colors.textDim }}>v{__APP_VERSION__}</span>
+              </div>
               <p className="text-xs opacity-70" style={{ color: theme.colors.textDim }}>Agent Orchestration Command Center</p>
             </div>
           </div>

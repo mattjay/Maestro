@@ -59,6 +59,28 @@ jobs:
         with:
           python-version: '3.11'
 
+      # Extract version from git tag and update package.json
+      - name: Set version from tag
+        shell: bash
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [[ "$REF_TYPE" == "tag" ]]; then
+            # Extract version from tag (strip 'v' prefix if present)
+            VERSION="${REF_NAME#v}"
+            echo "Setting version to: $VERSION"
+            # Update package.json version using node
+            node -e "
+              const fs = require('fs');
+              const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+              pkg.version = process.argv[1];
+              fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+            " "$VERSION"
+            echo "Updated package.json version to $VERSION"
+            grep '"version"' package.json
+          fi
+
       - name: Install dependencies
         run: npm ci
 

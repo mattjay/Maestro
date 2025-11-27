@@ -27,3 +27,6 @@ declare module '*.webp' {
   const src: string;
   export default src;
 }
+
+// Vite-injected build-time constants
+declare const __APP_VERSION__: string;
