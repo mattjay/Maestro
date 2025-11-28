@@ -36,7 +36,7 @@ Download the latest release for your platform from the [Releases](https://github
 - 📝 **Scratchpad** - Built-in markdown editor with live preview for task management
 - ⚡ **Slash Commands** - Extensible command system with autocomplete
 - 📬 **Message Queueing** - Queue messages while AI is busy; they're sent automatically when ready
-- 🌐 **Remote Access** - Built-in web server with optional ngrok/Cloudflare tunneling
+- 🌐 **Mobile Remote Control** - Access sessions from your phone with QR codes, live sessions, and a mobile-optimized web interface
 - 💰 **Cost Tracking** - Real-time token usage and cost tracking per session
 
 > **Note**: Maestro currently supports Claude Code only. Support for other agentic coding tools may be added in future releases based on community demand.
@@ -236,18 +236,27 @@ Settings are stored in:
 
 ## Remote Access
 
-Maestro includes a built-in web server for remote access:
+Maestro includes a built-in web server for mobile remote control:
 
-1. **Local Access**: `http://localhost:8000`
-2. **LAN Access**: `http://[your-ip]:8000`
-3. **Public Access**: Enable ngrok or Cloudflare tunnel in Settings
+1. **Automatic Security**: Web server runs on a random port with an auto-generated security token embedded in the URL
+2. **QR Code Access**: Scan a QR code to connect instantly from your phone
+3. **Global Access**: All sessions are accessible when the web interface is enabled - the security token protects access
 
-### Enabling Public Tunnels
+### Mobile Web Interface
 
-1. Get an API token from [ngrok.com](https://ngrok.com) or Cloudflare
-2. Open Settings > Network
-3. Select your tunnel provider and enter your API key
-4. Start the tunnel from the session interface
+The mobile web interface provides:
+- Real-time session monitoring and command input
+- Device color scheme preference support (light/dark mode)
+- Connection status indicator with automatic reconnection
+- Offline queue for commands typed while disconnected
+- Swipe gestures for common actions
+- Quick actions menu for the send button
+
+To access sessions from your phone:
+1. Click the "OFFLINE" button in the header (next to the MAESTRO logo) to enable the web interface
+2. The button changes to "LIVE" and shows a QR code overlay
+3. Scan the QR code or copy the secure URL to access all your sessions remotely
+4. Click "LIVE" again to view the QR code, or toggle off to disable remote access
 
 ## Contributing
 

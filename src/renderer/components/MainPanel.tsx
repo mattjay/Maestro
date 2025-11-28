@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Wand2, Radio, ExternalLink, Columns, Copy, List, Loader2, Clock, GitBranch, ArrowUp, ArrowDown, FileEdit, Play, Star, Edit2, Check, X } from 'lucide-react';
+import { Wand2, ExternalLink, Columns, Copy, List, Loader2, Clock, GitBranch, ArrowUp, ArrowDown, FileEdit, Play, Star, Edit2, Check, X } from 'lucide-react';
 import { LogViewer } from './LogViewer';
 import { TerminalOutput } from './TerminalOutput';
 import { InputArea } from './InputArea';
@@ -86,7 +86,6 @@ interface MainPanelProps {
   fileTreeFilterInputRef: React.RefObject<HTMLInputElement>;
 
   // Functions
-  toggleTunnel: (sessionId: string) => void;
   toggleInputMode: () => void;
   processInput: () => void;
   handleInterrupt: () => void;
@@ -123,7 +122,7 @@ export function MainPanel(props: MainPanelProps) {
     setCommandHistoryFilter, setCommandHistorySelectedIndex, setSlashCommandOpen,
     setSelectedSlashCommandIndex, setPreviewFile, setMarkdownRawMode,
     setAboutModalOpen, setRightPanelOpen, setGitLogOpen, inputRef, logsEndRef, terminalOutputRef,
-    fileTreeContainerRef, fileTreeFilterInputRef, toggleTunnel, toggleInputMode, processInput, handleInterrupt,
+    fileTreeContainerRef, fileTreeFilterInputRef, toggleInputMode, processInput, handleInterrupt,
     handleInputKeyDown, handlePaste, handleDrop, getContextColor, setActiveSessionId,
     batchRunState, onStopBatchRun, showConfirmation, onRemoveQueuedMessage
   } = props;
@@ -131,8 +130,6 @@ export function MainPanel(props: MainPanelProps) {
   const isAutoModeActive = batchRunState?.isRunning || false;
   const isStopping = batchRunState?.isStopping || false;
 
-  // Tunnel tooltip hover state
-  const [tunnelTooltipOpen, setTunnelTooltipOpen] = useState(false);
   // Context window tooltip hover state
   const [contextTooltipOpen, setContextTooltipOpen] = useState(false);
   // Session ID copied notification
@@ -495,72 +492,6 @@ export function MainPanel(props: MainPanelProps) {
                     </div>
                   )}
                 </div>
-              </div>
-
-              <div
-                className="relative"
-                onMouseEnter={() => activeSession.tunnelActive && setTunnelTooltipOpen(true)}
-                onMouseLeave={() => setTunnelTooltipOpen(false)}
-              >
-                <button
-                  onClick={() => toggleTunnel(activeSession.id)}
-                  className={`flex items-center gap-2 px-2 py-1 rounded text-xs transition-colors ${activeSession.tunnelActive ? 'bg-green-500/20 text-green-500' : 'text-gray-500 hover:bg-gray-800'}`}
-                >
-                  <Radio className={`w-3 h-3 ${activeSession.tunnelActive ? 'animate-pulse' : ''}`} />
-                  {activeSession.tunnelActive ? 'LIVE' : 'OFFLINE'}
-                </button>
-                {activeSession.tunnelActive && tunnelTooltipOpen && activeSession.tunnelUrl && (
-                  <div className="absolute top-full left-0 pt-2 w-80 z-50">
-                    <div
-                      className="rounded p-3 shadow-xl"
-                      style={{
-                        backgroundColor: theme.colors.bgSidebar,
-                        border: `1px solid ${theme.colors.border}`
-                      }}
-                    >
-                    <div className="text-[10px] uppercase font-bold mb-2" style={{ color: theme.colors.textDim }}>Web Interface URL</div>
-                    <div className="flex items-center justify-between gap-2 mb-3">
-                      <div className="flex items-center gap-1 text-xs text-green-400 font-mono select-all flex-1 overflow-hidden">
-                        <ExternalLink className="w-3 h-3 shrink-0" />
-                        <span className="truncate">{activeSession.tunnelUrl}</span>
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          copyToClipboard(activeSession.tunnelUrl || '');
-                        }}
-                        className="p-1.5 rounded hover:bg-white/10 transition-colors shrink-0"
-                        title="Copy URL"
-                      >
-                        <Copy className="w-3 h-3" style={{ color: theme.colors.textDim }} />
-                      </button>
-                    </div>
-                    {activeSession.tunnelPort && (
-                      <>
-                        <div className="text-[10px] uppercase font-bold mb-2" style={{ color: theme.colors.textDim }}>Port</div>
-                        <div className="text-xs font-mono mb-3" style={{ color: theme.colors.textMain }}>
-                          {activeSession.tunnelPort}
-                        </div>
-                      </>
-                    )}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (activeSession.tunnelUrl) {
-                          window.maestro.shell.openExternal(activeSession.tunnelUrl);
-                        }
-                      }}
-                      className="w-full py-2 rounded text-sm font-medium transition-colors hover:opacity-90"
-                      style={{
-                        backgroundColor: theme.colors.accent,
-                        color: 'white'
-                      }}
-                    >
-                      Open in Browser
-                    </button>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Git Status Widget */}

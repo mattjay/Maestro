@@ -1,0 +1,756 @@
+/**
+ * useWebSocket hook for Maestro web interface
+ *
+ * Provides WebSocket connection management for the web interface,
+ * handling connection, reconnection, and message handling.
+ *
+ * Note: Authentication is handled via URL path (security token in URL),
+ * so no separate auth handshake is needed.
+ */
+
+import { useState, useEffect, useCallback, useRef } from 'react';
+import type { Theme } from '../../shared/theme-types';
+import { buildWebSocketUrl as buildWsUrl, getCurrentSessionId } from '../utils/config';
+import { webLogger } from '../utils/logger';
+
+/**
+ * WebSocket connection states
+ */
+export type WebSocketState = 'disconnected' | 'connecting' | 'connected' | 'authenticating' | 'authenticated';
+
+/**
+ * Usage stats for session cost/token tracking
+ */
+export interface UsageStats {
+  inputTokens?: number;
+  outputTokens?: number;
+  cacheReadInputTokens?: number;
+  cacheCreationInputTokens?: number;
+  totalCostUsd?: number;
+  contextWindow?: number;
+}
+
+/**
+ * Last response preview for mobile display
+ * Contains a truncated version of the last AI response
+ */
+export interface LastResponsePreview {
+  text: string; // First 3 lines or ~500 chars of the last AI response
+  timestamp: number;
+  source: 'stdout' | 'stderr' | 'system';
+  fullLength: number; // Total length of the original response
+}
+
+/**
+ * Session data received from the server
+ */
+export interface SessionData {
+  id: string;
+  name: string;
+  toolType: string;
+  state: string;
+  inputMode: string;
+  cwd: string;
+  groupId?: string | null;
+  groupName?: string | null;
+  groupEmoji?: string | null;
+  usageStats?: UsageStats | null;
+  lastResponse?: LastResponsePreview | null;
+  claudeSessionId?: string | null;
+}
+
+/**
+ * Message types sent by the server
+ */
+export type ServerMessageType =
+  | 'connected'
+  | 'auth_required'
+  | 'auth_success'
+  | 'auth_failed'
+  | 'sessions_list'
+  | 'session_state_change'
+  | 'session_added'
+  | 'session_removed'
+  | 'active_session_changed'
+  | 'session_output'
+  | 'session_exit'
+  | 'theme'
+  | 'custom_commands'
+  | 'pong'
+  | 'subscribed'
+  | 'echo'
+  | 'error';
+
+/**
+ * Base server message structure
+ */
+export interface ServerMessage {
+  type: ServerMessageType;
+  timestamp?: number;
+  [key: string]: unknown;
+}
+
+/**
+ * Connected message from server
+ */
+export interface ConnectedMessage extends ServerMessage {
+  type: 'connected';
+  clientId: string;
+  message: string;
+  authenticated: boolean;
+}
+
+/**
+ * Auth required message from server
+ */
+export interface AuthRequiredMessage extends ServerMessage {
+  type: 'auth_required';
+  clientId: string;
+  message: string;
+}
+
+/**
+ * Auth success message from server
+ */
+export interface AuthSuccessMessage extends ServerMessage {
+  type: 'auth_success';
+  clientId: string;
+  message: string;
+}
+
+/**
+ * Auth failed message from server
+ */
+export interface AuthFailedMessage extends ServerMessage {
+  type: 'auth_failed';
+  message: string;
+}
+
+/**
+ * Sessions list message from server
+ */
+export interface SessionsListMessage extends ServerMessage {
+  type: 'sessions_list';
+  sessions: SessionData[];
+}
+
+/**
+ * Session state change message from server
+ */
+export interface SessionStateChangeMessage extends ServerMessage {
+  type: 'session_state_change';
+  sessionId: string;
+  state: string;
+  name?: string;
+  toolType?: string;
+  inputMode?: string;
+  cwd?: string;
+}
+
+/**
+ * Session added message from server
+ */
+export interface SessionAddedMessage extends ServerMessage {
+  type: 'session_added';
+  session: SessionData;
+}
+
+/**
+ * Session removed message from server
+ */
+export interface SessionRemovedMessage extends ServerMessage {
+  type: 'session_removed';
+  sessionId: string;
+}
+
+/**
+ * Active session changed message from server
+ * Sent when the desktop app switches to a different session
+ */
+export interface ActiveSessionChangedMessage extends ServerMessage {
+  type: 'active_session_changed';
+  sessionId: string;
+}
+
+/**
+ * Session output message from server (real-time AI/terminal output)
+ */
+export interface SessionOutputMessage extends ServerMessage {
+  type: 'session_output';
+  sessionId: string;
+  data: string;
+  source: 'ai' | 'terminal';
+}
+
+/**
+ * Session exit message from server (process completed)
+ */
+export interface SessionExitMessage extends ServerMessage {
+  type: 'session_exit';
+  sessionId: string;
+  exitCode: number;
+}
+
+/**
+ * User input message from server (message sent from desktop app)
+ */
+export interface UserInputMessage extends ServerMessage {
+  type: 'user_input';
+  sessionId: string;
+  command: string;
+  inputMode: 'ai' | 'terminal';
+}
+
+/**
+ * Theme message from server
+ */
+export interface ThemeMessage extends ServerMessage {
+  type: 'theme';
+  theme: Theme;
+}
+
+/**
+ * Custom AI command definition
+ */
+export interface CustomCommand {
+  id: string;
+  command: string;
+  description: string;
+  prompt: string;
+}
+
+/**
+ * Custom commands message from server
+ */
+export interface CustomCommandsMessage extends ServerMessage {
+  type: 'custom_commands';
+  commands: CustomCommand[];
+}
+
+/**
+ * Error message from server
+ */
+export interface ErrorMessage extends ServerMessage {
+  type: 'error';
+  message: string;
+}
+
+/**
+ * Union type of all possible server messages
+ */
+export type TypedServerMessage =
+  | ConnectedMessage
+  | AuthRequiredMessage
+  | AuthSuccessMessage
+  | AuthFailedMessage
+  | SessionsListMessage
+  | SessionStateChangeMessage
+  | SessionAddedMessage
+  | SessionRemovedMessage
+  | ActiveSessionChangedMessage
+  | SessionOutputMessage
+  | SessionExitMessage
+  | UserInputMessage
+  | ThemeMessage
+  | CustomCommandsMessage
+  | ErrorMessage
+  | ServerMessage;
+
+/**
+ * Event handlers for WebSocket events
+ */
+export interface WebSocketEventHandlers {
+  /** Called when sessions list is received or updated */
+  onSessionsUpdate?: (sessions: SessionData[]) => void;
+  /** Called when a single session state changes */
+  onSessionStateChange?: (sessionId: string, state: string, additionalData?: Partial<SessionData>) => void;
+  /** Called when a session is added */
+  onSessionAdded?: (session: SessionData) => void;
+  /** Called when a session is removed */
+  onSessionRemoved?: (sessionId: string) => void;
+  /** Called when the active session changes on the desktop */
+  onActiveSessionChanged?: (sessionId: string) => void;
+  /** Called when session output is received (real-time AI/terminal output) */
+  onSessionOutput?: (sessionId: string, data: string, source: 'ai' | 'terminal') => void;
+  /** Called when a session process exits */
+  onSessionExit?: (sessionId: string, exitCode: number) => void;
+  /** Called when user input is received (message sent from desktop app) */
+  onUserInput?: (sessionId: string, command: string, inputMode: 'ai' | 'terminal') => void;
+  /** Called when theme is received or updated */
+  onThemeUpdate?: (theme: Theme) => void;
+  /** Called when custom commands are received */
+  onCustomCommands?: (commands: CustomCommand[]) => void;
+  /** Called when connection state changes */
+  onConnectionChange?: (state: WebSocketState) => void;
+  /** Called when an error occurs */
+  onError?: (error: string) => void;
+  /** Called for any message (for debugging or custom handling) */
+  onMessage?: (message: TypedServerMessage) => void;
+}
+
+/**
+ * Configuration options for the WebSocket connection
+ */
+export interface UseWebSocketOptions {
+  /** WebSocket URL (defaults to /ws/web on current host) */
+  url?: string;
+  /** Authentication token (optional, can also be provided via URL query param) */
+  token?: string;
+  /** Whether to automatically reconnect on disconnection */
+  autoReconnect?: boolean;
+  /** Maximum number of reconnection attempts */
+  maxReconnectAttempts?: number;
+  /** Delay between reconnection attempts in milliseconds */
+  reconnectDelay?: number;
+  /** Ping interval in milliseconds (0 to disable) */
+  pingInterval?: number;
+  /** Event handlers */
+  handlers?: WebSocketEventHandlers;
+}
+
+/**
+ * Return value from useWebSocket hook
+ */
+export interface UseWebSocketReturn {
+  /** Current connection state */
+  state: WebSocketState;
+  /** Whether the connection is fully authenticated */
+  isAuthenticated: boolean;
+  /** Whether the connection is active (connected or authenticated) */
+  isConnected: boolean;
+  /** Client ID assigned by the server */
+  clientId: string | null;
+  /** Last error message */
+  error: string | null;
+  /** Number of reconnection attempts made */
+  reconnectAttempts: number;
+  /** Manually connect to the WebSocket server */
+  connect: () => void;
+  /** Manually disconnect from the WebSocket server */
+  disconnect: () => void;
+  /** Send an authentication token */
+  authenticate: (token: string) => void;
+  /** Send a ping message */
+  ping: () => void;
+  /** Send a raw message to the server */
+  send: (message: object) => boolean;
+}
+
+/**
+ * Default configuration values
+ */
+const DEFAULT_OPTIONS: Required<Omit<UseWebSocketOptions, 'handlers' | 'token'>> = {
+  url: '',
+  autoReconnect: true,
+  maxReconnectAttempts: 10,
+  reconnectDelay: 2000,
+  pingInterval: 30000,
+};
+
+/**
+ * Build the WebSocket URL using the config
+ * The security token is in the URL path, not as a query param
+ */
+function buildWebSocketUrl(baseUrl?: string, sessionId?: string): string {
+  if (baseUrl) {
+    return baseUrl;
+  }
+
+  // Use config to build the URL with security token in path
+  // If sessionId is provided, subscribe to that session's updates
+  return buildWsUrl(sessionId || getCurrentSessionId() || undefined);
+}
+
+/**
+ * useWebSocket hook for managing WebSocket connections to the Maestro server
+ *
+ * @example
+ * ```tsx
+ * function App() {
+ *   const { state, isAuthenticated, connect, authenticate } = useWebSocket({
+ *     handlers: {
+ *       onSessionsUpdate: (sessions) => setSessions(sessions),
+ *       onThemeUpdate: (theme) => setTheme(theme),
+ *     },
+ *   });
+ *
+ *   if (state === 'disconnected') {
+ *     return <button onClick={connect}>Connect</button>;
+ *   }
+ *
+ *   if (!isAuthenticated) {
+ *     return <AuthForm onSubmit={(token) => authenticate(token)} />;
+ *   }
+ *
+ *   return <Dashboard />;
+ * }
+ * ```
+ */
+export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketReturn {
+  const {
+    url: baseUrl,
+    token,
+    autoReconnect = DEFAULT_OPTIONS.autoReconnect,
+    maxReconnectAttempts = DEFAULT_OPTIONS.maxReconnectAttempts,
+    reconnectDelay = DEFAULT_OPTIONS.reconnectDelay,
+    pingInterval = DEFAULT_OPTIONS.pingInterval,
+    handlers,
+  } = options;
+
+  // State
+  const [state, setState] = useState<WebSocketState>('disconnected');
+  const [clientId, setClientId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
+
+  // Refs for mutable values
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const handlersRef = useRef(handlers);
+  const shouldReconnectRef = useRef(true);
+
+  // Keep handlers ref up to date
+  useEffect(() => {
+    handlersRef.current = handlers;
+  }, [handlers]);
+
+  /**
+   * Clear all timers
+   */
+  const clearTimers = useCallback(() => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+    if (pingIntervalRef.current) {
+      clearInterval(pingIntervalRef.current);
+      pingIntervalRef.current = null;
+    }
+  }, []);
+
+  /**
+   * Start the ping interval
+   */
+  const startPingInterval = useCallback(() => {
+    if (pingInterval > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
+      pingIntervalRef.current = setInterval(() => {
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({ type: 'ping' }));
+        }
+      }, pingInterval);
+    }
+  }, [pingInterval]);
+
+  /**
+   * Handle incoming messages from the server
+   */
+  const handleMessage = useCallback((event: MessageEvent) => {
+    try {
+      const message = JSON.parse(event.data) as TypedServerMessage;
+
+      // Debug: Log all incoming messages
+      if (message.type === 'session_output') {
+        console.log(`[WebSocket] RAW message received:`, message);
+      }
+
+      // Call the generic message handler
+      handlersRef.current?.onMessage?.(message);
+
+      switch (message.type) {
+        case 'connected': {
+          const connectedMsg = message as ConnectedMessage;
+          setClientId(connectedMsg.clientId);
+          if (connectedMsg.authenticated) {
+            setState('authenticated');
+            handlersRef.current?.onConnectionChange?.('authenticated');
+          } else {
+            setState('connected');
+            handlersRef.current?.onConnectionChange?.('connected');
+          }
+          setError(null);
+          setReconnectAttempts(0);
+          startPingInterval();
+          break;
+        }
+
+        case 'auth_required': {
+          const authReqMsg = message as AuthRequiredMessage;
+          setClientId(authReqMsg.clientId);
+          setState('connected');
+          handlersRef.current?.onConnectionChange?.('connected');
+          break;
+        }
+
+        case 'auth_success': {
+          const authSuccessMsg = message as AuthSuccessMessage;
+          setClientId(authSuccessMsg.clientId);
+          setState('authenticated');
+          handlersRef.current?.onConnectionChange?.('authenticated');
+          setError(null);
+          break;
+        }
+
+        case 'auth_failed': {
+          const authFailedMsg = message as AuthFailedMessage;
+          setError(authFailedMsg.message);
+          handlersRef.current?.onError?.(authFailedMsg.message);
+          break;
+        }
+
+        case 'sessions_list': {
+          const sessionsMsg = message as SessionsListMessage;
+          handlersRef.current?.onSessionsUpdate?.(sessionsMsg.sessions);
+          break;
+        }
+
+        case 'session_state_change': {
+          const stateChangeMsg = message as SessionStateChangeMessage;
+          handlersRef.current?.onSessionStateChange?.(
+            stateChangeMsg.sessionId,
+            stateChangeMsg.state,
+            {
+              name: stateChangeMsg.name,
+              toolType: stateChangeMsg.toolType,
+              inputMode: stateChangeMsg.inputMode,
+              cwd: stateChangeMsg.cwd,
+            }
+          );
+          break;
+        }
+
+        case 'session_added': {
+          const addedMsg = message as SessionAddedMessage;
+          handlersRef.current?.onSessionAdded?.(addedMsg.session);
+          break;
+        }
+
+        case 'session_removed': {
+          const removedMsg = message as SessionRemovedMessage;
+          handlersRef.current?.onSessionRemoved?.(removedMsg.sessionId);
+          break;
+        }
+
+        case 'active_session_changed': {
+          const activeMsg = message as ActiveSessionChangedMessage;
+          handlersRef.current?.onActiveSessionChanged?.(activeMsg.sessionId);
+          break;
+        }
+
+        case 'session_output': {
+          const outputMsg = message as SessionOutputMessage;
+          console.log(`[WebSocket] Received session_output: session=${outputMsg.sessionId}, source=${outputMsg.source}, dataLen=${outputMsg.data?.length || 0}, hasHandler=${!!handlersRef.current?.onSessionOutput}`);
+          handlersRef.current?.onSessionOutput?.(outputMsg.sessionId, outputMsg.data, outputMsg.source);
+          break;
+        }
+
+        case 'session_exit': {
+          const exitMsg = message as SessionExitMessage;
+          handlersRef.current?.onSessionExit?.(exitMsg.sessionId, exitMsg.exitCode);
+          break;
+        }
+
+        case 'user_input': {
+          const inputMsg = message as UserInputMessage;
+          handlersRef.current?.onUserInput?.(inputMsg.sessionId, inputMsg.command, inputMsg.inputMode);
+          break;
+        }
+
+        case 'theme': {
+          const themeMsg = message as ThemeMessage;
+          handlersRef.current?.onThemeUpdate?.(themeMsg.theme);
+          break;
+        }
+
+        case 'custom_commands': {
+          const commandsMsg = message as CustomCommandsMessage;
+          handlersRef.current?.onCustomCommands?.(commandsMsg.commands);
+          break;
+        }
+
+        case 'error': {
+          const errorMsg = message as ErrorMessage;
+          setError(errorMsg.message);
+          handlersRef.current?.onError?.(errorMsg.message);
+          break;
+        }
+
+        case 'pong':
+          // Heartbeat response - no action needed
+          break;
+
+        default:
+          // Unknown message type - ignore or log for debugging
+          break;
+      }
+    } catch (err) {
+      webLogger.error('Failed to parse WebSocket message', 'WebSocket', err);
+    }
+  }, [startPingInterval]);
+
+  /**
+   * Attempt to reconnect to the server
+   */
+  const attemptReconnect = useCallback(() => {
+    if (!shouldReconnectRef.current || !autoReconnect) {
+      return;
+    }
+
+    if (reconnectAttempts >= maxReconnectAttempts) {
+      setError(`Failed to connect after ${maxReconnectAttempts} attempts`);
+      handlersRef.current?.onError?.(`Failed to connect after ${maxReconnectAttempts} attempts`);
+      return;
+    }
+
+    reconnectTimeoutRef.current = setTimeout(() => {
+      setReconnectAttempts((prev) => prev + 1);
+      // We'll call connect which is defined below
+      connectInternal();
+    }, reconnectDelay);
+  }, [autoReconnect, maxReconnectAttempts, reconnectAttempts, reconnectDelay]);
+
+  /**
+   * Internal connect function (to avoid circular dependency)
+   */
+  const connectInternal = useCallback(() => {
+    // Clean up existing connection
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    clearTimers();
+
+    // Build the URL using config (token is in URL path, not query param)
+    const url = buildWebSocketUrl(baseUrl);
+
+    setState('connecting');
+    handlersRef.current?.onConnectionChange?.('connecting');
+
+    try {
+      const ws = new WebSocket(url);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        // State will be set when we receive the 'connected' or 'auth_required' message
+        setState('authenticating');
+        handlersRef.current?.onConnectionChange?.('authenticating');
+      };
+
+      ws.onmessage = handleMessage;
+
+      ws.onerror = (event) => {
+        webLogger.error('WebSocket connection error', 'WebSocket', event);
+        setError('WebSocket connection error');
+        handlersRef.current?.onError?.('WebSocket connection error');
+      };
+
+      ws.onclose = (event) => {
+        clearTimers();
+        wsRef.current = null;
+        setState('disconnected');
+        handlersRef.current?.onConnectionChange?.('disconnected');
+
+        // Attempt to reconnect if not a clean close
+        if (event.code !== 1000 && shouldReconnectRef.current) {
+          attemptReconnect();
+        }
+      };
+    } catch (err) {
+      webLogger.error('Failed to create WebSocket', 'WebSocket', err);
+      setError('Failed to create WebSocket connection');
+      handlersRef.current?.onError?.('Failed to create WebSocket connection');
+      setState('disconnected');
+      handlersRef.current?.onConnectionChange?.('disconnected');
+    }
+  }, [baseUrl, clearTimers, handleMessage, attemptReconnect]);
+
+  /**
+   * Connect to the WebSocket server
+   */
+  const connect = useCallback(() => {
+    shouldReconnectRef.current = true;
+    setReconnectAttempts(0);
+    setError(null);
+    connectInternal();
+  }, [connectInternal]);
+
+  /**
+   * Disconnect from the WebSocket server
+   */
+  const disconnect = useCallback(() => {
+    shouldReconnectRef.current = false;
+    clearTimers();
+
+    if (wsRef.current) {
+      wsRef.current.close(1000, 'Client disconnect');
+      wsRef.current = null;
+    }
+
+    setState('disconnected');
+    setClientId(null);
+    handlersRef.current?.onConnectionChange?.('disconnected');
+  }, [clearTimers]);
+
+  /**
+   * Send an authentication token
+   */
+  const authenticate = useCallback((authToken: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'auth', token: authToken }));
+      setState('authenticating');
+      handlersRef.current?.onConnectionChange?.('authenticating');
+    }
+  }, []);
+
+  /**
+   * Send a ping message
+   */
+  const ping = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'ping' }));
+    }
+  }, []);
+
+  /**
+   * Send a raw message to the server
+   */
+  const send = useCallback((message: object): boolean => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(message));
+      return true;
+    }
+    return false;
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      shouldReconnectRef.current = false;
+      clearTimers();
+      if (wsRef.current) {
+        wsRef.current.close(1000, 'Component unmount');
+        wsRef.current = null;
+      }
+    };
+  }, [clearTimers]);
+
+  // Derived state
+  const isAuthenticated = state === 'authenticated';
+  const isConnected = state === 'connected' || state === 'authenticated' || state === 'authenticating';
+
+  return {
+    state,
+    isAuthenticated,
+    isConnected,
+    clientId,
+    error,
+    reconnectAttempts,
+    connect,
+    disconnect,
+    authenticate,
+    ping,
+    send,
+  };
+}
+
+export default useWebSocket;

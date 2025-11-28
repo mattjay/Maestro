@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Wand2, Plus, Settings, ChevronRight, ChevronDown, Activity, X, Keyboard,
-  Globe, Network, PanelLeftClose, PanelLeftOpen, Folder, Info, FileText, GitBranch, Bot, Clock,
+  Radio, Copy, ExternalLink, PanelLeftClose, PanelLeftOpen, Folder, Info, FileText, GitBranch, Bot, Clock,
   ScrollText, Cpu, Menu, Bookmark, Tag
 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import type { Session, Group, Theme, Shortcut } from '../types';
 import { getStatusColor, getContextColor, formatActiveTime } from '../utils/theme';
 import { gitService } from '../services/git';
@@ -36,8 +37,12 @@ interface SessionListProps {
   editingGroupId: string | null;
   editingSessionId: string | null;
   draggingSessionId: string | null;
-  anyTunnelActive: boolean;
   shortcuts: Record<string, Shortcut>;
+
+  // Global Live Mode
+  isLiveMode: boolean;
+  webInterfaceUrl: string | null;
+  toggleGlobalLive: () => void;
 
   // Handlers
   setActiveFocus: (focus: string) => void;
@@ -73,7 +78,8 @@ export function SessionList(props: SessionListProps) {
   const {
     theme, sessions, groups, sortedSessions, activeSessionId, leftSidebarOpen,
     leftSidebarWidthState, activeFocus, selectedSidebarIndex, editingGroupId,
-    editingSessionId, draggingSessionId, anyTunnelActive, shortcuts,
+    editingSessionId, draggingSessionId, shortcuts,
+    isLiveMode, webInterfaceUrl, toggleGlobalLive,
     setActiveFocus, setActiveSessionId, setLeftSidebarOpen, setLeftSidebarWidthState,
     setShortcutsHelpOpen, setSettingsModalOpen, setSettingsTab, setAboutModalOpen, setLogViewerOpen, setProcessMonitorOpen, toggleGroup,
     handleDragStart, handleDragOver, handleDropOnGroup, handleDropOnUngrouped,
@@ -88,8 +94,32 @@ export function SessionList(props: SessionListProps) {
   const [bookmarksCollapsed, setBookmarksCollapsed] = useState(false);
   const [preFilterGroupStates, setPreFilterGroupStates] = useState<Map<string, boolean>>(new Map());
   const [menuOpen, setMenuOpen] = useState(false);
-  const [globeTooltipOpen, setGlobeTooltipOpen] = useState(false);
+  const [liveOverlayOpen, setLiveOverlayOpen] = useState(false);
+  const [urlCopied, setUrlCopied] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const liveOverlayRef = useRef<HTMLDivElement>(null);
+
+  // Copy URL to clipboard
+  const copyUrlToClipboard = () => {
+    if (webInterfaceUrl) {
+      navigator.clipboard.writeText(webInterfaceUrl);
+      setUrlCopied(true);
+      setTimeout(() => setUrlCopied(false), 2000);
+    }
+  };
+
+  // Close live overlay when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (liveOverlayRef.current && !liveOverlayRef.current.contains(e.target as Node)) {
+        setLiveOverlayOpen(false);
+      }
+    };
+    if (liveOverlayOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [liveOverlayOpen]);
 
   // Toggle bookmark for a session
   const toggleBookmark = (sessionId: string) => {
@@ -110,6 +140,25 @@ export function SessionList(props: SessionListProps) {
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [menuOpen]);
+
+  // Close overlays/menus with Escape key
+  useEffect(() => {
+    const handleEscKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (liveOverlayOpen) {
+          setLiveOverlayOpen(false);
+          e.stopPropagation();
+        } else if (menuOpen) {
+          setMenuOpen(false);
+          e.stopPropagation();
+        }
+      }
+    };
+    if (liveOverlayOpen || menuOpen) {
+      document.addEventListener('keydown', handleEscKey);
+      return () => document.removeEventListener('keydown', handleEscKey);
+    }
+  }, [liveOverlayOpen, menuOpen]);
 
   // Track git file change counts per session
   const [gitFileCounts, setGitFileCounts] = useState<Map<string, number>>(new Map());
@@ -231,73 +280,104 @@ export function SessionList(props: SessionListProps) {
             <div className="flex items-center gap-2">
               <Wand2 className="w-5 h-5" style={{ color: theme.colors.accent }} />
               <h1 className="font-bold tracking-widest text-lg" style={{ color: theme.colors.textMain }}>MAESTRO</h1>
-              <div
-                className="ml-2 relative cursor-help"
-                onMouseEnter={() => anyTunnelActive && setGlobeTooltipOpen(true)}
-                onMouseLeave={() => setGlobeTooltipOpen(false)}
-                title={anyTunnelActive ? "Index Active" : "No Public Tunnels"}
-              >
-                <Globe className={`w-3 h-3 ${anyTunnelActive ? 'text-green-500 animate-pulse' : 'opacity-30'}`} />
-                {anyTunnelActive && globeTooltipOpen && (
-                  <div className="absolute top-full left-0 pt-2 z-50" style={{ minWidth: '320px' }}>
+              {/* Global LIVE Toggle */}
+              <div className="ml-2 relative" ref={liveOverlayRef}>
+                <button
+                  onClick={() => {
+                    if (!isLiveMode) {
+                      toggleGlobalLive();
+                      setLiveOverlayOpen(true);
+                    } else {
+                      setLiveOverlayOpen(!liveOverlayOpen);
+                    }
+                  }}
+                  className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${
+                    isLiveMode
+                      ? 'bg-green-500/20 text-green-500 hover:bg-green-500/30'
+                      : 'text-gray-500 hover:bg-white/10'
+                  }`}
+                  title={isLiveMode ? "Web interface active - Click to show URL" : "Click to enable web interface"}
+                >
+                  <Radio className={`w-3 h-3 ${isLiveMode ? 'animate-pulse' : ''}`} />
+                  {isLiveMode ? 'LIVE' : 'OFFLINE'}
+                </button>
+
+                {/* LIVE Overlay with URL and QR Code */}
+                {isLiveMode && liveOverlayOpen && webInterfaceUrl && (
+                  <div className="absolute top-full left-0 pt-2 z-50" style={{ width: '240px' }}>
                     <div
-                      className="rounded shadow-xl overflow-hidden"
+                      className="rounded-lg shadow-2xl overflow-hidden"
                       style={{
                         backgroundColor: theme.colors.bgSidebar,
                         border: `1px solid ${theme.colors.border}`
                       }}
                     >
-                      <div className="px-3 py-2 border-b" style={{ borderColor: theme.colors.border }}>
-                        <div className="text-[10px] uppercase font-bold" style={{ color: theme.colors.textDim }}>Live Agents</div>
+                      {/* URL Section */}
+                      <div className="p-3">
+                        <div className="text-[10px] uppercase font-bold mb-2" style={{ color: theme.colors.textDim }}>
+                          Web Interface URL
+                        </div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <div
+                            className="flex-1 text-[11px] font-mono text-green-400 truncate select-all"
+                            title={webInterfaceUrl}
+                          >
+                            {webInterfaceUrl.replace(/^https?:\/\//, '')}
+                          </div>
+                          <button
+                            onClick={copyUrlToClipboard}
+                            className="p-1.5 rounded hover:bg-white/10 transition-colors shrink-0"
+                            title={urlCopied ? "Copied!" : "Copy URL"}
+                          >
+                            {urlCopied ? (
+                              <span className="text-green-500 text-[10px] font-bold">✓</span>
+                            ) : (
+                              <Copy className="w-3 h-3" style={{ color: theme.colors.textDim }} />
+                            )}
+                          </button>
+                        </div>
+
+                        {/* Open in Browser Button */}
+                        <button
+                          onClick={() => window.maestro.shell.openExternal(webInterfaceUrl)}
+                          className="w-full py-2 rounded text-xs font-medium transition-colors hover:opacity-90 flex items-center justify-center gap-2"
+                          style={{
+                            backgroundColor: theme.colors.accent,
+                            color: 'white'
+                          }}
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          Open in Browser
+                        </button>
                       </div>
-                      <div className="max-h-64 overflow-y-auto">
-                        {sessions.filter(s => s.tunnelActive).map(session => {
-                          const group = groups.find(g => g.id === session.groupId);
-                          return (
-                            <div
-                              key={session.id}
-                              className="px-3 py-2 border-b last:border-b-0 hover:bg-white/5"
-                              style={{ borderColor: theme.colors.border }}
-                            >
-                              <div className="flex items-center justify-between mb-1">
-                                <button
-                                  onClick={() => {
-                                    setActiveSessionId(session.id);
-                                    setGlobeTooltipOpen(false);
-                                  }}
-                                  className="text-xs font-bold hover:underline text-left"
-                                  style={{ color: theme.colors.textMain }}
-                                >
-                                  {session.name}
-                                </button>
-                                {group && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: theme.colors.bgActivity, color: theme.colors.textDim }}>
-                                    {group.name}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex flex-col gap-0.5">
-                                <button
-                                  onClick={() => window.maestro.shell.openExternal(`http://localhost:${session.port}`)}
-                                  className="flex items-center gap-1 text-[10px] font-mono hover:underline"
-                                  style={{ color: theme.colors.textDim }}
-                                >
-                                  <Network className="w-2.5 h-2.5" />
-                                  localhost:{session.port}
-                                </button>
-                                {session.tunnelUrl && (
-                                  <button
-                                    onClick={() => window.maestro.shell.openExternal(session.tunnelUrl!)}
-                                    className="flex items-center gap-1 text-[10px] font-mono hover:underline text-green-400"
-                                  >
-                                    <Globe className="w-2.5 h-2.5" />
-                                    {session.tunnelUrl.replace('https://', '')}
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
+
+                      {/* QR Code Section */}
+                      <div className="px-3 pb-3 pt-2 border-t flex flex-col items-center" style={{ borderColor: theme.colors.border }}>
+                        <div className="text-[10px] uppercase font-bold mb-2" style={{ color: theme.colors.textDim }}>
+                          Scan with Mobile
+                        </div>
+                        <div className="p-3 rounded w-full" style={{ backgroundColor: 'white' }}>
+                          <QRCodeSVG
+                            value={webInterfaceUrl}
+                            size={240}
+                            bgColor="#FFFFFF"
+                            fgColor="#000000"
+                            style={{ width: '100%', height: 'auto' }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Turn Off Button */}
+                      <div className="px-3 pb-3">
+                        <button
+                          onClick={() => {
+                            toggleGlobalLive();
+                            setLiveOverlayOpen(false);
+                          }}
+                          className="w-full py-1.5 rounded text-[10px] font-medium transition-colors hover:bg-red-500/20 text-red-400 border border-red-500/30"
+                        >
+                          Turn Off Web Interface
+                        </button>
                       </div>
                     </div>
                   </div>

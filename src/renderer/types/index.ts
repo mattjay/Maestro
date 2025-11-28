@@ -1,33 +1,15 @@
 // Type definitions for Maestro renderer
 
+// Re-export theme types from shared location
+export { Theme, ThemeId, ThemeMode, ThemeColors, isValidThemeId } from '../../shared/theme-types';
+
 export type ToolType = 'claude' | 'aider' | 'opencode' | 'terminal';
 export type SessionState = 'idle' | 'busy' | 'waiting_input' | 'connecting' | 'error';
 export type FileChangeType = 'modified' | 'added' | 'deleted';
 export type RightPanelTab = 'files' | 'history' | 'scratchpad';
 export type ScratchPadMode = 'raw' | 'preview' | 'wysiwyg';
-export type ThemeId = 'dracula' | 'monokai' | 'github-light' | 'solarized-light' | 'nord' | 'tokyo-night' | 'one-light' | 'gruvbox-light' | 'catppuccin-mocha' | 'gruvbox-dark' | 'catppuccin-latte' | 'ayu-light' | 'pedurple' | 'maestros-choice' | 'dre-synth' | 'inquest';
 export type FocusArea = 'sidebar' | 'main' | 'right';
 export type LLMProvider = 'openrouter' | 'anthropic' | 'ollama';
-
-export interface Theme {
-  id: ThemeId;
-  name: string;
-  mode: 'light' | 'dark' | 'vibe';
-  colors: {
-    bgMain: string;
-    bgSidebar: string;
-    bgActivity: string;
-    border: string;
-    textMain: string;
-    textDim: string;
-    accent: string;
-    accentDim: string;
-    accentText: string;
-    success: string;
-    warning: string;
-    error: string;
-  };
-}
 
 export interface Shortcut {
   id: string;
@@ -140,10 +122,9 @@ export interface Session {
   aiPid: number;
   terminalPid: number;
   port: number;
-  tunnelActive: boolean;
-  tunnelUrl?: string;
-  tunnelPort?: number;
-  tunnelUuid?: string;
+  // Live mode - makes session accessible via web interface
+  isLive: boolean;
+  liveUrl?: string;
   changedFiles: FileArtifact[];
   isGitRepo: boolean;
   // File Explorer per-session state
