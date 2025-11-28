@@ -927,8 +927,8 @@ export const TerminalOutput = forwardRef<HTMLDivElement, TerminalOutputProps>((p
             >
               <Copy className="w-3.5 h-3.5" />
             </button>
-            {/* Delete button for user commands in terminal mode */}
-            {log.source === 'user' && isTerminal && onDeleteLog && (
+            {/* Delete button for user messages (both AI and terminal modes) */}
+            {log.source === 'user' && onDeleteLog && (
               deleteConfirmLogIdRef.current === log.id ? (
                 <div className="flex items-center gap-1 p-1 rounded border" style={{ backgroundColor: theme.colors.bgSidebar, borderColor: theme.colors.error }}>
                   <span className="text-xs px-1" style={{ color: theme.colors.error }}>Delete?</span>
@@ -966,7 +966,7 @@ export const TerminalOutput = forwardRef<HTMLDivElement, TerminalOutputProps>((p
                   onClick={() => { setDeleteConfirmLogId(log.id); setDeleteConfirmTrigger(t => t + 1); }}
                   className="p-1.5 rounded opacity-0 group-hover:opacity-50 hover:!opacity-100 transition-opacity"
                   style={{ color: theme.colors.textDim }}
-                  title="Delete command and output"
+                  title={isAIMode ? "Delete message and response" : "Delete command and output"}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>

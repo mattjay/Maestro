@@ -257,6 +257,8 @@ contextBridge.exposeInMainWorld('maestro', {
       ipcRenderer.invoke('claude:updateSessionName', projectPath, claudeSessionId, sessionName),
     getSessionOrigins: (projectPath: string) =>
       ipcRenderer.invoke('claude:getSessionOrigins', projectPath),
+    deleteMessagePair: (projectPath: string, sessionId: string, userMessageUuid: string, fallbackContent?: string) =>
+      ipcRenderer.invoke('claude:deleteMessagePair', projectPath, sessionId, userMessageUuid, fallbackContent),
   },
 
   // Temp file API (for batch processing)
@@ -477,6 +479,7 @@ export interface MaestroAPI {
     registerSessionOrigin: (projectPath: string, claudeSessionId: string, origin: 'user' | 'auto', sessionName?: string) => Promise<boolean>;
     updateSessionName: (projectPath: string, claudeSessionId: string, sessionName: string) => Promise<boolean>;
     getSessionOrigins: (projectPath: string) => Promise<Record<string, 'user' | 'auto' | { origin: 'user' | 'auto'; sessionName?: string }>>;
+    deleteMessagePair: (projectPath: string, sessionId: string, userMessageUuid: string, fallbackContent?: string) => Promise<{ success: boolean; linesRemoved?: number; error?: string }>;
   };
   tempfile: {
     write: (content: string, filename?: string) => Promise<{ success: boolean; path?: string; error?: string }>;

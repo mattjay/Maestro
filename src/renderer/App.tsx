@@ -3853,17 +3853,20 @@ export default function MaestroConsole() {
         onDeleteLog={(logId: string): number | null => {
           if (!activeSession) return null;
 
+          const isAIMode = activeSession.inputMode === 'ai';
+          const logs = isAIMode ? activeSession.aiLogs : activeSession.shellLogs;
+
           // Find the log entry and its index
-          const logIndex = activeSession.shellLogs.findIndex(log => log.id === logId);
+          const logIndex = logs.findIndex(log => log.id === logId);
           if (logIndex === -1) return null;
 
-          const log = activeSession.shellLogs[logIndex];
-          if (log.source !== 'user') return null; // Only delete user commands
+          const log = logs[logIndex];
+          if (log.source !== 'user') return null; // Only delete user commands/messages
 
           // Find the next user command index (or end of array)
-          let endIndex = activeSession.shellLogs.length;
-          for (let i = logIndex + 1; i < activeSession.shellLogs.length; i++) {
-            if (activeSession.shellLogs[i].source === 'user') {
+          let endIndex = logs.length;
+          for (let i = logIndex + 1; i < logs.length; i++) {
+            if (logs[i].source === 'user') {
               endIndex = i;
               break;
             }
@@ -3871,8 +3874,8 @@ export default function MaestroConsole() {
 
           // Remove logs from logIndex to endIndex (exclusive)
           const newLogs = [
-            ...activeSession.shellLogs.slice(0, logIndex),
-            ...activeSession.shellLogs.slice(endIndex)
+            ...logs.slice(0, logIndex),
+            ...logs.slice(endIndex)
           ];
 
           // Find the index of the next user command in the NEW array
@@ -3894,17 +3897,53 @@ export default function MaestroConsole() {
             }
           }
 
-          // Also remove from shell command history (this is for terminal mode)
-          const commandText = log.text.trim();
-          const newShellCommandHistory = (activeSession.shellCommandHistory || []).filter(
-            cmd => cmd !== commandText
-          );
+          if (isAIMode) {
+            // For AI mode, also delete from the Claude session JSONL file
+            // This ensures the context is actually removed for future interactions
+            if (activeSession.claudeSessionId && activeSession.cwd) {
+              // Delete asynchronously - don't block the UI update
+              window.maestro.claude.deleteMessagePair(
+                activeSession.cwd,
+                activeSession.claudeSessionId,
+                logId, // This is the UUID if loaded from Claude session
+                log.text // Fallback: match by content if UUID doesn't match
+              ).then(result => {
+                if (result.success) {
+                  console.log('[onDeleteLog] Deleted message pair from Claude session', {
+                    linesRemoved: result.linesRemoved
+                  });
+                } else {
+                  console.warn('[onDeleteLog] Failed to delete from Claude session:', result.error);
+                }
+              }).catch(err => {
+                console.error('[onDeleteLog] Error deleting from Claude session:', err);
+              });
+            }
 
-          setSessions(sessions.map(s =>
-            s.id === activeSession.id
-              ? { ...s, shellLogs: newLogs, shellCommandHistory: newShellCommandHistory }
-              : s
-          ));
+            // Update aiLogs and aiCommandHistory
+            const commandText = log.text.trim();
+            const newAICommandHistory = (activeSession.aiCommandHistory || []).filter(
+              cmd => cmd !== commandText
+            );
+
+            setSessions(sessions.map(s =>
+              s.id === activeSession.id
+                ? { ...s, aiLogs: newLogs, aiCommandHistory: newAICommandHistory }
+                : s
+            ));
+          } else {
+            // Terminal mode - update shellLogs and shellCommandHistory
+            const commandText = log.text.trim();
+            const newShellCommandHistory = (activeSession.shellCommandHistory || []).filter(
+              cmd => cmd !== commandText
+            );
+
+            setSessions(sessions.map(s =>
+              s.id === activeSession.id
+                ? { ...s, shellLogs: newLogs, shellCommandHistory: newShellCommandHistory }
+                : s
+            ));
+          }
 
           return nextUserCommandIndex;
         }}

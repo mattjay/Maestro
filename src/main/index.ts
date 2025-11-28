@@ -1537,6 +1537,112 @@ function setupIpcHandlers() {
     }
   });
 
+  // Delete a message pair (user message and its response) from Claude session
+  // Can match by UUID or by content (for messages created in current session without UUID)
+  ipcMain.handle('claude:deleteMessagePair', async (
+    _event,
+    projectPath: string,
+    sessionId: string,
+    userMessageUuid: string,
+    fallbackContent?: string // Optional: message content to match if UUID not found
+  ) => {
+    try {
+      const os = await import('os');
+      const homeDir = os.default.homedir();
+      const claudeProjectsDir = path.join(homeDir, '.claude', 'projects');
+
+      const encodedPath = projectPath.replace(/\//g, '-');
+      const sessionFile = path.join(claudeProjectsDir, encodedPath, `${sessionId}.jsonl`);
+
+      const content = await fs.readFile(sessionFile, 'utf-8');
+      const lines = content.split('\n').filter(l => l.trim());
+
+      // Parse all lines and find the user message
+      const parsedLines: Array<{ line: string; entry: any }> = [];
+      let userMessageIndex = -1;
+
+      for (let i = 0; i < lines.length; i++) {
+        try {
+          const entry = JSON.parse(lines[i]);
+          parsedLines.push({ line: lines[i], entry });
+
+          // First try to match by UUID
+          if (entry.uuid === userMessageUuid && entry.type === 'user') {
+            userMessageIndex = parsedLines.length - 1;
+          }
+        } catch {
+          // Keep malformed lines as-is
+          parsedLines.push({ line: lines[i], entry: null });
+        }
+      }
+
+      // If UUID match failed and we have fallback content, try matching by content
+      if (userMessageIndex === -1 && fallbackContent) {
+        // Normalize content for comparison (trim whitespace)
+        const normalizedFallback = fallbackContent.trim();
+
+        // Search from the end (most recent first) for a matching user message
+        for (let i = parsedLines.length - 1; i >= 0; i--) {
+          const entry = parsedLines[i].entry;
+          if (entry?.type === 'user') {
+            // Extract text content from message
+            let messageText = '';
+            if (entry.message?.content) {
+              if (typeof entry.message.content === 'string') {
+                messageText = entry.message.content;
+              } else if (Array.isArray(entry.message.content)) {
+                const textBlocks = entry.message.content.filter((b: any) => b.type === 'text');
+                messageText = textBlocks.map((b: any) => b.text).join('\n');
+              }
+            }
+
+            if (messageText.trim() === normalizedFallback) {
+              userMessageIndex = i;
+              logger.info('Found message by content match', 'ClaudeSessions', { sessionId, index: i });
+              break;
+            }
+          }
+        }
+      }
+
+      if (userMessageIndex === -1) {
+        logger.warn('User message not found for deletion', 'ClaudeSessions', { sessionId, userMessageUuid, hasFallback: !!fallbackContent });
+        return { success: false, error: 'User message not found' };
+      }
+
+      // Find the end of the response (next user message or end of file)
+      // We need to delete from userMessageIndex to the next user message (exclusive)
+      let endIndex = parsedLines.length;
+      for (let i = userMessageIndex + 1; i < parsedLines.length; i++) {
+        if (parsedLines[i].entry?.type === 'user') {
+          endIndex = i;
+          break;
+        }
+      }
+
+      // Remove the message pair
+      const linesToKeep = [
+        ...parsedLines.slice(0, userMessageIndex),
+        ...parsedLines.slice(endIndex)
+      ];
+
+      // Write back to file
+      const newContent = linesToKeep.map(p => p.line).join('\n') + '\n';
+      await fs.writeFile(sessionFile, newContent, 'utf-8');
+
+      logger.info(`Deleted message pair from Claude session`, 'ClaudeSessions', {
+        sessionId,
+        userMessageUuid,
+        linesRemoved: endIndex - userMessageIndex
+      });
+
+      return { success: true, linesRemoved: endIndex - userMessageIndex };
+    } catch (error) {
+      logger.error('Error deleting message from Claude session', 'ClaudeSessions', { sessionId, userMessageUuid, error });
+      return { success: false, error: String(error) };
+    }
+  });
+
   // Search through Claude session content
   ipcMain.handle('claude:searchSessions', async (
     _event,
