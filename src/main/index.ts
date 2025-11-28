@@ -692,6 +692,21 @@ function setupIpcHandlers() {
     return processManager.resize(sessionId, cols, rows);
   });
 
+  // Get all active processes managed by the ProcessManager
+  ipcMain.handle('process:getActiveProcesses', async () => {
+    if (!processManager) throw new Error('Process manager not initialized');
+    const processes = processManager.getAll();
+    // Return serializable process info (exclude non-serializable PTY/child process objects)
+    return processes.map(p => ({
+      sessionId: p.sessionId,
+      toolType: p.toolType,
+      pid: p.pid,
+      cwd: p.cwd,
+      isTerminal: p.isTerminal,
+      isBatchMode: p.isBatchMode || false,
+    }));
+  });
+
   // Run a single command and capture only stdout/stderr (no PTY echo/prompts)
   ipcMain.handle('process:runCommand', async (_, config: {
     sessionId: string;

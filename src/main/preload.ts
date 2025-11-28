@@ -67,6 +67,9 @@ contextBridge.exposeInMainWorld('maestro', {
     runCommand: (config: { sessionId: string; command: string; cwd: string; shell?: string }) =>
       ipcRenderer.invoke('process:runCommand', config),
 
+    // Get all active processes from ProcessManager
+    getActiveProcesses: () => ipcRenderer.invoke('process:getActiveProcesses'),
+
     // Event listeners
     onData: (callback: (sessionId: string, data: string) => void) => {
       const handler = (_: any, sessionId: string, data: string) => callback(sessionId, data);
@@ -309,6 +312,14 @@ export interface MaestroAPI {
     kill: (sessionId: string) => Promise<boolean>;
     resize: (sessionId: string, cols: number, rows: number) => Promise<boolean>;
     runCommand: (config: { sessionId: string; command: string; cwd: string; shell?: string }) => Promise<{ exitCode: number }>;
+    getActiveProcesses: () => Promise<Array<{
+      sessionId: string;
+      toolType: string;
+      pid: number;
+      cwd: string;
+      isTerminal: boolean;
+      isBatchMode: boolean;
+    }>>;
     onData: (callback: (sessionId: string, data: string) => void) => () => void;
     onExit: (callback: (sessionId: string, code: number) => void) => () => void;
     onSessionId: (callback: (sessionId: string, claudeSessionId: string) => void) => () => void;
