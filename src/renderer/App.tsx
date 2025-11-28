@@ -1805,6 +1805,7 @@ export default function MaestroConsole() {
       else if (isShortcut(e, 'agentSessions')) {
         e.preventDefault();
         if (activeSession?.toolType === 'claude-code') {
+          setActiveClaudeSessionId(null);
           setAgentSessionsOpen(true);
         }
       }
@@ -3532,6 +3533,7 @@ export default function MaestroConsole() {
           setProcessMonitorOpen={setProcessMonitorOpen}
           setActiveRightTab={setActiveRightTab}
           setAgentSessionsOpen={setAgentSessionsOpen}
+          setActiveClaudeSessionId={setActiveClaudeSessionId}
           setGitDiffPreview={setGitDiffPreview}
           setGitLogOpen={setGitLogOpen}
           startFreshSession={() => {

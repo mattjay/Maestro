@@ -824,7 +824,10 @@ export function MainPanel(props: MainPanelProps) {
                 onMouseLeave={() => setSessionsTooltipOpen(false)}
               >
                 <button
-                  onClick={() => setAgentSessionsOpen(true)}
+                  onClick={() => {
+                    setActiveClaudeSessionId(null);
+                    setAgentSessionsOpen(true);
+                  }}
                   className="p-2 rounded hover:bg-white/5"
                   title={`Agent Sessions (${shortcuts.agentSessions.keys.join('+').replace('Meta', 'Cmd').replace('Shift', '\u21E7')})`}
                 >
@@ -881,6 +884,7 @@ export function MainPanel(props: MainPanelProps) {
                       className="px-3 py-2 text-xs border-t text-center cursor-pointer hover:bg-white/5"
                       style={{ color: theme.colors.accent, borderColor: theme.colors.border }}
                       onClick={() => {
+                        setActiveClaudeSessionId(null);
                         setAgentSessionsOpen(true);
                         setSessionsTooltipOpen(false);
                       }}
