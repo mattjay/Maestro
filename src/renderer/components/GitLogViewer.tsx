@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { GitCommit, GitBranch, Tag, Search, X } from 'lucide-react';
+import { GitCommit, GitBranch, Tag } from 'lucide-react';
 import type { Theme } from '../types';
 import { useLayerStack } from '../contexts/LayerStackContext';
 import { MODAL_PRIORITIES } from '../constants/modalPriorities';
@@ -29,40 +29,15 @@ export function GitLogViewer({ cwd, theme, onClose }: GitLogViewerProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectedCommitDiff, setSelectedCommitDiff] = useState<string | null>(null);
   const [loadingDiff, setLoadingDiff] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   const listRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const hasInitialFocus = useRef(false);
 
   const { registerLayer, unregisterLayer, updateLayerHandler } = useLayerStack();
   const layerIdRef = useRef<string>();
 
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
-
-  // Filter entries based on search query
-  const filteredEntries = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return entries;
-    }
-
-    const query = searchQuery.toLowerCase();
-    return entries.filter(entry =>
-      entry.subject.toLowerCase().includes(query) ||
-      entry.author.toLowerCase().includes(query) ||
-      entry.hash.toLowerCase().includes(query) ||
-      entry.refs.some(ref => ref.toLowerCase().includes(query))
-    );
-  }, [entries, searchQuery]);
-
-  // Reset selected index when filtered entries change
-  useEffect(() => {
-    setSelectedIndex(0);
-  }, [searchQuery]);
 
   // Load git log on mount
   useEffect(() => {
@@ -100,10 +75,10 @@ export function GitLogViewer({ cwd, theme, onClose }: GitLogViewerProps) {
 
   // Auto-load diff for selected commit
   useEffect(() => {
-    if (filteredEntries.length > 0 && filteredEntries[selectedIndex]) {
-      loadCommitDiff(filteredEntries[selectedIndex].hash);
+    if (entries.length > 0 && entries[selectedIndex]) {
+      loadCommitDiff(entries[selectedIndex].hash);
     }
-  }, [selectedIndex, filteredEntries, loadCommitDiff]);
+  }, [selectedIndex, entries, loadCommitDiff]);
 
   // Register with layer stack
   useEffect(() => {
@@ -131,14 +106,6 @@ export function GitLogViewer({ cwd, theme, onClose }: GitLogViewerProps) {
     }
   }, [updateLayerHandler]);
 
-  // Initial focus on container (only once)
-  useEffect(() => {
-    if (!hasInitialFocus.current && containerRef.current) {
-      containerRef.current.focus();
-      hasInitialFocus.current = true;
-    }
-  }, []);
-
   // Scroll selected item into view
   useEffect(() => {
     const selectedItem = itemRefs.current[selectedIndex];
@@ -153,41 +120,16 @@ export function GitLogViewer({ cwd, theme, onClose }: GitLogViewerProps) {
   // Handle keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Focus search with / key (when not already focused on an input)
-      if (e.key === '/' && !isSearchFocused) {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-        return;
-      }
-
-      // Handle Escape when search is focused
-      if (e.key === 'Escape' && isSearchFocused) {
-        if (searchQuery) {
-          e.preventDefault();
-          e.stopPropagation();
-          setSearchQuery('');
-          return;
-        }
-        // If no search query, blur the input and let the modal handle Escape
-        searchInputRef.current?.blur();
-        return;
-      }
-
-      // Don't handle navigation keys when search is focused
-      if (isSearchFocused) {
-        return;
-      }
-
       // Navigate with arrow keys and j/k
       if (e.key === 'ArrowDown' || e.key === 'j') {
         e.preventDefault();
-        setSelectedIndex(prev => Math.min(prev + 1, filteredEntries.length - 1));
+        setSelectedIndex(prev => Math.min(prev + 1, entries.length - 1));
       } else if (e.key === 'ArrowUp' || e.key === 'k') {
         e.preventDefault();
         setSelectedIndex(prev => Math.max(prev - 1, 0));
       } else if (e.key === 'PageDown') {
         e.preventDefault();
-        setSelectedIndex(prev => Math.min(prev + 10, filteredEntries.length - 1));
+        setSelectedIndex(prev => Math.min(prev + 10, entries.length - 1));
       } else if (e.key === 'PageUp') {
         e.preventDefault();
         setSelectedIndex(prev => Math.max(prev - 10, 0));
@@ -196,13 +138,13 @@ export function GitLogViewer({ cwd, theme, onClose }: GitLogViewerProps) {
         setSelectedIndex(0);
       } else if (e.key === 'End') {
         e.preventDefault();
-        setSelectedIndex(filteredEntries.length - 1);
+        setSelectedIndex(entries.length - 1);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [filteredEntries.length, isSearchFocused, searchQuery]);
+  }, [entries.length]);
 
   // Format date for display - time for today, full date for older commits
   const formatDate = (dateStr: string) => {
@@ -281,19 +223,6 @@ export function GitLogViewer({ cwd, theme, onClose }: GitLogViewerProps) {
     return stats.length > 0 ? stats : null;
   }, [selectedCommitDiff]);
 
-  const handleSearchFocus = useCallback(() => {
-    setIsSearchFocused(true);
-  }, []);
-
-  const handleSearchBlur = useCallback(() => {
-    setIsSearchFocused(false);
-  }, []);
-
-  const handleClearSearch = useCallback(() => {
-    setSearchQuery('');
-    searchInputRef.current?.focus();
-  }, []);
-
   return (
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center backdrop-blur-sm"
@@ -301,14 +230,14 @@ export function GitLogViewer({ cwd, theme, onClose }: GitLogViewerProps) {
       onClick={onClose}
     >
       <div
-        ref={containerRef}
-        className="w-[90%] max-w-[1600px] h-[90%] rounded-lg shadow-2xl flex flex-col overflow-hidden outline-none"
+        className="w-[90%] max-w-[1600px] h-[90%] rounded-lg shadow-2xl flex flex-col overflow-hidden"
         style={{ backgroundColor: theme.colors.bgMain, borderColor: theme.colors.border, border: '1px solid' }}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label="Git Log Viewer"
         tabIndex={-1}
+        ref={(el) => el?.focus()}
       >
         {/* Header */}
         <div
@@ -322,56 +251,16 @@ export function GitLogViewer({ cwd, theme, onClose }: GitLogViewerProps) {
               {cwd}
             </span>
             <span className="text-xs" style={{ color: theme.colors.textDim }}>
-              {filteredEntries.length}{searchQuery && ` of ${entries.length}`} commits
+              {entries.length} commits
             </span>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-xs" style={{ color: theme.colors.textDim }}>
-              Press <kbd className="px-1 py-0.5 rounded text-xs" style={{ backgroundColor: theme.colors.bgActivity }}>/</kbd> to search
-            </span>
-            <button
-              onClick={onClose}
-              className="px-3 py-1 rounded text-sm hover:bg-white/10 transition-colors"
-              style={{ color: theme.colors.textDim }}
-            >
-              Close (Esc)
-            </button>
-          </div>
-        </div>
-
-        {/* Search bar */}
-        <div
-          className="px-6 py-3 border-b flex items-center gap-3"
-          style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.bgSidebar }}
-        >
-          <Search
-            className="w-4 h-4 flex-shrink-0"
-            style={{ color: isSearchFocused ? theme.colors.accent : theme.colors.textDim }}
-          />
-          <input
-            ref={searchInputRef}
-            type="text"
-            placeholder="Search commits by message, author, hash, or ref..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onFocus={handleSearchFocus}
-            onBlur={handleSearchBlur}
-            className="flex-1 bg-transparent text-sm outline-none border-none"
-            style={{
-              color: theme.colors.textMain,
-              caretColor: theme.colors.accent,
-            }}
-          />
-          {searchQuery && (
-            <button
-              onClick={handleClearSearch}
-              onMouseDown={(e) => e.preventDefault()} // Prevent blur before click registers
-              className="p-1 rounded hover:bg-white/10 transition-colors"
-              style={{ color: theme.colors.textDim }}
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
+          <button
+            onClick={onClose}
+            className="px-3 py-1 rounded text-sm hover:bg-white/10 transition-colors"
+            style={{ color: theme.colors.textDim }}
+          >
+            Close (Esc)
+          </button>
         </div>
 
         {/* Content */}
@@ -390,15 +279,15 @@ export function GitLogViewer({ cwd, theme, onClose }: GitLogViewerProps) {
               <div className="flex items-center justify-center h-full p-6">
                 <p className="text-sm text-red-500">{error}</p>
               </div>
-            ) : filteredEntries.length === 0 ? (
+            ) : entries.length === 0 ? (
               <div className="flex items-center justify-center h-full">
                 <p className="text-sm" style={{ color: theme.colors.textDim }}>
-                  {searchQuery ? 'No matching commits' : 'No commits found'}
+                  No commits found
                 </p>
               </div>
             ) : (
               <div className="divide-y" style={{ borderColor: theme.colors.border }}>
-                {filteredEntries.map((entry, index) => (
+                {entries.map((entry, index) => (
                   <div
                     key={entry.hash}
                     ref={(el) => itemRefs.current[index] = el}
@@ -470,7 +359,7 @@ export function GitLogViewer({ cwd, theme, onClose }: GitLogViewerProps) {
 
           {/* Right side: Commit details & diff */}
           <div className="flex-1 overflow-y-auto">
-            {filteredEntries[selectedIndex] && (
+            {entries[selectedIndex] && (
               <div className="p-6">
                 {/* Commit header */}
                 <div className="mb-6">
@@ -478,14 +367,14 @@ export function GitLogViewer({ cwd, theme, onClose }: GitLogViewerProps) {
                     className="text-lg font-semibold mb-2"
                     style={{ color: theme.colors.textMain }}
                   >
-                    {filteredEntries[selectedIndex].subject}
+                    {entries[selectedIndex].subject}
                   </h3>
                   <div className="flex items-center gap-4 text-sm" style={{ color: theme.colors.textDim }}>
                     <span className="font-mono px-2 py-1 rounded" style={{ backgroundColor: theme.colors.bgActivity }}>
-                      {filteredEntries[selectedIndex].hash}
+                      {entries[selectedIndex].hash}
                     </span>
-                    <span>{filteredEntries[selectedIndex].author}</span>
-                    <span>{new Date(filteredEntries[selectedIndex].date).toLocaleString()}</span>
+                    <span>{entries[selectedIndex].author}</span>
+                    <span>{new Date(entries[selectedIndex].date).toLocaleString()}</span>
                   </div>
                 </div>
 
@@ -595,15 +484,12 @@ export function GitLogViewer({ cwd, theme, onClose }: GitLogViewerProps) {
               <kbd className="px-1 py-0.5 rounded ml-1" style={{ backgroundColor: theme.colors.bgActivity }}>j/k</kbd> navigate
             </span>
             <span>
-              <kbd className="px-1 py-0.5 rounded" style={{ backgroundColor: theme.colors.bgActivity }}>/</kbd> search
-            </span>
-            <span>
               <kbd className="px-1 py-0.5 rounded" style={{ backgroundColor: theme.colors.bgActivity }}>Esc</kbd> close
             </span>
           </div>
-          {filteredEntries.length > 0 && (
+          {entries.length > 0 && (
             <span style={{ color: theme.colors.textDim }}>
-              Commit {selectedIndex + 1} of {filteredEntries.length}
+              Commit {selectedIndex + 1} of {entries.length}
             </span>
           )}
         </div>
