@@ -593,13 +593,16 @@ export function MainPanel(props: MainPanelProps) {
                   }}
                 >
                   <div
-                    className="flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border cursor-default hover:opacity-80 transition-opacity"
+                    className="flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border cursor-default hover:opacity-80 transition-opacity max-w-[200px]"
                     style={{ backgroundColor: theme.colors.accent + '20', color: theme.colors.accent, borderColor: theme.colors.accent + '30' }}
+                    title={namedSessions[activeSession.claudeSessionId] || activeSession.claudeSessionId}
                   >
                     {starredSessions.has(activeSession.claudeSessionId) && (
-                      <Star className="w-2.5 h-2.5 fill-current" />
+                      <Star className="w-2.5 h-2.5 fill-current shrink-0" />
                     )}
-                    {namedSessions[activeSession.claudeSessionId] || activeSession.claudeSessionId.split('-')[0].toUpperCase()}
+                    <span className="truncate">
+                      {namedSessions[activeSession.claudeSessionId] || activeSession.claudeSessionId.split('-')[0].toUpperCase()}
+                    </span>
                   </div>
 
                   {/* Invisible bridge to prevent hover gap issues */}
@@ -627,6 +630,15 @@ export function MainPanel(props: MainPanelProps) {
                         minWidth: '280px'
                       }}
                     >
+                      {/* Session name display (if named) */}
+                      {namedSessions[activeSession.claudeSessionId] && (
+                        <div
+                          className="px-3 py-2 text-xs font-medium border-b"
+                          style={{ borderColor: theme.colors.border, color: theme.colors.textMain }}
+                        >
+                          {namedSessions[activeSession.claudeSessionId]}
+                        </div>
+                      )}
                       {/* Session ID display */}
                       <div
                         className="px-3 py-2 text-[10px] font-mono border-b"
