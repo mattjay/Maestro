@@ -588,8 +588,10 @@ export default function MaestroConsole() {
             const lastAiLog = currentSession.aiLogs.filter(log => log.source === 'stdout' || log.source === 'ai').pop();
             const duration = currentSession.thinkingStartTime ? Date.now() - currentSession.thinkingStartTime : 0;
 
-            // Get group name for this session
-            const sessionGroup = groupsRef.current.find((g: any) => g.sessionIds?.includes(actualSessionId));
+            // Get group name for this session (sessions have groupId, groups have id)
+            const sessionGroup = currentSession.groupId
+              ? groupsRef.current.find((g: any) => g.id === currentSession.groupId)
+              : null;
             const groupName = sessionGroup?.name || 'Ungrouped';
             const projectName = currentSession.name || currentSession.cwd.split('/').pop() || 'Unknown';
 
@@ -1095,6 +1097,29 @@ export default function MaestroConsole() {
 
     return () => {
       unsubscribeInterrupt();
+    };
+  }, []);
+
+  // Handle remote session selection from web interface
+  // This allows web clients to switch the active session in the desktop app
+  useEffect(() => {
+    const unsubscribeSelectSession = window.maestro.process.onRemoteSelectSession((sessionId: string) => {
+      console.log('[Remote] Received session selection from web interface:', { sessionId });
+
+      // Check if session exists
+      const session = sessionsRef.current.find(s => s.id === sessionId);
+      if (!session) {
+        console.log('[Remote] Session not found for selection:', sessionId);
+        return;
+      }
+
+      // Switch to the session (same as clicking in SessionList)
+      setActiveSessionId(sessionId);
+      console.log('[Remote] Switched to session:', sessionId);
+    });
+
+    return () => {
+      unsubscribeSelectSession();
     };
   }, []);
 

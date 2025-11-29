@@ -109,6 +109,12 @@ contextBridge.exposeInMainWorld('maestro', {
       ipcRenderer.on('remote:interrupt', handler);
       return () => ipcRenderer.removeListener('remote:interrupt', handler);
     },
+    // Remote session selection from web interface - forwards to desktop's setActiveSessionId logic
+    onRemoteSelectSession: (callback: (sessionId: string) => void) => {
+      const handler = (_: any, sessionId: string) => callback(sessionId);
+      ipcRenderer.on('remote:selectSession', handler);
+      return () => ipcRenderer.removeListener('remote:selectSession', handler);
+    },
     // Stderr listener for runCommand (separate stream)
     onStderr: (callback: (sessionId: string, data: string) => void) => {
       const handler = (_: any, sessionId: string, data: string) => callback(sessionId, data);
@@ -315,6 +321,8 @@ contextBridge.exposeInMainWorld('maestro', {
       ipcRenderer.invoke('notification:show', title, body),
     speak: (text: string, command?: string) =>
       ipcRenderer.invoke('notification:speak', text, command),
+    stopSpeak: (ttsId: number) =>
+      ipcRenderer.invoke('notification:stopSpeak', ttsId),
   },
 
   // Attachments API (per-session image storage for scratchpad)
@@ -368,6 +376,7 @@ export interface MaestroAPI {
     onRemoteCommand: (callback: (sessionId: string, command: string) => void) => () => void;
     onRemoteSwitchMode: (callback: (sessionId: string, mode: 'ai' | 'terminal') => void) => () => void;
     onRemoteInterrupt: (callback: (sessionId: string) => void) => () => void;
+    onRemoteSelectSession: (callback: (sessionId: string) => void) => () => void;
     onStderr: (callback: (sessionId: string, data: string) => void) => () => void;
     onCommandExit: (callback: (sessionId: string, code: number) => void) => () => void;
     onUsage: (callback: (sessionId: string, usageStats: {
@@ -547,7 +556,8 @@ export interface MaestroAPI {
   };
   notification: {
     show: (title: string, body: string) => Promise<{ success: boolean; error?: string }>;
-    speak: (text: string, command?: string) => Promise<{ success: boolean; error?: string }>;
+    speak: (text: string, command?: string) => Promise<{ success: boolean; ttsId?: number; error?: string }>;
+    stopSpeak: (ttsId: number) => Promise<{ success: boolean; error?: string }>;
   };
   attachments: {
     save: (sessionId: string, base64Data: string, filename: string) => Promise<{ success: boolean; path?: string; filename?: string; error?: string }>;

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useMemo, forwardRef, useState, useCallback, memo } from 'react';
-import { Activity, X, ChevronDown, ChevronUp, Filter, PlusCircle, MinusCircle, Trash2, Copy, Volume2, Check } from 'lucide-react';
+import { Activity, X, ChevronDown, ChevronUp, Filter, PlusCircle, MinusCircle, Trash2, Copy, Volume2, Square, Check } from 'lucide-react';
 import type { Session, Theme, LogEntry } from '../types';
 import Convert from 'ansi-to-html';
 import DOMPurify from 'dompurify';
@@ -131,6 +131,10 @@ export const TerminalOutput = forwardRef<HTMLDivElement, TerminalOutputProps>((p
   // Copy to clipboard notification state
   const [showCopiedNotification, setShowCopiedNotification] = useState(false);
 
+  // TTS state - track which log is currently speaking and its TTS ID
+  const [speakingLogId, setSpeakingLogId] = useState<string | null>(null);
+  const [activeTtsId, setActiveTtsId] = useState<number | null>(null);
+
   // Copy text to clipboard with notification
   const copyToClipboard = useCallback(async (text: string) => {
     try {
@@ -143,19 +147,47 @@ export const TerminalOutput = forwardRef<HTMLDivElement, TerminalOutputProps>((p
   }, []);
 
   // Speak text using TTS command
-  const speakText = useCallback(async (text: string) => {
-    console.log('[TTS] speakText called, text length:', text.length, 'command:', audioFeedbackCommand);
+  const speakText = useCallback(async (text: string, logId: string) => {
+    console.log('[TTS] speakText called, text length:', text.length, 'command:', audioFeedbackCommand, 'logId:', logId);
     if (!audioFeedbackCommand) {
       console.log('[TTS] No audioFeedbackCommand configured, skipping');
       return;
     }
     try {
+      // Set the speaking state before starting
+      setSpeakingLogId(logId);
       const result = await window.maestro.notification.speak(text, audioFeedbackCommand);
       console.log('[TTS] Speak result:', result);
+      if (result.success && result.ttsId) {
+        setActiveTtsId(result.ttsId);
+      } else {
+        // If speak failed, clear the speaking state
+        setSpeakingLogId(null);
+      }
     } catch (err) {
       console.error('[TTS] Failed to speak text:', err);
+      setSpeakingLogId(null);
     }
   }, [audioFeedbackCommand]);
+
+  // Stop the currently speaking TTS
+  const stopSpeaking = useCallback(async () => {
+    console.log('[TTS] stopSpeaking called, activeTtsId:', activeTtsId);
+    if (activeTtsId === null) {
+      console.log('[TTS] No active TTS to stop');
+      setSpeakingLogId(null);
+      return;
+    }
+    try {
+      const result = await window.maestro.notification.stopSpeak(activeTtsId);
+      console.log('[TTS] Stop result:', result);
+    } catch (err) {
+      console.error('[TTS] Failed to stop speaking:', err);
+    }
+    // Always clear state after stopping
+    setSpeakingLogId(null);
+    setActiveTtsId(null);
+  }, [activeTtsId]);
 
   // Layer stack integration for search overlay
   const { registerLayer, unregisterLayer, updateLayerHandler } = useLayerStack();
@@ -901,16 +933,27 @@ export const TerminalOutput = forwardRef<HTMLDivElement, TerminalOutputProps>((p
             className="absolute bottom-2 right-2 flex items-center gap-1"
             style={{ transition: 'opacity 0.15s ease-in-out' }}
           >
-            {/* Speak Button - only show for non-user messages when TTS is configured */}
+            {/* Speak/Stop Button - only show for non-user messages when TTS is configured */}
             {audioFeedbackCommand && log.source !== 'user' && (
-              <button
-                onClick={() => speakText(log.text)}
-                className="p-1.5 rounded opacity-0 group-hover:opacity-50 hover:!opacity-100"
-                style={{ color: theme.colors.textDim }}
-                title="Speak text"
-              >
-                <Volume2 className="w-3.5 h-3.5" />
-              </button>
+              speakingLogId === log.id ? (
+                <button
+                  onClick={stopSpeaking}
+                  className="p-1.5 rounded opacity-100"
+                  style={{ color: theme.colors.error }}
+                  title="Stop speaking"
+                >
+                  <Square className="w-3.5 h-3.5" fill="currentColor" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => speakText(log.text, log.id)}
+                  className="p-1.5 rounded opacity-0 group-hover:opacity-50 hover:!opacity-100"
+                  style={{ color: theme.colors.textDim }}
+                  title="Speak text"
+                >
+                  <Volume2 className="w-3.5 h-3.5" />
+                </button>
+              )
             )}
             {/* Copy to Clipboard Button */}
             <button

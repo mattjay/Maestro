@@ -358,6 +358,20 @@ function createWebServer(): WebServer {
     return true;
   });
 
+  // Set up callback for web server to select/switch to a session in the desktop
+  // This forwards to the renderer which handles state updates and broadcasts
+  server.setSelectSessionCallback(async (sessionId: string) => {
+    if (!mainWindow) {
+      logger.warn('mainWindow is null for selectSession', 'WebServer');
+      return false;
+    }
+
+    // Forward to renderer - it will handle session selection and broadcasts
+    logger.debug(`Forwarding session selection to renderer: ${sessionId}`, 'WebServer');
+    mainWindow.webContents.send('remote:selectSession', sessionId);
+    return true;
+  });
+
   return server;
 }
 
@@ -2262,7 +2276,11 @@ function setupIpcHandlers() {
     }
   });
 
-  // Audio feedback using system TTS command (non-blocking)
+  // Track active TTS processes by ID for stopping
+  const activeTtsProcesses = new Map<number, { process: ReturnType<typeof import('child_process').spawn>; command: string }>();
+  let ttsProcessIdCounter = 0;
+
+  // Audio feedback using system TTS command - pipes text via stdin
   ipcMain.handle('notification:speak', async (_event, text: string, command?: string) => {
     console.log('[TTS Main] notification:speak called, text length:', text?.length, 'command:', command);
 
@@ -2284,28 +2302,30 @@ function setupIpcHandlers() {
       const ttsCommand = parts[0].replace(/^"|"$/g, ''); // Remove surrounding quotes if present
       const ttsArgs = parts.slice(1).map(arg => arg.replace(/^"|"$/g, '')); // Remove quotes from args
 
-      // Add the text as the final argument (this is how most TTS commands work)
-      ttsArgs.push(text);
-
-      console.log('[TTS Main] Spawning:', ttsCommand, 'with args count:', ttsArgs.length);
+      console.log('[TTS Main] Spawning:', ttsCommand, 'with args:', ttsArgs);
 
       // Log the full command being executed
       logger.info('TTS executing command', 'TTS', {
         executable: ttsCommand,
         argsCount: ttsArgs.length,
-        fullArgs: ttsArgs.map((arg, i) =>
-          i === ttsArgs.length - 1
-            ? (arg.length > 100 ? arg.substring(0, 100) + '...' : arg)
-            : arg
-        ),
+        fullArgs: ttsArgs,
+        textLength: text?.length || 0,
       });
 
-      // Spawn the TTS process without waiting for it to complete (non-blocking)
-      // This runs in the background and won't block the main process
+      // Spawn the TTS process with stdin pipe so we can write text to it
       const child = spawn(ttsCommand, ttsArgs, {
-        stdio: ['ignore', 'ignore', 'ignore'],
-        detached: true, // Run independently
+        stdio: ['pipe', 'ignore', 'pipe'], // stdin: pipe, stdout: ignore, stderr: pipe for errors
       });
+
+      // Generate a unique ID for this TTS process
+      const ttsId = ++ttsProcessIdCounter;
+      activeTtsProcesses.set(ttsId, { process: child, command: ttsCommand });
+
+      // Write the text to stdin and close it
+      if (child.stdin) {
+        child.stdin.write(text);
+        child.stdin.end();
+      }
 
       child.on('error', (err) => {
         console.error('[TTS Main] Spawn error:', err);
@@ -2314,24 +2334,76 @@ function setupIpcHandlers() {
           command: ttsCommand,
           textPreview: text ? (text.length > 100 ? text.substring(0, 100) + '...' : text) : '(no text)',
         });
+        activeTtsProcesses.delete(ttsId);
       });
 
-      // Unref to allow the parent to exit independently
-      child.unref();
+      // Capture stderr for debugging
+      let stderrOutput = '';
+      if (child.stderr) {
+        child.stderr.on('data', (data) => {
+          stderrOutput += data.toString();
+        });
+      }
 
-      console.log('[TTS Main] Process spawned successfully');
+      child.on('close', (code) => {
+        console.log('[TTS Main] Process exited with code:', code);
+        if (code !== 0 && stderrOutput) {
+          console.error('[TTS Main] stderr:', stderrOutput);
+          logger.error('TTS process error output', 'TTS', {
+            exitCode: code,
+            stderr: stderrOutput,
+            command: ttsCommand,
+          });
+        }
+        activeTtsProcesses.delete(ttsId);
+      });
+
+      console.log('[TTS Main] Process spawned successfully with ID:', ttsId);
       logger.info('TTS process spawned successfully', 'TTS', {
+        ttsId,
         command: ttsCommand,
         argsCount: ttsArgs.length,
         textLength: text?.length || 0,
       });
-      return { success: true };
+      return { success: true, ttsId };
     } catch (error) {
       console.error('[TTS Main] Error starting audio feedback:', error);
       logger.error('TTS error starting audio feedback', 'TTS', {
         error: String(error),
         command: command || '(default: say)',
         textPreview: text ? (text.length > 100 ? text.substring(0, 100) + '...' : text) : '(no text)',
+      });
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Stop a running TTS process
+  ipcMain.handle('notification:stopSpeak', async (_event, ttsId: number) => {
+    console.log('[TTS Main] notification:stopSpeak called for ID:', ttsId);
+
+    const ttsProcess = activeTtsProcesses.get(ttsId);
+    if (!ttsProcess) {
+      console.log('[TTS Main] No active TTS process found with ID:', ttsId);
+      return { success: false, error: 'No active TTS process with that ID' };
+    }
+
+    try {
+      // Kill the process and all its children
+      ttsProcess.process.kill('SIGTERM');
+      activeTtsProcesses.delete(ttsId);
+
+      logger.info('TTS process stopped', 'TTS', {
+        ttsId,
+        command: ttsProcess.command,
+      });
+
+      console.log('[TTS Main] TTS process killed successfully');
+      return { success: true };
+    } catch (error) {
+      console.error('[TTS Main] Error stopping TTS process:', error);
+      logger.error('TTS error stopping process', 'TTS', {
+        ttsId,
+        error: String(error),
       });
       return { success: false, error: String(error) };
     }

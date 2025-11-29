@@ -179,6 +179,9 @@ export function AboutModal({ theme, sessions, onClose }: AboutModalProps) {
             <div className="flex items-center gap-2 mb-3">
               <BarChart3 className="w-4 h-4" style={{ color: theme.colors.accent }} />
               <span className="text-sm font-bold" style={{ color: theme.colors.textMain }}>Global Statistics</span>
+              {!isStatsComplete && (
+                <Loader2 className="w-3 h-3 animate-spin" style={{ color: theme.colors.textDim }} />
+              )}
             </div>
             {loading ? (
               <div className="flex items-center justify-center py-4 gap-2">
@@ -236,7 +239,7 @@ export function AboutModal({ theme, sessions, onClose }: AboutModalProps) {
                     className={`font-mono font-bold ${!isStatsComplete ? 'animate-pulse' : ''}`}
                     style={{ color: theme.colors.success }}
                   >
-                    ${globalStats.totalCostUsd.toFixed(2)}
+                    ${globalStats.totalCostUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
               </div>

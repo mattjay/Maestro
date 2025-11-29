@@ -738,11 +738,16 @@ export default function MobileApp() {
     connect();
   }, [connect]);
 
-  // Handle session selection
+  // Handle session selection - also notifies desktop to switch
   const handleSelectSession = useCallback((sessionId: string) => {
     setActiveSessionId(sessionId);
     triggerHaptic(HAPTIC_PATTERNS.tap);
-  }, []);
+    // Notify desktop to switch to this session
+    send({
+      type: 'select_session',
+      sessionId,
+    });
+  }, [send]);
 
   // Handle opening All Sessions view
   const handleOpenAllSessions = useCallback(() => {
