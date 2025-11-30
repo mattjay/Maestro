@@ -18,6 +18,53 @@ Deep technical documentation for Maestro's architecture and design patterns. For
 
 ---
 
+## Architecture
+
+Maestro organizes work into **Projects** (workspaces), each with a **CLI Terminal** and multiple **Agent Tabs**. Each tab can be connected to an **Agent Session** - either newly created or resumed from the session pool.
+
+```mermaid
+graph LR
+    subgraph Maestro["Maestro App"]
+        subgraph ProjectA["Agent A (workspace)"]
+            TermA[CLI Terminal]
+            subgraph TabsA["Agent Tabs"]
+                Tab1A[Tab 1]
+                Tab2A[Tab 2]
+            end
+        end
+        subgraph ProjectB["Agent B (workspace)"]
+            TermB[CLI Terminal]
+            subgraph TabsB["Agent Tabs"]
+                Tab1B[Tab 1]
+                Tab2B[Tab 2]
+            end
+        end
+    end
+
+    subgraph SessionPool["Agent Session Pool"]
+        direction TB
+        S1["Session α"]
+        S2["Session β"]
+        S3["Session γ"]
+        S4["Session δ"]
+        S5["..."]
+    end
+
+    Tab1A -.->|"resume"| S1
+    Tab2A -.->|"resume"| S2
+    Tab1B -.->|"resume"| S3
+    Tab2B -.->|"new"| S4
+
+    style Maestro fill:#9b8cd6,stroke:#6b5b95
+    style ProjectA fill:#87ceeb,stroke:#4682b4
+    style ProjectB fill:#87ceeb,stroke:#4682b4
+    style TermA fill:#90ee90,stroke:#228b22
+    style TermB fill:#90ee90,stroke:#228b22
+    style TabsA fill:#ffe4a0,stroke:#daa520
+    style TabsB fill:#ffe4a0,stroke:#daa520
+    style SessionPool fill:#ffb6c1,stroke:#dc143c
+```
+
 ## Dual-Process Architecture
 
 Maestro uses Electron's main/renderer split with strict context isolation.
