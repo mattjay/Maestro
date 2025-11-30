@@ -266,7 +266,23 @@ export function AboutModal({ theme, sessions, onClose }: AboutModalProps) {
           </div>
 
           {/* Made in Austin */}
-          <div className="pt-3 text-center">
+          <div className="pt-3 text-center flex flex-col items-center gap-2">
+            {/* Texas outline - simplified recognizable shape */}
+            <svg
+              viewBox="0 0 100 100"
+              className="w-8 h-8"
+              style={{ color: theme.colors.textDim }}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              {/* Texas state outline */}
+              <path d="M30,8 L30,25 L25,28 L20,35 L10,55 L15,70 L25,82 L40,92 L55,88 L65,78 L72,65 L78,55 L82,45 L88,35 L90,25 L85,15 L75,10 L60,8 L45,5 Z" />
+              {/* Austin location dot */}
+              <circle cx="42" cy="52" r="2.5" fill="currentColor" stroke="none" />
+            </svg>
             <span className="text-xs" style={{ color: theme.colors.textDim }}>Made in Austin, TX</span>
           </div>
         </div>
