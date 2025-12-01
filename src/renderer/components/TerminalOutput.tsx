@@ -329,7 +329,7 @@ const LogItemComponent = memo(({
            style={{ fontFamily, color: theme.colors.textDim, opacity: 0.6 }}>
         {new Date(log.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
       </div>
-      <div className={`flex-1 p-4 ${isUserMessage && log.readOnly ? 'pt-8' : ''} rounded-xl border ${isUserMessage ? 'rounded-tr-none' : 'rounded-tl-none'} relative`}
+      <div className={`flex-1 p-4 pb-10 ${isUserMessage && log.readOnly ? 'pt-8' : ''} rounded-xl border ${isUserMessage ? 'rounded-tr-none' : 'rounded-tl-none'} relative`}
            style={{
              backgroundColor: isUserMessage
                ? isAIMode

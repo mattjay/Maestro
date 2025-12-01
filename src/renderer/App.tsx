@@ -3032,13 +3032,6 @@ export default function MaestroConsole() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSessionId]); // Intentionally excluding sortedSessions - see comment above
 
-  // Auto-switch away from history tab when in terminal mode
-  useEffect(() => {
-    if (activeSession && activeRightTab === 'history' && activeSession.inputMode === 'terminal') {
-      setActiveRightTab('files');
-    }
-  }, [activeSession?.inputMode, activeRightTab]);
-
   // Restore file tree scroll position when switching sessions
   useEffect(() => {
     if (activeSession && fileTreeContainerRef.current && activeSession.fileExplorerScrollPos !== undefined) {

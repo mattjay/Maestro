@@ -212,6 +212,22 @@ export function MainPanel(props: MainPanelProps) {
   // Copy notification state (centered flash notice)
   const [copyNotification, setCopyNotification] = useState<string | null>(null);
 
+  // Fetch git info - extracted as a callback so it can be triggered manually
+  const fetchGitInfo = useCallback(async () => {
+    if (!activeSession?.isGitRepo) {
+      setGitInfo(null);
+      return;
+    }
+    try {
+      const cwd = activeSession.inputMode === 'terminal' ? (activeSession.shellCwd || activeSession.cwd) : activeSession.cwd;
+      const info = await window.maestro.git.info(cwd);
+      setGitInfo(info);
+    } catch (error) {
+      console.error('Failed to fetch git info:', error);
+      setGitInfo(null);
+    }
+  }, [activeSession?.isGitRepo, activeSession?.inputMode, activeSession?.shellCwd, activeSession?.cwd]);
+
   // Fetch git info when session changes or becomes a git repo
   useEffect(() => {
     if (!activeSession?.isGitRepo) {
@@ -219,22 +235,11 @@ export function MainPanel(props: MainPanelProps) {
       return;
     }
 
-    const fetchGitInfo = async () => {
-      try {
-        const cwd = activeSession.inputMode === 'terminal' ? (activeSession.shellCwd || activeSession.cwd) : activeSession.cwd;
-        const info = await window.maestro.git.info(cwd);
-        setGitInfo(info);
-      } catch (error) {
-        console.error('Failed to fetch git info:', error);
-        setGitInfo(null);
-      }
-    };
-
     fetchGitInfo();
     // Refresh git info every 30 seconds (reduced from 10s for performance)
     const interval = setInterval(fetchGitInfo, 30000);
     return () => clearInterval(interval);
-  }, [activeSession?.id, activeSession?.isGitRepo, activeSession?.cwd, activeSession?.shellCwd, activeSession?.inputMode]);
+  }, [activeSession?.id, activeSession?.isGitRepo, fetchGitInfo]);
 
   // Cleanup hover timeouts on unmount
   useEffect(() => {
@@ -372,7 +377,10 @@ export function MainPanel(props: MainPanelProps) {
                     className={`flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full border cursor-pointer ${activeSession.isGitRepo ? 'border-orange-500/30 text-orange-500 bg-orange-500/10 hover:bg-orange-500/20' : 'border-blue-500/30 text-blue-500 bg-blue-500/10'}`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (activeSession.isGitRepo) setGitLogOpen(true);
+                      if (activeSession.isGitRepo) {
+                        fetchGitInfo(); // Refresh git info immediately on click
+                        setGitLogOpen(true);
+                      }
                     }}
                   >
                     {activeSession.isGitRepo ? (
