@@ -1575,15 +1575,32 @@ function setupIpcHandlers() {
             const messageCount = userMessageCount + assistantMessageCount;
 
             // Extract first user message content - parse only first few lines
+            // Skip image-only messages and extract text from mixed content
             for (let i = 0; i < Math.min(lines.length, CLAUDE_SESSION_PARSE_LIMITS.FIRST_MESSAGE_SCAN_LINES); i++) {
               try {
                 const entry = JSON.parse(lines[i]);
                 if (entry.type === 'user' && entry.message?.content) {
-                  firstUserMessage = typeof entry.message.content === 'string'
-                    ? entry.message.content
-                    : JSON.stringify(entry.message.content);
-                  timestamp = entry.timestamp || timestamp;
-                  break; // Found first user message, stop parsing
+                  const content = entry.message.content;
+                  let textContent = '';
+
+                  if (typeof content === 'string') {
+                    textContent = content;
+                  } else if (Array.isArray(content)) {
+                    // Extract text from content array, skipping images
+                    const textParts = content
+                      .filter((part: { type?: string }) => part.type === 'text')
+                      .map((part: { type?: string; text?: string }) => part.text || '')
+                      .filter((text: string) => text.trim());
+                    textContent = textParts.join(' ');
+                  }
+
+                  // Only use this message if it has actual text content
+                  if (textContent.trim()) {
+                    firstUserMessage = textContent;
+                    timestamp = entry.timestamp || timestamp;
+                    break; // Found first user message with text, stop parsing
+                  }
+                  // Otherwise continue to next message (skip image-only messages)
                 }
               } catch {
                 // Skip malformed lines
