@@ -55,9 +55,9 @@ function MobileSessionCard({ session, isActive, onSelect }: SessionCardProps) {
   const getToolTypeLabel = (): string => {
     const toolTypeMap: Record<string, string> = {
       'claude-code': 'Claude Code',
-      'aider-gemini': 'Aider (Gemini)',
-      'qwen-coder': 'Qwen Coder',
-      'terminal': 'Terminal',
+      'openai-codex': 'OpenAI Codex',
+      'gemini-cli': 'Gemini CLI',
+      'qwen3-coder': 'Qwen3 Coder',
     };
     return toolTypeMap[session.toolType] || session.toolType;
   };

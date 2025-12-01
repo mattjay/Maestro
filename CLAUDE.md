@@ -22,7 +22,7 @@ Use these terms consistently in code, comments, and documentation:
 
 ## Project Overview
 
-Maestro is an Electron desktop app for managing multiple AI coding assistants (Claude Code, Aider, Qwen Coder) simultaneously with a keyboard-first interface.
+Maestro is an Electron desktop app for managing multiple AI coding assistants (Claude Code, OpenAI Codex, Gemini CLI, Qwen3 Coder) simultaneously with a keyboard-first interface.
 
 ## Quick Commands
 
@@ -205,9 +205,9 @@ The `window.maestro` API exposes:
 | ID | Name | Notes |
 |----|------|-------|
 | `claude-code` | Claude Code | Batch mode with `--print` |
-| `aider-gemini` | Aider (Gemini) | Uses gemini-2.0-flash-exp |
-| `qwen-coder` | Qwen Coder | If installed |
-| `terminal` | CLI Terminal | PTY shell session |
+| `openai-codex` | OpenAI Codex | Coming soon |
+| `gemini-cli` | Gemini CLI | Coming soon |
+| `qwen3-coder` | Qwen3 Coder | Coming soon |
 
 ## Debugging
 
