@@ -27,7 +27,7 @@ import { CONDUCTOR_BADGES } from './constants/conductorBadges';
 // Import custom hooks
 import { useBatchProcessor } from './hooks/useBatchProcessor';
 import { useSettings, useActivityTracker, useMobileLandscape, useNavigationHistory } from './hooks';
-import { useTabCompletion } from './hooks/useTabCompletion';
+import { useTabCompletion, TabCompletionSuggestion } from './hooks/useTabCompletion';
 
 // Import contexts
 import { useLayerStack } from './contexts/LayerStackContext';
@@ -1741,6 +1741,28 @@ export default function MaestroConsole() {
     }
     return getTabCompletionSuggestions(inputValue);
   }, [tabCompletionOpen, activeSession, inputValue, getTabCompletionSuggestions]);
+
+  // Sync file tree selection to match tab completion suggestion
+  // This highlights the corresponding file/folder in the right panel when navigating tab completion
+  const syncFileTreeToTabCompletion = useCallback((suggestion: TabCompletionSuggestion | undefined) => {
+    if (!suggestion || suggestion.type === 'history' || flatFileList.length === 0) return;
+
+    // Strip trailing slash from folder paths to match flatFileList format
+    const targetPath = suggestion.value.replace(/\/$/, '');
+
+    // Also handle paths with command prefix (e.g., "cd src/" -> "src")
+    const pathOnly = targetPath.split(/\s+/).pop() || targetPath;
+
+    const matchIndex = flatFileList.findIndex(item => item.fullPath === pathOnly);
+
+    if (matchIndex >= 0) {
+      setSelectedFileIndex(matchIndex);
+      // Ensure Files tab is visible to show the highlight
+      if (activeRightTab !== 'files') {
+        setActiveRightTab('files');
+      }
+    }
+  }, [flatFileList, activeRightTab]);
 
   // --- BATCH PROCESSOR ---
   // Helper to spawn a Claude agent and wait for completion (for a specific session)
@@ -4667,18 +4689,24 @@ export default function MaestroConsole() {
     if (tabCompletionOpen && activeSession?.inputMode === 'terminal') {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setSelectedTabCompletionIndex(prev =>
-          Math.min(prev + 1, tabCompletionSuggestions.length - 1)
-        );
+        const newIndex = Math.min(selectedTabCompletionIndex + 1, tabCompletionSuggestions.length - 1);
+        setSelectedTabCompletionIndex(newIndex);
+        // Sync file tree to highlight the corresponding file/folder
+        syncFileTreeToTabCompletion(tabCompletionSuggestions[newIndex]);
         return;
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setSelectedTabCompletionIndex(prev => Math.max(prev - 1, 0));
+        const newIndex = Math.max(selectedTabCompletionIndex - 1, 0);
+        setSelectedTabCompletionIndex(newIndex);
+        // Sync file tree to highlight the corresponding file/folder
+        syncFileTreeToTabCompletion(tabCompletionSuggestions[newIndex]);
         return;
       } else if (e.key === 'Tab') {
         e.preventDefault();
         if (tabCompletionSuggestions[selectedTabCompletionIndex]) {
           setInputValue(tabCompletionSuggestions[selectedTabCompletionIndex].value);
+          // Final sync on acceptance
+          syncFileTreeToTabCompletion(tabCompletionSuggestions[selectedTabCompletionIndex]);
         }
         setTabCompletionOpen(false);
         return;
@@ -4686,6 +4714,8 @@ export default function MaestroConsole() {
         e.preventDefault();
         if (tabCompletionSuggestions[selectedTabCompletionIndex]) {
           setInputValue(tabCompletionSuggestions[selectedTabCompletionIndex].value);
+          // Final sync on acceptance
+          syncFileTreeToTabCompletion(tabCompletionSuggestions[selectedTabCompletionIndex]);
         }
         setTabCompletionOpen(false);
         return;
@@ -5183,7 +5213,12 @@ export default function MaestroConsole() {
 
   // Scroll to selected file item when selection changes
   useEffect(() => {
-    if (activeFocus !== 'right' || activeRightTab !== 'files') return;
+    // Allow scroll when:
+    // 1. Right panel is focused on files tab (normal keyboard navigation)
+    // 2. Tab completion is open and files tab is visible (sync from tab completion)
+    const shouldScroll = (activeFocus === 'right' && activeRightTab === 'files') ||
+                         (tabCompletionOpen && activeRightTab === 'files');
+    if (!shouldScroll) return;
 
     // Use requestAnimationFrame to ensure DOM is updated
     requestAnimationFrame(() => {
@@ -5202,7 +5237,7 @@ export default function MaestroConsole() {
         });
       }
     });
-  }, [selectedFileIndex, activeFocus, activeRightTab, flatFileList]);
+  }, [selectedFileIndex, activeFocus, activeRightTab, flatFileList, tabCompletionOpen]);
 
   // File Explorer keyboard navigation
   useEffect(() => {

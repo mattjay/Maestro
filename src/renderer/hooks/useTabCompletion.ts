@@ -82,8 +82,14 @@ export function useTabCompletion(session: Session | null): UseTabCompletionRetur
 
     // 2. Check file tree for matches on the last word
     // Handle path-like completions (e.g., "cd src/comp" should match files in src/)
-    const pathParts = lastPart.split('/');
-    const searchInPath = pathParts.length > 1 ? pathParts.slice(0, -1).join('/') : '';
+    // Also handle ./ prefix (e.g., "./src" -> "src")
+    const normalizedLastPart = lastPart.replace(/^\.\//, ''); // Strip leading ./
+    const pathParts = normalizedLastPart.split('/');
+    let searchInPath = pathParts.length > 1 ? pathParts.slice(0, -1).join('/') : '';
+    // Handle edge case where user types "./" alone - treat as root
+    if (lastPart === './' || lastPart === '.') {
+      searchInPath = '';
+    }
     const searchTerm = pathParts[pathParts.length - 1].toLowerCase();
 
     for (const file of fileNames) {

@@ -131,6 +131,8 @@ export const InputArea = React.memo(function InputArea(props: InputAreaProps) {
   // Refs for slash command items to enable scroll-into-view
   const slashCommandItemRefs = useRef<(HTMLDivElement | null)[]>([]);
 
+  // Refs for tab completion items to enable scroll-into-view
+  const tabCompletionItemRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   // Memoize command history filtering to avoid expensive Set operations on every keystroke
   const commandHistoryFilterLower = commandHistoryFilter.toLowerCase();
@@ -151,6 +153,16 @@ export const InputArea = React.memo(function InputArea(props: InputAreaProps) {
       });
     }
   }, [safeSelectedIndex, slashCommandOpen]);
+
+  // Scroll selected tab completion item into view when index changes
+  useEffect(() => {
+    if (tabCompletionOpen && tabCompletionItemRefs.current[selectedTabCompletionIndex]) {
+      tabCompletionItemRefs.current[selectedTabCompletionIndex]?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      });
+    }
+  }, [selectedTabCompletionIndex, tabCompletionOpen]);
 
   return (
     <div className="relative p-4 border-t" style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.bgSidebar }}>
@@ -334,6 +346,7 @@ export const InputArea = React.memo(function InputArea(props: InputAreaProps) {
               return (
                 <div
                   key={`${suggestion.type}-${suggestion.value}`}
+                  ref={el => tabCompletionItemRefs.current[idx] = el}
                   className={`px-3 py-2 cursor-pointer text-sm font-mono flex items-center gap-2 ${isSelected ? 'ring-1 ring-inset' : ''}`}
                   style={{
                     backgroundColor: isSelected ? theme.colors.bgActivity : 'transparent',
