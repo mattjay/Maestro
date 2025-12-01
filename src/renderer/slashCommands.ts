@@ -20,7 +20,7 @@ export interface SlashCommandContext {
   fileTreeRef?: React.RefObject<HTMLDivElement>;
   // Optional properties for synopsis and new session
   sendPromptToAgent?: (prompt: string) => Promise<{ success: boolean; response?: string; claudeSessionId?: string }>;
-  addHistoryEntry?: (entry: { type: 'AUTO' | 'USER'; summary: string; claudeSessionId?: string }) => void;
+  addHistoryEntry?: (entry: { type: 'AUTO' | 'USER'; summary: string; fullResponse?: string; claudeSessionId?: string }) => void;
   startNewClaudeSession?: () => void;
   // Background synopsis - resumes old session without blocking
   spawnBackgroundSynopsis?: (sessionId: string, cwd: string, resumeClaudeSessionId: string, prompt: string) => Promise<{ success: boolean; response?: string; claudeSessionId?: string }>;
@@ -33,7 +33,41 @@ export interface SlashCommandContext {
 }
 
 // Synopsis prompt for getting a summary of recent work
-const SYNOPSIS_PROMPT = 'Synopsize our recent work in 2-3 sentences max.';
+// Request structured format with short summary and detailed description
+const SYNOPSIS_PROMPT = `Provide a synopsis of what was accomplished since the last synopsis (or since the start of this session if no previous synopsis) using this exact format:
+
+**Summary:** [1-2 sentences describing the key outcome]
+
+**Details:** [A paragraph with more specifics about what was done, files changed, etc.]
+
+Be specific about what was actually accomplished. Focus on changes made since the last synopsis request.`;
+
+/**
+ * Parse a synopsis response into short summary and full synopsis
+ * Expected format:
+ *   **Summary:** Short 1-2 sentence summary
+ *   **Details:** Detailed paragraph...
+ */
+function parseSynopsis(response: string): { shortSummary: string; fullSynopsis: string } {
+  // Clean up ANSI codes and box drawing characters
+  const clean = response
+    .replace(/\x1b\[[0-9;]*m/g, '')
+    .replace(/─+/g, '')
+    .replace(/[│┌┐└┘├┤┬┴┼]/g, '')
+    .trim();
+
+  // Try to extract Summary and Details sections
+  const summaryMatch = clean.match(/\*\*Summary:\*\*\s*(.+?)(?=\*\*Details:\*\*|$)/is);
+  const detailsMatch = clean.match(/\*\*Details:\*\*\s*(.+?)$/is);
+
+  const shortSummary = summaryMatch?.[1]?.trim() || clean.split('\n')[0]?.trim() || 'Synopsis completed';
+  const details = detailsMatch?.[1]?.trim() || '';
+
+  // Full synopsis includes both parts
+  const fullSynopsis = details ? `${shortSummary}\n\n${details}` : shortSummary;
+
+  return { shortSummary, fullSynopsis };
+}
 
 export const slashCommands: SlashCommand[] = [
   {
@@ -80,15 +114,20 @@ export const slashCommands: SlashCommand[] = [
         }));
 
         if (result.success && result.response) {
-          // Add synopsis response to tab's message history
+          // Add raw synopsis response to tab's message history
           addLogToActiveTab?.(actualActiveId, {
             source: 'ai',
             text: result.response
           });
 
+          // Parse the response into short summary and full synopsis
+          const parsed = parseSynopsis(result.response);
+
+          // Add history entry with short summary for list view and full response for detail view
           addHistoryEntry({
             type: 'USER',
-            summary: result.response,
+            summary: parsed.shortSummary,
+            fullResponse: parsed.fullSynopsis,
             claudeSessionId: activeSession.claudeSessionId
           });
           // Refresh history panel to show the new entry
@@ -144,21 +183,25 @@ export const slashCommands: SlashCommand[] = [
           .then(result => {
             const duration = Date.now() - startTime;
             if (result.success && result.response) {
+              // Parse the response into short summary and full synopsis
+              const parsed = parseSynopsis(result.response);
+
               addHistoryEntry({
                 type: 'USER',
-                summary: result.response,
+                summary: parsed.shortSummary,
+                fullResponse: parsed.fullSynopsis,
                 claudeSessionId: oldClaudeSessionId
               });
 
               // Refresh history panel to show the new entry
               refreshHistoryPanel?.();
 
-              // Show toast notification
+              // Show toast notification with short summary
               if (addToast) {
                 addToast({
                   type: 'success',
                   title: 'Synopsis Complete',
-                  message: result.response,
+                  message: parsed.shortSummary,
                   group: groupName,
                   project: projectName,
                   taskDuration: duration,

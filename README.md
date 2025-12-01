@@ -88,6 +88,7 @@ Each session shows a color-coded status indicator:
 | Move Agent to Group | `Cmd+Shift+M` | `Ctrl+Shift+M` |
 | Previous Agent | `Cmd+Shift+{` | `Ctrl+Shift+{` |
 | Next Agent | `Cmd+Shift+}` | `Ctrl+Shift+}` |
+| Jump to Agent (1-9, 0=10th) | `Opt+Cmd+NUMBER` | `Alt+Ctrl+NUMBER` |
 | Switch AI/Command Terminal | `Cmd+J` | `Ctrl+J` |
 | Show Shortcuts Help | `Cmd+/` | `Ctrl+/` |
 | Open Settings | `Cmd+,` | `Ctrl+,` |

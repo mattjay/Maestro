@@ -2047,7 +2047,7 @@ export default function MaestroConsole() {
   }, []);
 
   // Helper to add history entry
-  const addHistoryEntry = useCallback(async (entry: { type: 'AUTO' | 'USER'; summary: string; claudeSessionId?: string }) => {
+  const addHistoryEntry = useCallback(async (entry: { type: 'AUTO' | 'USER'; summary: string; fullResponse?: string; claudeSessionId?: string }) => {
     if (!activeSession) return;
 
     // Get session name and usageStats from active tab
@@ -2061,6 +2061,7 @@ export default function MaestroConsole() {
       type: entry.type,
       timestamp: Date.now(),
       summary: entry.summary,
+      fullResponse: entry.fullResponse,
       claudeSessionId: entry.claudeSessionId,
       sessionName: sessionName,
       projectPath: activeSession.cwd,
@@ -2855,9 +2856,12 @@ export default function MaestroConsole() {
       }
 
       // Opt+Cmd+NUMBER: Jump to visible session by number (1-9, 0=10th)
-      if (e.altKey && (e.metaKey || e.ctrlKey) && /^[0-9]$/.test(e.key)) {
+      // Use e.code instead of e.key because Option key on macOS produces special characters
+      const digitMatch = e.code?.match(/^Digit([0-9])$/);
+      if (e.altKey && (e.metaKey || e.ctrlKey) && digitMatch) {
         e.preventDefault();
-        const num = e.key === '0' ? 10 : parseInt(e.key, 10);
+        const digit = digitMatch[1];
+        const num = digit === '0' ? 10 : parseInt(digit, 10);
         const targetIndex = num - 1;
         if (targetIndex >= 0 && targetIndex < visibleSessions.length) {
           const targetSession = visibleSessions[targetIndex];

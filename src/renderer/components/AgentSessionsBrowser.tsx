@@ -528,23 +528,19 @@ export function AgentSessionsBrowser({
     }
   }, [loading, isLoadingMoreSessions, hasMoreSessions, sessions, isSessionVisible, loadMoreSessions]);
 
-  // Stats use aggregate stats from ALL sessions (fetched progressively from backend)
-  // Session count reflects the "Show All" checkbox - filtered count or total
+  // Stats always show totals for ALL sessions (fetched progressively from backend)
   const stats = useMemo(() => {
-    const visibleSessions = sessions.filter(isSessionVisible);
-    // When "Show All" is checked, use total from aggregate; otherwise use filtered count from loaded sessions
-    const totalSessions = showAllSessions
-      ? aggregateStats.totalSessions
-      : visibleSessions.length;
-    // Messages, size, cost, and date always use aggregate stats (for all sessions)
-    const totalMessages = aggregateStats.totalMessages;
-    const totalSize = aggregateStats.totalSizeBytes;
-    const totalCost = aggregateStats.totalCostUsd;
-    const oldestSession = aggregateStats.oldestTimestamp
-      ? new Date(aggregateStats.oldestTimestamp)
-      : null;
-    return { totalSessions, totalMessages, totalSize, totalCost, oldestSession, isComplete: aggregateStats.isComplete };
-  }, [sessions, aggregateStats, isSessionVisible, showAllSessions]);
+    return {
+      totalSessions: aggregateStats.totalSessions,
+      totalMessages: aggregateStats.totalMessages,
+      totalSize: aggregateStats.totalSizeBytes,
+      totalCost: aggregateStats.totalCostUsd,
+      oldestSession: aggregateStats.oldestTimestamp
+        ? new Date(aggregateStats.oldestTimestamp)
+        : null,
+      isComplete: aggregateStats.isComplete,
+    };
+  }, [aggregateStats]);
 
   // Filter sessions by search - use different strategies based on search mode
   const filteredSessions = useMemo(() => {

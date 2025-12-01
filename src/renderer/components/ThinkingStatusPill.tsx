@@ -100,7 +100,8 @@ const SessionRow = memo(({
   namedSessions?: Record<string, string>;
   onSessionClick?: (sessionId: string, tabId?: string) => void;
 }) => {
-  const displayName = getSessionDisplayName(session, namedSessions);
+  const tabDisplayName = getSessionDisplayName(session, namedSessions);
+  const maestroName = session.name; // The name from the left sidebar
   const tokens = session.currentCycleTokens || 0;
   const busyTab = getWriteModeTab(session);
 
@@ -116,7 +117,12 @@ const SessionRow = memo(({
           className="w-2 h-2 rounded-full shrink-0 animate-pulse"
           style={{ backgroundColor: theme.colors.warning }}
         />
-        <span className="text-xs font-mono truncate">{displayName}</span>
+        {/* Maestro session name (from left bar) + Tab name */}
+        <span className="text-xs truncate">
+          <span className="font-medium">{maestroName}</span>
+          <span style={{ color: theme.colors.textDim }}> / </span>
+          <span className="font-mono" style={{ color: theme.colors.textDim }}>{tabDisplayName}</span>
+        </span>
       </div>
       <div className="flex items-center gap-2 shrink-0 text-xs" style={{ color: theme.colors.textDim }}>
         {tokens > 0 && (

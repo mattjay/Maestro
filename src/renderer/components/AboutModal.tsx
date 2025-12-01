@@ -267,21 +267,23 @@ export function AboutModal({ theme, sessions, onClose }: AboutModalProps) {
 
           {/* Made in Austin */}
           <div className="pt-3 text-center flex flex-col items-center gap-2">
-            {/* Texas outline - simplified recognizable shape */}
+            {/* Texas Flag - Lone Star Flag */}
             <svg
-              viewBox="0 0 100 100"
-              className="w-8 h-8"
-              style={{ color: theme.colors.textDim }}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              viewBox="0 0 150 100"
+              className="w-12 h-8"
+              style={{ opacity: 0.7 }}
             >
-              {/* Texas state outline */}
-              <path d="M30,8 L30,25 L25,28 L20,35 L10,55 L15,70 L25,82 L40,92 L55,88 L65,78 L72,65 L78,55 L82,45 L88,35 L90,25 L85,15 L75,10 L60,8 L45,5 Z" />
-              {/* Austin location dot */}
-              <circle cx="42" cy="52" r="2.5" fill="currentColor" stroke="none" />
+              {/* Blue vertical stripe */}
+              <rect x="0" y="0" width="50" height="100" fill="#002868" />
+              {/* White horizontal stripe */}
+              <rect x="50" y="0" width="100" height="50" fill="#FFFFFF" />
+              {/* Red horizontal stripe */}
+              <rect x="50" y="50" width="100" height="50" fill="#BF0A30" />
+              {/* White five-pointed star */}
+              <polygon
+                points="25,15 29.5,30 45,30 32.5,40 37,55 25,45 13,55 17.5,40 5,30 20.5,30"
+                fill="#FFFFFF"
+              />
             </svg>
             <span className="text-xs" style={{ color: theme.colors.textDim }}>Made in Austin, TX</span>
           </div>
