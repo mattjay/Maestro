@@ -742,22 +742,22 @@ export const HistoryPanel = React.memo(forwardRef<HistoryPanelHandle, HistoryPan
                       {entry.type}
                     </span>
 
-                    {/* Session ID Octet (clickable) - opens session as new tab */}
+                    {/* Session Name or ID Octet (clickable) - opens session as new tab */}
                     {entry.claudeSessionId && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           onOpenSessionAsTab?.(entry.claudeSessionId!);
                         }}
-                        className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase transition-colors hover:opacity-80"
+                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors hover:opacity-80 ${entry.sessionName ? '' : 'font-mono uppercase'}`}
                         style={{
                           backgroundColor: theme.colors.accent + '20',
                           color: theme.colors.accent,
                           border: `1px solid ${theme.colors.accent}40`
                         }}
-                        title={`Open session ${entry.claudeSessionId.split('-')[0]} as new tab`}
+                        title={`Open session ${entry.sessionName || entry.claudeSessionId.split('-')[0]} as new tab`}
                       >
-                        {entry.claudeSessionId.split('-')[0].toUpperCase()}
+                        {entry.sessionName || entry.claudeSessionId.split('-')[0].toUpperCase()}
                         <ExternalLink className="w-2.5 h-2.5" />
                       </button>
                     )}

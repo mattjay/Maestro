@@ -85,6 +85,16 @@ export function AgentSessionsBrowser({
   const [totalSessionCount, setTotalSessionCount] = useState(0);
   const nextCursorRef = useRef<string | null>(null);
 
+  // Aggregate stats for ALL sessions (calculated progressively)
+  const [aggregateStats, setAggregateStats] = useState<{
+    totalSessions: number;
+    totalMessages: number;
+    totalCostUsd: number;
+    totalSizeBytes: number;
+    oldestTimestamp: string | null;
+    isComplete: boolean;
+  }>({ totalSessions: 0, totalMessages: 0, totalCostUsd: 0, totalSizeBytes: 0, oldestTimestamp: null, isComplete: false });
+
   const inputRef = useRef<HTMLInputElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const selectedItemRef = useRef<HTMLButtonElement>(null);
@@ -212,6 +222,7 @@ export function AgentSessionsBrowser({
     setHasMoreSessions(false);
     setTotalSessionCount(0);
     nextCursorRef.current = null;
+    setAggregateStats({ totalSessions: 0, totalMessages: 0, totalCostUsd: 0, totalSizeBytes: 0, oldestTimestamp: null, isComplete: false });
 
     const loadSessions = async () => {
       if (!activeSession?.cwd) {
@@ -236,6 +247,9 @@ export function AgentSessionsBrowser({
         setHasMoreSessions(result.hasMore);
         setTotalSessionCount(result.totalCount);
         nextCursorRef.current = result.nextCursor;
+
+        // Start fetching aggregate stats for ALL sessions (runs in background with progressive updates)
+        window.maestro.claude.getProjectStats(activeSession.cwd);
       } catch (error) {
         console.error('Failed to load sessions:', error);
       } finally {
@@ -244,6 +258,27 @@ export function AgentSessionsBrowser({
     };
 
     loadSessions();
+  }, [activeSession?.cwd]);
+
+  // Listen for progressive stats updates
+  useEffect(() => {
+    if (!activeSession?.cwd) return;
+
+    const unsubscribe = window.maestro.claude.onProjectStatsUpdate((stats) => {
+      // Only update if this is for our project
+      if (stats.projectPath === activeSession.cwd) {
+        setAggregateStats({
+          totalSessions: stats.totalSessions,
+          totalMessages: stats.totalMessages,
+          totalCostUsd: stats.totalCostUsd,
+          totalSizeBytes: stats.totalSizeBytes,
+          oldestTimestamp: stats.oldestTimestamp,
+          isComplete: stats.isComplete,
+        });
+      }
+    });
+
+    return unsubscribe;
   }, [activeSession?.cwd]);
 
   // Load more sessions when scrolling near bottom
@@ -493,22 +528,23 @@ export function AgentSessionsBrowser({
     }
   }, [loading, isLoadingMoreSessions, hasMoreSessions, sessions, isSessionVisible, loadMoreSessions]);
 
-  // Calculate stats from loaded sessions
-  // Session count reflects the "Show All" checkbox - filtered or total
+  // Stats use aggregate stats from ALL sessions (fetched progressively from backend)
+  // Session count reflects the "Show All" checkbox - filtered count or total
   const stats = useMemo(() => {
     const visibleSessions = sessions.filter(isSessionVisible);
-    // When "Show All" is checked, use total from pagination; otherwise use filtered count
+    // When "Show All" is checked, use total from aggregate; otherwise use filtered count from loaded sessions
     const totalSessions = showAllSessions
-      ? (totalSessionCount > 0 ? totalSessionCount : sessions.length)
+      ? aggregateStats.totalSessions
       : visibleSessions.length;
-    const totalMessages = visibleSessions.reduce((sum, s) => sum + s.messageCount, 0);
-    const totalSize = visibleSessions.reduce((sum, s) => sum + s.sizeBytes, 0);
-    const totalCost = visibleSessions.reduce((sum, s) => sum + (s.costUsd || 0), 0);
-    const oldestSession = visibleSessions.length > 0
-      ? new Date(Math.min(...visibleSessions.map(s => new Date(s.timestamp).getTime())))
+    // Messages, size, cost, and date always use aggregate stats (for all sessions)
+    const totalMessages = aggregateStats.totalMessages;
+    const totalSize = aggregateStats.totalSizeBytes;
+    const totalCost = aggregateStats.totalCostUsd;
+    const oldestSession = aggregateStats.oldestTimestamp
+      ? new Date(aggregateStats.oldestTimestamp)
       : null;
-    return { totalSessions, totalMessages, totalSize, totalCost, oldestSession };
-  }, [sessions, totalSessionCount, isSessionVisible, showAllSessions]);
+    return { totalSessions, totalMessages, totalSize, totalCost, oldestSession, isComplete: aggregateStats.isComplete };
+  }, [sessions, aggregateStats, isSessionVisible, showAllSessions]);
 
   // Filter sessions by search - use different strategies based on search mode
   const filteredSessions = useMemo(() => {
@@ -1043,26 +1079,26 @@ export function AgentSessionsBrowser({
             >
               <div className="flex items-center gap-2">
                 <BarChart3 className="w-4 h-4" style={{ color: theme.colors.accent }} />
-                <span className="text-xs font-medium" style={{ color: theme.colors.textDim }}>
+                <span className={`text-xs font-medium ${!stats.isComplete ? 'animate-pulse' : ''}`} style={{ color: theme.colors.textDim }}>
                   {stats.totalSessions} {stats.totalSessions === 1 ? 'session' : 'sessions'}
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <MessageSquare className="w-4 h-4" style={{ color: theme.colors.success }} />
-                <span className="text-xs font-medium" style={{ color: theme.colors.textDim }}>
+                <span className={`text-xs font-medium ${!stats.isComplete ? 'animate-pulse' : ''}`} style={{ color: theme.colors.textDim }}>
                   {stats.totalMessages.toLocaleString()} messages
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <Database className="w-4 h-4" style={{ color: theme.colors.warning }} />
-                <span className="text-xs font-medium" style={{ color: theme.colors.textDim }}>
+                <span className={`text-xs font-medium ${!stats.isComplete ? 'animate-pulse' : ''}`} style={{ color: theme.colors.textDim }}>
                   {formatSize(stats.totalSize)}
                 </span>
               </div>
-              {stats.totalCost > 0 && (
+              {(stats.totalCost > 0 || !stats.isComplete) && (
                 <div className="flex items-center gap-2">
                   <DollarSign className="w-4 h-4" style={{ color: theme.colors.success }} />
-                  <span className="text-xs font-medium font-mono" style={{ color: theme.colors.success }}>
+                  <span className={`text-xs font-medium font-mono ${!stats.isComplete ? 'animate-pulse' : ''}`} style={{ color: theme.colors.success }}>
                     ${stats.totalCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
@@ -1074,6 +1110,9 @@ export function AgentSessionsBrowser({
                     Since {stats.oldestSession.toLocaleDateString()}
                   </span>
                 </div>
+              )}
+              {!stats.isComplete && (
+                <Loader2 className="w-3 h-3 animate-spin ml-auto" style={{ color: theme.colors.textDim }} />
               )}
             </div>
           )}

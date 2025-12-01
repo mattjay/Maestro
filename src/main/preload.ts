@@ -306,6 +306,23 @@ contextBridge.exposeInMainWorld('maestro', {
     // Paginated version for better performance with many sessions
     listSessionsPaginated: (projectPath: string, options?: { cursor?: string; limit?: number }) =>
       ipcRenderer.invoke('claude:listSessionsPaginated', projectPath, options),
+    // Get aggregate stats for all sessions in a project (streams progressive updates)
+    getProjectStats: (projectPath: string) =>
+      ipcRenderer.invoke('claude:getProjectStats', projectPath),
+    onProjectStatsUpdate: (callback: (stats: {
+      projectPath: string;
+      totalSessions: number;
+      totalMessages: number;
+      totalCostUsd: number;
+      totalSizeBytes: number;
+      oldestTimestamp: string | null;
+      processedCount: number;
+      isComplete: boolean;
+    }) => void) => {
+      const handler = (_: any, stats: any) => callback(stats);
+      ipcRenderer.on('claude:projectStatsUpdate', handler);
+      return () => ipcRenderer.removeListener('claude:projectStatsUpdate', handler);
+    },
     getGlobalStats: () =>
       ipcRenderer.invoke('claude:getGlobalStats'),
     onGlobalStatsUpdate: (callback: (stats: {
@@ -568,6 +585,24 @@ export interface MaestroAPI {
       totalCount: number;
       nextCursor: string | null;
     }>;
+    // Get aggregate stats for all sessions in a project
+    getProjectStats: (projectPath: string) => Promise<{
+      totalSessions: number;
+      totalMessages: number;
+      totalCostUsd: number;
+      totalSizeBytes: number;
+      oldestTimestamp: string | null;
+    }>;
+    onProjectStatsUpdate: (callback: (stats: {
+      projectPath: string;
+      totalSessions: number;
+      totalMessages: number;
+      totalCostUsd: number;
+      totalSizeBytes: number;
+      oldestTimestamp: string | null;
+      processedCount: number;
+      isComplete: boolean;
+    }) => void) => () => void;
     onGlobalStatsUpdate: (callback: (stats: {
       totalSessions: number;
       totalMessages: number;

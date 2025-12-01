@@ -2050,15 +2050,22 @@ export default function MaestroConsole() {
   const addHistoryEntry = useCallback(async (entry: { type: 'AUTO' | 'USER'; summary: string; claudeSessionId?: string }) => {
     if (!activeSession) return;
 
+    // Get session name and usageStats from active tab
+    // Use tab-level usageStats to match what's displayed in the UI header
+    const activeTab = getActiveTab(activeSession);
+    const sessionName = activeTab?.name;
+    const usageStats = activeTab?.usageStats || activeSession.usageStats;
+
     await window.maestro.history.add({
       id: generateId(),
       type: entry.type,
       timestamp: Date.now(),
       summary: entry.summary,
       claudeSessionId: entry.claudeSessionId,
+      sessionName: sessionName,
       projectPath: activeSession.cwd,
       contextUsage: activeSession.contextUsage,
-      usageStats: activeSession.usageStats
+      usageStats: usageStats
     });
 
     // Refresh history panel to show the new entry
