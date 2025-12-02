@@ -683,7 +683,7 @@ export function TabBar({
               isDragOver={dragOverTabId === tab.id}
               onRename={() => handleRenameRequest(tab.id)}
               onStar={onTabStar ? (starred) => onTabStar(tab.id, starred) : undefined}
-              shortcutHint={originalIndex < 9 ? originalIndex + 1 : null}
+              shortcutHint={!showUnreadOnly && originalIndex < 9 ? originalIndex + 1 : null}
               registerRef={(el) => {
                 if (el) {
                   tabRefs.current.set(tab.id, el);

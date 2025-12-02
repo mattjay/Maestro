@@ -3187,27 +3187,29 @@ export default function MaestroConsole() {
             ));
           }
         }
-        // Cmd+1 through Cmd+8: Jump to specific tab by index
-        for (let i = 1; i <= 8; i++) {
-          if (ctx.isTabShortcut(e, `goToTab${i}`)) {
+        // Cmd+1 through Cmd+8: Jump to specific tab by index (disabled in unread-only mode)
+        if (!ctx.showUnreadOnly) {
+          for (let i = 1; i <= 8; i++) {
+            if (ctx.isTabShortcut(e, `goToTab${i}`)) {
+              e.preventDefault();
+              const result = ctx.navigateToTabByIndex(ctx.activeSession, i - 1);
+              if (result) {
+                ctx.setSessions(prev => prev.map(s =>
+                  s.id === ctx.activeSession!.id ? result.session : s
+                ));
+              }
+              break;
+            }
+          }
+          // Cmd+9: Jump to last tab
+          if (ctx.isTabShortcut(e, 'goToLastTab')) {
             e.preventDefault();
-            const result = ctx.navigateToTabByIndex(ctx.activeSession, i - 1, ctx.showUnreadOnly);
+            const result = ctx.navigateToLastTab(ctx.activeSession);
             if (result) {
               ctx.setSessions(prev => prev.map(s =>
                 s.id === ctx.activeSession!.id ? result.session : s
               ));
             }
-            break;
-          }
-        }
-        // Cmd+9: Jump to last tab
-        if (ctx.isTabShortcut(e, 'goToLastTab')) {
-          e.preventDefault();
-          const result = ctx.navigateToLastTab(ctx.activeSession, ctx.showUnreadOnly);
-          if (result) {
-            ctx.setSessions(prev => prev.map(s =>
-              s.id === ctx.activeSession!.id ? result.session : s
-            ));
           }
         }
       }
