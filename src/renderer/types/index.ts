@@ -258,6 +258,14 @@ export interface Session {
   terminalScrollTop?: number;
   // Draft input for terminal mode (persisted across session switches)
   terminalDraftInput?: string;
+
+  // Auto Run panel state (file-based document runner)
+  autoRunFolderPath?: string;           // Persisted folder path for Runner Docs
+  autoRunSelectedFile?: string;          // Currently selected markdown filename
+  autoRunMode?: 'edit' | 'preview';      // Current editing mode
+  autoRunEditScrollPos?: number;         // Scroll position in edit mode
+  autoRunPreviewScrollPos?: number;      // Scroll position in preview mode
+  autoRunCursorPosition?: number;        // Cursor position in edit mode
 }
 
 export interface Group {
