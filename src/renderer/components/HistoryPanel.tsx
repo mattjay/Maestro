@@ -420,6 +420,9 @@ const MAX_HISTORY_IN_MEMORY = 500;  // Maximum entries to keep in memory
 const INITIAL_DISPLAY_COUNT = 50;   // Initial entries to render
 const LOAD_MORE_COUNT = 50;         // Entries to add when scrolling
 
+// Module-level storage for scroll positions (persists across session switches)
+const scrollPositionCache = new Map<string, number>();
+
 export const HistoryPanel = React.memo(forwardRef<HistoryPanelHandle, HistoryPanelProps>(function HistoryPanel({ session, theme, onJumpToClaudeSession, onResumeSession, onOpenSessionAsTab }, ref) {
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
   const [activeFilters, setActiveFilters] = useState<Set<HistoryEntryType>>(new Set(['AUTO', 'USER']));
@@ -436,26 +439,47 @@ export const HistoryPanel = React.memo(forwardRef<HistoryPanelHandle, HistoryPan
   const listRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const savedScrollPosition = useRef<number>(0);
+  const hasRestoredScroll = useRef<boolean>(false);
 
   // Load history entries function - reusable for initial load and refresh
-  const loadHistory = useCallback(async () => {
-    setIsLoading(true);
+  // When isRefresh=true, preserve scroll position and displayCount
+  const loadHistory = useCallback(async (isRefresh = false) => {
+    // Save current scroll position before loading
+    const currentScrollTop = listRef.current?.scrollTop ?? 0;
+    const currentDisplayCount = displayCount;
+
+    if (!isRefresh) {
+      setIsLoading(true);
+    }
+
     try {
       // Pass sessionId to filter: only show entries from this session or legacy entries without sessionId
       const entries = await window.maestro.history.getAll(session.cwd, session.id);
       // Ensure entries is an array, limit to MAX_HISTORY_IN_MEMORY
       const validEntries = Array.isArray(entries) ? entries : [];
       setHistoryEntries(validEntries.slice(0, MAX_HISTORY_IN_MEMORY));
-      // Reset display count when reloading
-      setDisplayCount(INITIAL_DISPLAY_COUNT);
+
+      if (isRefresh) {
+        // On refresh, preserve displayCount and restore scroll position
+        // Use RAF to ensure DOM has updated before restoring scroll
+        requestAnimationFrame(() => {
+          if (listRef.current) {
+            listRef.current.scrollTop = currentScrollTop;
+          }
+        });
+      } else {
+        // Only reset display count on initial load, not refresh
+        setDisplayCount(INITIAL_DISPLAY_COUNT);
+      }
     } catch (error) {
       console.error('Failed to load history:', error);
       setHistoryEntries([]);
     } finally {
-      setIsLoading(false);
+      if (!isRefresh) {
+        setIsLoading(false);
+      }
     }
-  }, [session.cwd, session.id]);
+  }, [session.cwd, session.id, displayCount]);
 
   // Expose focus and refreshHistory methods to parent
   useImperativeHandle(ref, () => ({
@@ -467,7 +491,9 @@ export const HistoryPanel = React.memo(forwardRef<HistoryPanelHandle, HistoryPan
       }
     },
     refreshHistory: () => {
-      loadHistory();
+      // Pass true to indicate this is a refresh, not initial load
+      // This preserves scroll position and displayCount
+      loadHistory(true);
     }
   }), [selectedIndex, historyEntries.length, loadHistory]);
 
@@ -577,8 +603,8 @@ export const HistoryPanel = React.memo(forwardRef<HistoryPanelHandle, HistoryPan
     const target = e.currentTarget;
     const scrollBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
 
-    // Save scroll position for persistence when switching views
-    savedScrollPosition.current = target.scrollTop;
+    // Save scroll position to module-level cache (persists across session switches)
+    scrollPositionCache.set(session.id, target.scrollTop);
 
     // Load more when within 100px of bottom
     if (scrollBottom < 100 && hasMore) {
@@ -609,14 +635,28 @@ export const HistoryPanel = React.memo(forwardRef<HistoryPanelHandle, HistoryPan
     } else if (topmostVisibleEntry) {
       setGraphReferenceTime(topmostVisibleEntry.timestamp);
     }
-  }, [hasMore, allFilteredEntries.length, filteredEntries]);
+  }, [session.id, hasMore, allFilteredEntries.length, filteredEntries]);
 
-  // Restore scroll position when component re-renders (e.g., switching back to History tab)
+  // Restore scroll position when loading completes (switching sessions or initial load)
   useEffect(() => {
-    if (listRef.current && savedScrollPosition.current > 0 && !isLoading) {
-      listRef.current.scrollTop = savedScrollPosition.current;
+    if (listRef.current && !isLoading && !hasRestoredScroll.current) {
+      const savedPosition = scrollPositionCache.get(session.id);
+      if (savedPosition !== undefined && savedPosition > 0) {
+        // Use requestAnimationFrame to ensure DOM has rendered
+        requestAnimationFrame(() => {
+          if (listRef.current) {
+            listRef.current.scrollTop = savedPosition;
+          }
+        });
+      }
+      hasRestoredScroll.current = true;
     }
-  }, [isLoading]);
+  }, [isLoading, session.id]);
+
+  // Reset the restore flag when session changes so we restore for the new session
+  useEffect(() => {
+    hasRestoredScroll.current = false;
+  }, [session.id]);
 
   // Reset selected index, display count, and graph reference time when filters change
   useEffect(() => {

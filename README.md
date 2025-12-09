@@ -35,21 +35,21 @@ NOTE: On macOS you may need to clear the quarantine label to successfully launch
 - 🤖 **[Auto Run & Playbooks](#auto-run)** - File-system-based task runner that batch-processes markdown checklists through AI agents. Create playbooks for repeatable workflows, run in loops, and track progress with full history. Each task gets its own AI session for clean conversation context.
 - 🌐 **[Mobile Remote Control](#remote-access)** - Built-in web server with QR code access. Monitor and control all your agents from your phone. Supports local network access and remote tunneling via Cloudflare for access from anywhere.
 - 💻 **[Command Line Interface](#command-line-interface)** - Full CLI (`maestro-cli`) for headless operation. List agents/groups, run playbooks from cron jobs or CI/CD pipelines, with human-readable or JSONL output for scripting.
-- 🚀 **[Multi-Instance Management](#key-concepts)** - Run unlimited Claude Code instances and terminal sessions in parallel. Each agent has its own workspace, conversation history, and isolated context.
+- 🚀 **Multi-Instance Management** - Run unlimited Claude Code instances and terminal sessions in parallel. Each agent has its own workspace, conversation history, and isolated context.
 - 📬 **Message Queueing** - Queue messages while AI is busy; they're sent automatically when the agent becomes ready. Never lose a thought.
 
 ### Core Features
 
-- 🔄 **[Dual-Mode Sessions](#key-concepts)** - Each agent has both an AI Terminal and Command Terminal. Switch seamlessly between AI conversation and shell commands with `Cmd+J`.
+- 🔄 **Dual-Mode Sessions** - Each agent has both an AI Terminal and Command Terminal. Switch seamlessly between AI conversation and shell commands with `Cmd+J`.
 - ⌨️ **[Keyboard-First Design](#keyboard-shortcuts)** - Full keyboard control with customizable shortcuts. `Cmd+K` quick actions, vim-style navigation, rapid agent switching, and focus management designed for flow state.
-- 📋 **[Session Discovery](#key-concepts)** - Automatically discovers and imports all Claude Code sessions, including conversations from before Maestro was installed. Browse, search, star, rename, and resume any session.
-- 🔀 **[Git Integration](#key-concepts)** - Automatic repo detection, branch display, diff viewer, commit logs, and git-aware file completion. Work with git without leaving the app.
+- 📋 **Session Discovery** - Automatically discovers and imports all Claude Code sessions, including conversations from before Maestro was installed. Browse, search, star, rename, and resume any session.
+- 🔀 **Git Integration** - Automatic repo detection, branch display, diff viewer, commit logs, and git-aware file completion. Work with git without leaving the app.
 - 📁 **[File Explorer](#ui-overview)** - Browse project files with syntax highlighting, markdown preview, and image viewing. Reference files in prompts with `@` mentions.
 - 🔍 **[Powerful Output Filtering](#inputoutput)** - Search and filter AI output with include/exclude modes, regex support, and per-response local filters.
 - ⚡ **[Slash Commands](#slash-commands)** - Extensible command system with autocomplete. Create custom commands with template variables for your workflows.
 - 💾 **Draft Auto-Save** - Never lose work. Drafts are automatically saved and restored per session.
 - 🔊 **Speakable Notifications** - Audio alerts with text-to-speech announcements when agents complete tasks.
-- 🎨 **[Beautiful Themes](#screenshots)** - 12 themes including Dracula, Monokai, Nord, Tokyo Night, and GitHub Light.
+- 🎨 **[Beautiful Themes](THEMES.md)** - 12 themes including Dracula, Monokai, Nord, Tokyo Night, GitHub Light, and more.
 - 💰 **Cost Tracking** - Real-time token usage and cost tracking per session and globally.
 - 🏆 **[Achievements](#achievements)** - Level up from Apprentice to Titan of the Baton based on cumulative Auto Run time. 11 conductor-themed ranks to unlock.
 
@@ -61,8 +61,8 @@ Maestro enables a **specification-first approach** to AI-assisted development. I
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│  1. PLAN          2. SPECIFY         3. EXECUTE        4. REFINE   │
-│  ─────────        ──────────         ─────────         ─────────   │
+│  1. PLAN          2. SPECIFY         3. EXECUTE        4. REFINE    │
+│  ─────────        ──────────         ─────────         ─────────    │
 │  Discuss the      Create markdown    Auto Run works    Review       │
 │  feature with     docs with task     through tasks,    results,     │
 │  the AI agent     checklists in      fresh session     update specs │
@@ -155,14 +155,13 @@ Each session shows a color-coded status indicator:
 
 ### Web Interface / Remote Control
 #### Chat
-<img width="603" height="1311" alt="IMG_0163" src="https://github.com/user-attachments/assets/366addb0-f75a-4399-acd3-20d35954802a" />
+<img width="400" alt="IMG_0163" src="https://github.com/user-attachments/assets/366addb0-f75a-4399-acd3-20d35954802a" />
 
 #### Groups / Sessions
-<img width="603" height="1311" alt="IMG_0162" src="https://github.com/user-attachments/assets/39a2c029-3f5a-4d1e-a291-a6037a67da79" />
+<img width="400" alt="IMG_0162" src="https://github.com/user-attachments/assets/39a2c029-3f5a-4d1e-a291-a6037a67da79" />
 
 #### History
-<img width="603" height="1311" alt="IMG_0164" src="https://github.com/user-attachments/assets/ee82d715-118d-4308-b478-f7116df87381" />
-
+<img width="400" alt="IMG_0164" src="https://github.com/user-attachments/assets/ee82d715-118d-4308-b478-f7116df87381" />
 
 ## Keyboard Shortcuts
 
