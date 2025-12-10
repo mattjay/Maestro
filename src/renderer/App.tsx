@@ -27,6 +27,7 @@ import { StandingOvationOverlay } from './components/StandingOvationOverlay';
 import { PlaygroundPanel } from './components/PlaygroundPanel';
 import { AutoRunSetupModal } from './components/AutoRunSetupModal';
 import { MaestroWizard, useWizard } from './components/Wizard';
+import { TourOverlay } from './components/Wizard/tour';
 import { CONDUCTOR_BADGES } from './constants/conductorBadges';
 
 // Import custom hooks
@@ -159,6 +160,7 @@ export default function MaestroConsole() {
     customAICommands, setCustomAICommands,
     globalStats, updateGlobalStats,
     autoRunStats, recordAutoRunComplete, updateAutoRunProgress, acknowledgeBadge, getUnacknowledgedBadgeLevel,
+    tourCompleted, setTourCompleted,
   } = settings;
 
   // --- STATE ---
@@ -208,6 +210,9 @@ export default function MaestroConsole() {
 
   // Git Diff State
   const [gitDiffPreview, setGitDiffPreview] = useState<string | null>(null);
+
+  // Tour Overlay State
+  const [tourOpen, setTourOpen] = useState(false);
 
   // Git Log Viewer State
   const [gitLogOpen, setGitLogOpen] = useState(false);
@@ -6490,6 +6495,7 @@ export default function MaestroConsole() {
             visibleSessions={visibleSessions}
             autoRunStats={autoRunStats}
             openWizard={openWizardModal}
+            startTour={() => setTourOpen(true)}
           />
         </ErrorBoundary>
       )}
@@ -7170,6 +7176,16 @@ export default function MaestroConsole() {
 
       {/* --- MAESTRO WIZARD (onboarding wizard for new users) --- */}
       <MaestroWizard theme={theme} />
+
+      {/* --- TOUR OVERLAY (onboarding tour for interface guidance) --- */}
+      <TourOverlay
+        theme={theme}
+        isOpen={tourOpen}
+        onClose={() => {
+          setTourOpen(false);
+          setTourCompleted(true);
+        }}
+      />
 
       {/* --- FLASH NOTIFICATION (centered, auto-dismiss) --- */}
       {flashNotification && (

@@ -1697,7 +1697,7 @@ const AutoRunInner = forwardRef<AutoRunHandle, AutoRunProps>(function AutoRunInn
 
       {/* Document Selector */}
       {folderPath && (
-        <div className="px-2 mb-2">
+        <div className="px-2 mb-2" data-tour="autorun-document-selector">
           <AutoRunDocumentSelector
             theme={theme}
             documents={documentList}

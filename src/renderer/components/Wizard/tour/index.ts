@@ -6,5 +6,6 @@
 
 export { TourOverlay } from './TourOverlay';
 export { TourStep } from './TourStep';
-export { tourSteps } from './tourSteps';
+export { tourSteps, getTourStepById, getTourStepIndex, getTotalTourSteps } from './tourSteps';
 export { useTour } from './useTour';
+export type { TourStepConfig, TourUIAction, SpotlightInfo } from './useTour';

@@ -1030,7 +1030,7 @@ export function SessionList(props: SessionListProps) {
               </div>
             </div>
             {/* Hamburger Menu */}
-            <div className="relative" ref={menuRef}>
+            <div className="relative" ref={menuRef} data-tour="hamburger-menu">
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
                 className="p-2 rounded hover:bg-white/10 transition-colors"
@@ -1284,7 +1284,7 @@ export function SessionList(props: SessionListProps) {
 
       {/* SIDEBAR CONTENT: EXPANDED */}
       {leftSidebarOpen ? (
-        <div className="flex-1 overflow-y-auto py-2 select-none scrollbar-thin">
+        <div className="flex-1 overflow-y-auto py-2 select-none scrollbar-thin" data-tour="session-list">
           {/* Session Filter */}
           {sessionFilterOpen && (
             <div className="mx-3 mb-3">

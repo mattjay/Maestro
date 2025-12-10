@@ -17,6 +17,9 @@ export const MODAL_PRIORITIES = {
   /** Standing ovation achievement overlay - celebration! */
   STANDING_OVATION: 1100,
 
+  /** Onboarding tour overlay - above wizard, guides new users */
+  TOUR: 1050,
+
   /** Confirmation dialogs - highest priority, always on top */
   CONFIRM: 1000,
 

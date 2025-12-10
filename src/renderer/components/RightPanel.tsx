@@ -229,6 +229,7 @@ export const RightPanel = forwardRef<RightPanelHandle, RightPanelProps>(function
               borderColor: activeRightTab === tab ? theme.colors.accent : 'transparent',
               color: activeRightTab === tab ? theme.colors.textMain : theme.colors.textDim
             }}
+            data-tour={`${tab}-tab`}
           >
             {tab === 'autorun' ? 'Auto Run' : tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
@@ -298,6 +299,7 @@ export const RightPanel = forwardRef<RightPanelHandle, RightPanelProps>(function
         )}
 
         {activeRightTab === 'autorun' && (
+          <div data-tour="autorun-panel" className="h-full">
           <AutoRun
             ref={autoRunRef}
             theme={theme}
@@ -326,6 +328,7 @@ export const RightPanel = forwardRef<RightPanelHandle, RightPanelProps>(function
             sessionState={session.state}
             onExpand={handleExpandAutoRun}
           />
+          </div>
         )}
       </div>
 

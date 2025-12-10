@@ -383,7 +383,7 @@ export function MainPanel(props: MainPanelProps) {
         >
           {/* Top Bar (hidden in mobile landscape for focused reading) */}
           {!isMobileLandscape && (
-          <div ref={headerRef} className="h-16 border-b flex items-center justify-between px-6 shrink-0" style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.bgSidebar }}>
+          <div ref={headerRef} className="h-16 border-b flex items-center justify-between px-6 shrink-0" style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.bgSidebar }} data-tour="header-controls">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 text-sm font-medium">
                 {activeSession.name}
@@ -802,6 +802,7 @@ export function MainPanel(props: MainPanelProps) {
           ) : (
             <>
               {/* Logs Area */}
+              <div className="flex-1 overflow-hidden flex flex-col" data-tour="main-terminal">
               <TerminalOutput
                 key={`${activeSession.id}-${activeSession.activeTabId}`}
                 ref={terminalOutputRef}
@@ -831,9 +832,11 @@ export function MainPanel(props: MainPanelProps) {
                 markdownRawMode={markdownRawMode}
                 setMarkdownRawMode={setMarkdownRawMode}
               />
+              </div>
 
               {/* Input Area (hidden in mobile landscape for focused reading) */}
               {!isMobileLandscape && (
+              <div data-tour="input-area">
               <InputArea
                 session={activeSession}
                 theme={theme}
@@ -892,6 +895,7 @@ export function MainPanel(props: MainPanelProps) {
                 onToggleTabSaveToHistory={props.onToggleTabSaveToHistory}
                 onOpenPromptComposer={props.onOpenPromptComposer}
               />
+              </div>
               )}
             </>
           )}
