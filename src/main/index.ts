@@ -885,15 +885,47 @@ function setupIpcHandlers() {
   ipcMain.handle('process:getActiveProcesses', async () => {
     if (!processManager) throw new Error('Process manager not initialized');
     const processes = processManager.getAll();
-    // Return serializable process info (exclude non-serializable PTY/child process objects)
-    return processes.map(p => ({
-      sessionId: p.sessionId,
-      toolType: p.toolType,
-      pid: p.pid,
-      cwd: p.cwd,
-      isTerminal: p.isTerminal,
-      isBatchMode: p.isBatchMode || false,
-    }));
+
+    // Get CPU/memory stats for each process
+    const pids = processes.map(p => p.pid).join(',');
+    let statsMap = new Map<number, { cpu: number; memory: number; runtime: string }>();
+
+    if (pids) {
+      try {
+        const result = await execFileNoThrow('ps', ['-p', pids, '-o', 'pid=,%cpu=,%mem=,etime=']);
+        if (result.exitCode === 0) {
+          const lines = result.stdout.trim().split('\n');
+          for (const line of lines) {
+            const parts = line.trim().split(/\s+/);
+            if (parts.length >= 4) {
+              const pid = parseInt(parts[0], 10);
+              const cpu = parseFloat(parts[1]) || 0;
+              const memory = parseFloat(parts[2]) || 0;
+              const runtime = parts[3];
+              statsMap.set(pid, { cpu, memory, runtime });
+            }
+          }
+        }
+      } catch {
+        // Ignore errors - stats are optional
+      }
+    }
+
+    // Return serializable process info with stats
+    return processes.map(p => {
+      const stats = statsMap.get(p.pid);
+      return {
+        sessionId: p.sessionId,
+        toolType: p.toolType,
+        pid: p.pid,
+        cwd: p.cwd,
+        isTerminal: p.isTerminal,
+        isBatchMode: p.isBatchMode || false,
+        cpu: stats?.cpu || 0,
+        memory: stats?.memory || 0,
+        runtime: stats?.runtime || '0:00',
+      };
+    });
   });
 
   // Run a single command and capture only stdout/stderr (no PTY echo/prompts)

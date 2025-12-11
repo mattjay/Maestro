@@ -19,6 +19,9 @@ interface ActiveProcess {
   cwd: string;
   isTerminal: boolean;
   isBatchMode: boolean;
+  cpu: number;
+  memory: number;
+  runtime: string;
 }
 
 interface ProcessNode {
@@ -36,6 +39,9 @@ interface ProcessNode {
   cwd?: string;
   claudeSessionId?: string; // UUID octet from the Claude session (for AI processes)
   tabId?: string; // Tab ID for navigation to specific AI tab
+  cpu?: number;
+  memory?: number;
+  runtime?: string;
 }
 
 export function ProcessMonitor(props: ProcessMonitorProps) {
@@ -275,7 +281,10 @@ export function ProcessMonitor(props: ProcessMonitorProps) {
           toolType: proc.toolType,
           cwd: proc.cwd,
           claudeSessionId,
-          tabId
+          tabId,
+          cpu: proc.cpu,
+          memory: proc.memory,
+          runtime: proc.runtime,
         });
       });
 
@@ -535,6 +544,9 @@ export function ProcessMonitor(props: ProcessMonitorProps) {
     }
 
     if (node.type === 'process') {
+      // Determine CPU color based on usage
+      const cpuColor = (node.cpu ?? 0) > 50 ? theme.colors.error : (node.cpu ?? 0) > 20 ? theme.colors.warning : theme.colors.success;
+
       return (
         <div
           ref={isSelected ? selectedNodeRef as React.RefObject<HTMLDivElement> : null}
@@ -555,7 +567,7 @@ export function ProcessMonitor(props: ProcessMonitorProps) {
           <div className="w-4 h-4 flex-shrink-0" />
           <div
             className="w-2 h-2 rounded-full flex-shrink-0"
-            style={{ backgroundColor: theme.colors.success }}
+            style={{ backgroundColor: cpuColor }}
           />
           <span className="text-sm flex-1 truncate">{node.label}</span>
           {node.claudeSessionId && node.sessionId && onNavigateToSession && (
@@ -577,17 +589,23 @@ export function ProcessMonitor(props: ProcessMonitorProps) {
               {node.claudeSessionId.substring(0, 8)}...
             </span>
           )}
-          <span className="text-xs font-mono flex-shrink-0" style={{ color: theme.colors.textDim }}>
-            PID: {node.pid}
+          {/* CPU/Memory stats */}
+          <span
+            className="text-xs font-mono flex-shrink-0 px-1.5 py-0.5 rounded"
+            style={{ backgroundColor: `${cpuColor}20`, color: cpuColor }}
+            title={`CPU: ${(node.cpu ?? 0).toFixed(1)}%`}
+          >
+            {(node.cpu ?? 0).toFixed(0)}%
           </span>
           <span
-            className="text-xs px-2 py-0.5 rounded"
-            style={{
-              backgroundColor: `${theme.colors.success}20`,
-              color: theme.colors.success
-            }}
+            className="text-xs font-mono flex-shrink-0"
+            style={{ color: theme.colors.textDim }}
+            title={`Memory: ${(node.memory ?? 0).toFixed(1)}%`}
           >
-            Running
+            {(node.memory ?? 0).toFixed(1)}% RAM
+          </span>
+          <span className="text-xs font-mono flex-shrink-0" style={{ color: theme.colors.textDim }}>
+            PID: {node.pid}
           </span>
         </div>
       );

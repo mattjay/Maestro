@@ -463,6 +463,9 @@ export interface MaestroAPI {
       cwd: string;
       isTerminal: boolean;
       isBatchMode: boolean;
+      cpu: number;
+      memory: number;
+      runtime: string;
     }>>;
     onData: (callback: (sessionId: string, data: string) => void) => () => void;
     onExit: (callback: (sessionId: string, code: number) => void) => () => void;

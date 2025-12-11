@@ -2609,6 +2609,13 @@ export default function MaestroConsole() {
     if (mainKey === '[' && (key === '[' || key === '{')) return true;
     if (mainKey === ']' && (key === ']' || key === '}')) return true;
 
+    // For Alt+Meta shortcuts on macOS, e.key produces special characters (e.g., Alt+p = π, Alt+l = ¬)
+    // Use e.code to get the physical key pressed instead
+    if (altPressed && e.code) {
+      const codeKey = e.code.replace('Key', '').toLowerCase();
+      return codeKey === mainKey;
+    }
+
     return key === mainKey;
   };
 
@@ -2686,7 +2693,9 @@ export default function MaestroConsole() {
         // Allow jumpToBottom (Cmd+Shift+J) from anywhere - always scroll main panel to bottom
         const isJumpToBottomShortcut = (e.metaKey || e.ctrlKey) && e.shiftKey && keyLower === 'j';
         // Allow system utility shortcuts (Alt+Cmd+L for logs, Alt+Cmd+P for processes) even when modals are open
-        const isSystemUtilShortcut = e.altKey && (e.metaKey || e.ctrlKey) && (keyLower === 'l' || keyLower === 'p');
+        // Use e.code because Alt on macOS produces special characters (Alt+P = π, Alt+L = ¬)
+        const codeKey = e.code?.replace('Key', '').toLowerCase();
+        const isSystemUtilShortcut = e.altKey && (e.metaKey || e.ctrlKey) && (codeKey === 'l' || codeKey === 'p');
         // Allow session jump shortcuts (Alt+Cmd+NUMBER) even when modals are open
         const isSessionJumpShortcut = e.altKey && (e.metaKey || e.ctrlKey) && /^[0-9]$/.test(e.key);
 
