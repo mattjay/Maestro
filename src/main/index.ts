@@ -2908,6 +2908,65 @@ function setupIpcHandlers() {
     }
   });
 
+  // Get all session timestamps for activity graph (lightweight, from cache or quick scan)
+  ipcMain.handle('claude:getSessionTimestamps', async (_event, projectPath: string) => {
+    try {
+      // First try to get from cache
+      const cache = await loadStatsCache(projectPath);
+      if (cache && Object.keys(cache.sessions).length > 0) {
+        // Return timestamps from cache
+        const timestamps = Object.values(cache.sessions)
+          .map(s => s.oldestTimestamp)
+          .filter((t): t is string => t !== null);
+        return { timestamps };
+      }
+
+      // Fall back to quick scan of session files (just read first line for timestamp)
+      const homeDir = os.homedir();
+      const claudeProjectsDir = path.join(homeDir, '.claude', 'projects');
+      const encodedPath = encodeClaudeProjectPath(projectPath);
+      const projectDir = path.join(claudeProjectsDir, encodedPath);
+
+      try {
+        await fs.access(projectDir);
+      } catch {
+        return { timestamps: [] };
+      }
+
+      const files = await fs.readdir(projectDir);
+      const sessionFiles = files.filter(f => f.endsWith('.jsonl'));
+
+      const timestamps: string[] = [];
+      await Promise.all(
+        sessionFiles.map(async (filename) => {
+          const filePath = path.join(projectDir, filename);
+          try {
+            // Read only first few KB to get the timestamp
+            const handle = await fs.open(filePath, 'r');
+            const buffer = Buffer.alloc(1024);
+            await handle.read(buffer, 0, 1024, 0);
+            await handle.close();
+
+            const firstLine = buffer.toString('utf-8').split('\n')[0];
+            if (firstLine) {
+              const entry = JSON.parse(firstLine);
+              if (entry.timestamp) {
+                timestamps.push(entry.timestamp);
+              }
+            }
+          } catch {
+            // Skip files that can't be read
+          }
+        })
+      );
+
+      return { timestamps };
+    } catch (error) {
+      logger.error('Error getting session timestamps', 'ClaudeSessions', error);
+      return { timestamps: [] };
+    }
+  });
+
   // Get global stats across ALL Claude projects (uses cache for speed)
   // Only recalculates stats for new or modified session files
   ipcMain.handle('claude:getGlobalStats', async () => {

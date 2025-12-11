@@ -213,14 +213,6 @@ export const RightPanel = forwardRef<RightPanelHandle, RightPanelProps>(function
 
       {/* Tab Header */}
       <div className="flex border-b h-16" style={{ borderColor: theme.colors.border }}>
-        <button
-          onClick={() => setRightPanelOpen(!rightPanelOpen)}
-          className="flex items-center justify-center p-2 rounded hover:bg-white/5 transition-colors w-12 shrink-0"
-          title={`${rightPanelOpen ? "Collapse" : "Expand"} Right Panel (${formatShortcutKeys(shortcuts.toggleRightPanel.keys)})`}
-        >
-          {rightPanelOpen ? <PanelRightClose className="w-4 h-4 opacity-50" /> : <PanelRightOpen className="w-4 h-4 opacity-50" />}
-        </button>
-
         {['files', 'history', 'autorun'].map(tab => (
           <button
             key={tab}
@@ -235,6 +227,14 @@ export const RightPanel = forwardRef<RightPanelHandle, RightPanelProps>(function
             {tab === 'autorun' ? 'Auto Run' : tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
         ))}
+
+        <button
+          onClick={() => setRightPanelOpen(!rightPanelOpen)}
+          className="flex items-center justify-center p-2 rounded hover:bg-white/5 transition-colors w-12 shrink-0"
+          title={`${rightPanelOpen ? "Collapse" : "Expand"} Right Panel (${formatShortcutKeys(shortcuts.toggleRightPanel.keys)})`}
+        >
+          {rightPanelOpen ? <PanelRightClose className="w-4 h-4 opacity-50" /> : <PanelRightOpen className="w-4 h-4 opacity-50" />}
+        </button>
       </div>
 
       {/* Tab Content */}

@@ -81,6 +81,16 @@ body {
   animation: fade-in 0.2s ease-in;
 }
 
+/* Shimmer effect for drag-and-drop */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 /* Restore list styling for markdown preview prose containers */
 .prose ul {
   list-style-type: disc !important;

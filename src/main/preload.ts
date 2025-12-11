@@ -412,6 +412,9 @@ contextBridge.exposeInMainWorld('maestro', {
     // Get aggregate stats for all sessions in a project (streams progressive updates)
     getProjectStats: (projectPath: string) =>
       ipcRenderer.invoke('claude:getProjectStats', projectPath),
+    // Get all session timestamps for activity graph (lightweight)
+    getSessionTimestamps: (projectPath: string) =>
+      ipcRenderer.invoke('claude:getSessionTimestamps', projectPath) as Promise<{ timestamps: string[] }>,
     onProjectStatsUpdate: (callback: (stats: {
       projectPath: string;
       totalSessions: number;

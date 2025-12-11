@@ -310,7 +310,7 @@ describe('Wizard Integration Tests', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Create a Maestro Agent')).toBeInTheDocument();
-        expect(screen.getByText('Step 1 of 4')).toBeInTheDocument();
+        expect(screen.getByText('Step 1 of 5')).toBeInTheDocument();
       });
     });
 
@@ -362,15 +362,19 @@ describe('Wizard Integration Tests', () => {
 
     it('should track step progress through navigation', async () => {
       function TestWrapper() {
-        const { openWizard, state, goToStep, setSelectedAgent, setDirectoryPath } = useWizard();
+        const { openWizard, state, goToStep, setSelectedAgent, setDirectoryPath, setGeneratedDocuments } = useWizard();
 
         React.useEffect(() => {
           if (!state.isOpen) {
             setSelectedAgent('claude-code');
             setDirectoryPath('/test/path');
+            // Set generated documents so PhaseReviewScreen doesn't redirect back
+            setGeneratedDocuments([
+              { filename: 'Phase-01-Test.md', content: '# Test\n- [ ] Task 1', taskCount: 1 }
+            ]);
             openWizard();
           }
-        }, [openWizard, state.isOpen, setSelectedAgent, setDirectoryPath]);
+        }, [openWizard, state.isOpen, setSelectedAgent, setDirectoryPath, setGeneratedDocuments]);
 
         return (
           <>
@@ -391,14 +395,14 @@ describe('Wizard Integration Tests', () => {
       renderWithProviders(<TestWrapper />);
 
       await waitFor(() => {
-        expect(screen.getByText('Step 1 of 4')).toBeInTheDocument();
+        expect(screen.getByText('Step 1 of 5')).toBeInTheDocument();
       });
 
       // Navigate to step 2
       fireEvent.click(screen.getByTestId('go-step-2'));
 
       await waitFor(() => {
-        expect(screen.getByText('Step 2 of 4')).toBeInTheDocument();
+        expect(screen.getByText('Step 2 of 5')).toBeInTheDocument();
         expect(screen.getByText('Choose Project Directory')).toBeInTheDocument();
       });
 
@@ -406,16 +410,16 @@ describe('Wizard Integration Tests', () => {
       fireEvent.click(screen.getByTestId('go-step-3'));
 
       await waitFor(() => {
-        expect(screen.getByText('Step 3 of 4')).toBeInTheDocument();
+        expect(screen.getByText('Step 3 of 5')).toBeInTheDocument();
         expect(screen.getByText('Project Discovery')).toBeInTheDocument();
       });
 
-      // Navigate to step 4
+      // Navigate to step 5 (phase-review is now step 5)
       fireEvent.click(screen.getByTestId('go-step-4'));
 
       await waitFor(() => {
-        expect(screen.getByText('Step 4 of 4')).toBeInTheDocument();
-        expect(screen.getByText('Review Your Action Plan')).toBeInTheDocument();
+        expect(screen.getByText('Step 5 of 5')).toBeInTheDocument();
+        expect(screen.getByText('Review Your Action Plans')).toBeInTheDocument();
       });
     });
 
@@ -443,13 +447,14 @@ describe('Wizard Integration Tests', () => {
 
       await waitFor(() => {
         const progressDots = screen.getAllByLabelText(/step \d+/i);
-        expect(progressDots).toHaveLength(4);
+        expect(progressDots).toHaveLength(5);
 
         // Steps 1 and 2 should be completed, step 3 should be current
         expect(progressDots[0]).toHaveAttribute('aria-label', 'Step 1 (completed - click to go back)');
         expect(progressDots[1]).toHaveAttribute('aria-label', 'Step 2 (completed - click to go back)');
         expect(progressDots[2]).toHaveAttribute('aria-label', 'Step 3 (current)');
         expect(progressDots[3]).toHaveAttribute('aria-label', 'Step 4');
+        expect(progressDots[4]).toHaveAttribute('aria-label', 'Step 5');
       });
     });
   });
@@ -728,7 +733,7 @@ describe('Wizard Integration Tests', () => {
       // Should show saved state info
       await waitFor(() => {
         expect(screen.getByText('Resume Setup?')).toBeInTheDocument();
-        expect(screen.getByText('Step 3 of 4')).toBeInTheDocument();
+        expect(screen.getByText('Step 3 of 5')).toBeInTheDocument();
         expect(screen.getByText('Test Project')).toBeInTheDocument();
         expect(screen.getByText('/saved/project/path')).toBeInTheDocument();
         // The modal shows "X messages exchanged (Y% confidence)"
@@ -1266,7 +1271,7 @@ describe('Wizard Integration Tests', () => {
       renderWithProviders(<TestWrapper />);
 
       await waitFor(() => {
-        expect(screen.getByText('Review Your Action Plan')).toBeInTheDocument();
+        expect(screen.getByText('Review Your Action Plans')).toBeInTheDocument();
       });
     });
 

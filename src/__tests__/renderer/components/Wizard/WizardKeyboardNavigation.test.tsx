@@ -669,12 +669,12 @@ describe('Wizard Keyboard Navigation', () => {
       renderWithProviders(<TestWrapper />);
 
       await waitFor(() => {
-        expect(screen.getByText('Step 2 of 4')).toBeInTheDocument();
+        expect(screen.getByText('Step 2 of 5')).toBeInTheDocument();
       });
 
-      // Should show 4 progress dots
+      // Should show 5 progress dots
       const progressDots = screen.getAllByLabelText(/step \d+/i);
-      expect(progressDots).toHaveLength(4);
+      expect(progressDots).toHaveLength(5);
 
       // Step 1 should be completed, step 2 should be current
       expect(progressDots[0]).toHaveAttribute('aria-label', 'Step 1 (completed - click to go back)');

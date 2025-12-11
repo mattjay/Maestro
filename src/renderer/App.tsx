@@ -19,7 +19,7 @@ import { MainPanel } from './components/MainPanel';
 import { ProcessMonitor } from './components/ProcessMonitor';
 import { GitDiffViewer } from './components/GitDiffViewer';
 import { GitLogViewer } from './components/GitLogViewer';
-import { BatchRunnerModal } from './components/BatchRunnerModal';
+import { BatchRunnerModal, DEFAULT_BATCH_PROMPT } from './components/BatchRunnerModal';
 import { TabSwitcherModal } from './components/TabSwitcherModal';
 import { PromptComposerModal } from './components/PromptComposerModal';
 import { ExecutionQueueBrowser } from './components/ExecutionQueueBrowser';
@@ -134,6 +134,7 @@ export default function MaestroConsole() {
     clearResumeState,
     completeWizard,
     closeWizard: closeWizardModal,
+    goToStep: wizardGoToStep,
   } = useWizard();
 
   // --- SETTINGS (from useSettings hook) ---
@@ -4255,6 +4256,29 @@ export default function MaestroConsole() {
     // Focus input
     setActiveFocus('main');
     setTimeout(() => inputRef.current?.focus(), 100);
+
+    // Auto-start the batch run with the first document that has tasks
+    // This is the core purpose of the onboarding wizard - get the user's first Auto Run going
+    const firstDocWithTasks = generatedDocuments.find(doc => doc.taskCount > 0);
+    if (firstDocWithTasks && autoRunFolderPath) {
+      // Create batch config for single document run
+      const batchConfig: BatchRunConfig = {
+        documents: [{
+          id: generateId(),
+          filename: firstDocWithTasks.filename.replace(/\.md$/, ''),
+          resetOnCompletion: false,
+          isDuplicate: false,
+        }],
+        prompt: DEFAULT_BATCH_PROMPT,
+        loopEnabled: false,
+      };
+
+      // Small delay to ensure session state is fully propagated before starting batch
+      setTimeout(() => {
+        console.log('[Wizard] Auto-starting batch run with first document:', firstDocWithTasks.filename);
+        startBatchRun(newId, batchConfig, autoRunFolderPath);
+      }, 500);
+    }
   }, [
     wizardState,
     defaultSaveToHistory,
@@ -4266,6 +4290,7 @@ export default function MaestroConsole() {
     setActiveRightTab,
     setTourOpen,
     setActiveFocus,
+    startBatchRun,
   ]);
 
   const toggleInputMode = () => {
@@ -5641,9 +5666,79 @@ export default function MaestroConsole() {
       // Send interrupt signal (Ctrl+C)
       await window.maestro.process.interrupt(targetSessionId);
 
-      // Set state to idle with full cleanup
+      // Check if there are queued items to process after interrupt
+      const currentSession = sessionsRef.current.find(s => s.id === activeSession.id);
+      let queuedItemToProcess: { sessionId: string; item: QueuedItem } | null = null;
+
+      if (currentSession && currentSession.executionQueue.length > 0) {
+        queuedItemToProcess = {
+          sessionId: activeSession.id,
+          item: currentSession.executionQueue[0]
+        };
+      }
+
+      // Set state to idle with full cleanup, or process next queued item
       setSessions(prev => prev.map(s => {
         if (s.id !== activeSession.id) return s;
+
+        // If there are queued items, start processing the next one
+        if (s.executionQueue.length > 0) {
+          const [nextItem, ...remainingQueue] = s.executionQueue;
+          const targetTab = s.aiTabs.find(tab => tab.id === nextItem.tabId) || getActiveTab(s);
+
+          if (!targetTab) {
+            return {
+              ...s,
+              state: 'busy' as SessionState,
+              busySource: 'ai',
+              executionQueue: remainingQueue,
+              thinkingStartTime: Date.now(),
+              currentCycleTokens: 0,
+              currentCycleBytes: 0
+            };
+          }
+
+          // Set the interrupted tab to idle, and the target tab for queued item to busy
+          let updatedAiTabs = s.aiTabs.map(tab => {
+            if (tab.id === targetTab.id) {
+              return { ...tab, state: 'busy' as const, thinkingStartTime: Date.now() };
+            }
+            // Set any other busy tabs to idle (they were interrupted)
+            if (tab.state === 'busy') {
+              return { ...tab, state: 'idle' as const, thinkingStartTime: undefined };
+            }
+            return tab;
+          });
+
+          // For message items, add a log entry to the target tab
+          if (nextItem.type === 'message' && nextItem.text) {
+            const logEntry: LogEntry = {
+              id: generateId(),
+              timestamp: Date.now(),
+              source: 'user',
+              text: nextItem.text,
+              images: nextItem.images
+            };
+            updatedAiTabs = updatedAiTabs.map(tab =>
+              tab.id === targetTab.id
+                ? { ...tab, logs: [...tab.logs, logEntry] }
+                : tab
+            );
+          }
+
+          return {
+            ...s,
+            state: 'busy' as SessionState,
+            busySource: 'ai',
+            aiTabs: updatedAiTabs,
+            executionQueue: remainingQueue,
+            thinkingStartTime: Date.now(),
+            currentCycleTokens: 0,
+            currentCycleBytes: 0
+          };
+        }
+
+        // No queued items, just go to idle
         return {
           ...s,
           state: 'idle',
@@ -5651,6 +5746,13 @@ export default function MaestroConsole() {
           thinkingStartTime: undefined
         };
       }));
+
+      // Process the queued item after state update
+      if (queuedItemToProcess) {
+        setTimeout(() => {
+          processQueuedItem(queuedItemToProcess!.sessionId, queuedItemToProcess!.item);
+        }, 0);
+      }
     } catch (error) {
       console.error('Failed to interrupt process:', error);
 
@@ -5670,23 +5772,113 @@ export default function MaestroConsole() {
             source: 'system',
             text: 'Process forcefully terminated'
           };
+
+          // Check if there are queued items to process after kill
+          const currentSessionForKill = sessionsRef.current.find(s => s.id === activeSession.id);
+          let queuedItemAfterKill: { sessionId: string; item: QueuedItem } | null = null;
+
+          if (currentSessionForKill && currentSessionForKill.executionQueue.length > 0) {
+            queuedItemAfterKill = {
+              sessionId: activeSession.id,
+              item: currentSessionForKill.executionQueue[0]
+            };
+          }
+
           setSessions(prev => prev.map(s => {
             if (s.id !== activeSession.id) return s;
+
+            // Add kill log to the appropriate place
+            let updatedSession = { ...s };
             if (currentMode === 'ai') {
               const tab = getActiveTab(s);
-              if (!tab) return { ...s, state: 'idle', busySource: undefined, thinkingStartTime: undefined };
+              if (tab) {
+                updatedSession.aiTabs = s.aiTabs.map(t =>
+                  t.id === tab.id ? { ...t, logs: [...t.logs, killLog] } : t
+                );
+              }
+            } else {
+              updatedSession.shellLogs = [...s.shellLogs, killLog];
+            }
+
+            // If there are queued items, start processing the next one
+            if (s.executionQueue.length > 0) {
+              const [nextItem, ...remainingQueue] = s.executionQueue;
+              const targetTab = s.aiTabs.find(tab => tab.id === nextItem.tabId) || getActiveTab(s);
+
+              if (!targetTab) {
+                return {
+                  ...updatedSession,
+                  state: 'busy' as SessionState,
+                  busySource: 'ai',
+                  executionQueue: remainingQueue,
+                  thinkingStartTime: Date.now(),
+                  currentCycleTokens: 0,
+                  currentCycleBytes: 0
+                };
+              }
+
+              // Set tabs appropriately
+              let updatedAiTabs = updatedSession.aiTabs.map(tab => {
+                if (tab.id === targetTab.id) {
+                  return { ...tab, state: 'busy' as const, thinkingStartTime: Date.now() };
+                }
+                if (tab.state === 'busy') {
+                  return { ...tab, state: 'idle' as const, thinkingStartTime: undefined };
+                }
+                return tab;
+              });
+
+              // For message items, add a log entry to the target tab
+              if (nextItem.type === 'message' && nextItem.text) {
+                const logEntry: LogEntry = {
+                  id: generateId(),
+                  timestamp: Date.now(),
+                  source: 'user',
+                  text: nextItem.text,
+                  images: nextItem.images
+                };
+                updatedAiTabs = updatedAiTabs.map(tab =>
+                  tab.id === targetTab.id
+                    ? { ...tab, logs: [...tab.logs, logEntry] }
+                    : tab
+                );
+              }
+
               return {
-                ...s,
+                ...updatedSession,
+                state: 'busy' as SessionState,
+                busySource: 'ai',
+                aiTabs: updatedAiTabs,
+                executionQueue: remainingQueue,
+                thinkingStartTime: Date.now(),
+                currentCycleTokens: 0,
+                currentCycleBytes: 0
+              };
+            }
+
+            // No queued items, just go to idle
+            if (currentMode === 'ai') {
+              const tab = getActiveTab(s);
+              if (!tab) return { ...updatedSession, state: 'idle', busySource: undefined, thinkingStartTime: undefined };
+              return {
+                ...updatedSession,
                 state: 'idle',
                 busySource: undefined,
                 thinkingStartTime: undefined,
-                aiTabs: s.aiTabs.map(t =>
-                  t.id === tab.id ? { ...t, state: 'idle' as const, thinkingStartTime: undefined, logs: [...t.logs, killLog] } : t
+                aiTabs: updatedSession.aiTabs.map(t =>
+                  t.id === tab.id ? { ...t, state: 'idle' as const, thinkingStartTime: undefined } : t
                 )
               };
             }
-            return { ...s, shellLogs: [...s.shellLogs, killLog], state: 'idle', busySource: undefined, thinkingStartTime: undefined };
+            return { ...updatedSession, state: 'idle', busySource: undefined, thinkingStartTime: undefined };
           }));
+
+          // Process the queued item after state update
+          if (queuedItemAfterKill) {
+            setTimeout(() => {
+              processQueuedItem(queuedItemAfterKill!.sessionId, queuedItemAfterKill!.item);
+            }, 0);
+          }
         } catch (killError) {
           console.error('Failed to kill process:', killError);
           const errorLog: LogEntry = {
@@ -6455,6 +6647,7 @@ export default function MaestroConsole() {
           onToggleMarkdownRawMode={() => setMarkdownRawMode(!markdownRawMode)}
           setUpdateCheckModalOpen={setUpdateCheckModalOpen}
           openWizard={openWizardModal}
+          wizardGoToStep={wizardGoToStep}
         />
       )}
       {lightboxImage && (
@@ -7335,6 +7528,15 @@ export default function MaestroConsole() {
         }}
         onSwitchSession={(sessionId) => {
           setActiveSessionId(sessionId);
+        }}
+        onReorderItems={(sessionId, fromIndex, toIndex) => {
+          setSessions(prev => prev.map(s => {
+            if (s.id !== sessionId) return s;
+            const queue = [...s.executionQueue];
+            const [removed] = queue.splice(fromIndex, 1);
+            queue.splice(toIndex, 0, removed);
+            return { ...s, executionQueue: queue };
+          }));
         }}
       />
 

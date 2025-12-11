@@ -25,6 +25,7 @@ import {
   AgentSelectionScreen,
   DirectorySelectionScreen,
   ConversationScreen,
+  PreparingPlanScreen,
   PhaseReviewScreen,
 } from './screens';
 
@@ -58,8 +59,10 @@ function getStepTitle(step: WizardStep): string {
       return 'Choose Project Directory';
     case 'conversation':
       return 'Project Discovery';
+    case 'preparing-plan':
+      return 'Preparing Action Plans';
     case 'phase-review':
-      return 'Review Your Action Plan';
+      return 'Review Your Action Plans';
     default:
       return 'Setup Wizard';
   }
@@ -99,8 +102,6 @@ export function MaestroWizard({
   const wizardStartTimeRef = useRef<number>(0);
   // Track if wizard start has been recorded for this open session
   const wizardStartedRef = useRef(false);
-  // Track if we resumed directly into phase-review (needs special handling)
-  const [resumedAtPhaseReview, setResumedAtPhaseReview] = useState(false);
 
   // State for screen transition animations
   // displayedStep is the step actually being rendered (lags behind currentStep during transitions)
@@ -223,14 +224,10 @@ export function MaestroWizard({
       // Determine if this is a fresh start or resume based on current step
       // If we're on step 1, it's a fresh start. Otherwise, it's a resume.
       if (getCurrentStepNumber() === 1) {
-        setResumedAtPhaseReview(false);
         if (onWizardStart) {
           onWizardStart();
         }
       } else {
-        // Track if we resumed directly into phase-review
-        // This needs special handling to re-run the agent with resume context
-        setResumedAtPhaseReview(state.currentStep === 'phase-review');
         if (onWizardResume) {
           onWizardResume();
         }
@@ -238,9 +235,8 @@ export function MaestroWizard({
     } else if (!state.isOpen) {
       // Reset when wizard closes
       wizardStartedRef.current = false;
-      setResumedAtPhaseReview(false);
     }
-  }, [state.isOpen, state.currentStep, getCurrentStepNumber, onWizardStart, onWizardResume]);
+  }, [state.isOpen, getCurrentStepNumber, onWizardStart, onWizardResume]);
 
   // Announce step changes to screen readers
   useEffect(() => {
@@ -283,6 +279,8 @@ export function MaestroWizard({
         return <DirectorySelectionScreen theme={theme} />;
       case 'conversation':
         return <ConversationScreen theme={theme} />;
+      case 'preparing-plan':
+        return <PreparingPlanScreen theme={theme} />;
       case 'phase-review':
         return (
           <PhaseReviewScreen
@@ -290,13 +288,12 @@ export function MaestroWizard({
             onLaunchSession={onLaunchSession || (async () => {})}
             onWizardComplete={onWizardComplete}
             wizardStartTime={wizardStartTimeRef.current}
-            isResuming={resumedAtPhaseReview}
           />
         );
       default:
         return null;
     }
-  }, [displayedStep, theme, onLaunchSession, onWizardComplete, resumedAtPhaseReview]);
+  }, [displayedStep, theme, onLaunchSession, onWizardComplete]);
 
   // Don't render if wizard is not open
   if (!state.isOpen) {

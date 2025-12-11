@@ -358,6 +358,8 @@ export function ConversationScreen({ theme }: ConversationScreenProps): JSX.Elem
   const [showInitialQuestion, setShowInitialQuestion] = useState(
     state.conversationHistory.length === 0
   );
+  // Store initial question once to prevent it changing on re-renders
+  const [initialQuestion] = useState(() => getInitialQuestion());
   const [errorRetryCount, setErrorRetryCount] = useState(0);
   const [streamingText, setStreamingText] = useState('');
   const [fillerPhrase, setFillerPhrase] = useState('');
@@ -536,7 +538,7 @@ export function ConversationScreen({ theme }: ConversationScreenProps): JSX.Elem
       initialQuestionAddedRef.current = true;
       addMessage({
         role: 'assistant',
-        content: getInitialQuestion(),
+        content: initialQuestion,
       });
       // Hide the direct JSX render immediately - the message is now in history
       setShowInitialQuestion(false);
@@ -780,7 +782,7 @@ export function ConversationScreen({ theme }: ConversationScreenProps): JSX.Elem
                 {formatAgentName(state.agentName || '')}
               </div>
               <div className="text-sm" style={{ color: theme.colors.textMain }}>
-                {getInitialQuestion()}
+                {initialQuestion}
               </div>
             </div>
           </div>
@@ -866,7 +868,7 @@ export function ConversationScreen({ theme }: ConversationScreenProps): JSX.Elem
               className="px-6 py-2.5 rounded-lg text-sm font-bold transition-all hover:scale-105"
               style={{
                 backgroundColor: theme.colors.success,
-                color: 'white',
+                color: theme.colors.bgMain,
                 boxShadow: `0 4px 12px ${theme.colors.success}40`,
               }}
             >
@@ -929,7 +931,7 @@ export function ConversationScreen({ theme }: ConversationScreenProps): JSX.Elem
           <button
             onClick={handleSendMessage}
             disabled={!inputValue.trim() || state.isConversationLoading}
-            className="px-4 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2"
+            className="px-4 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 shrink-0"
             style={{
               backgroundColor:
                 inputValue.trim() && !state.isConversationLoading

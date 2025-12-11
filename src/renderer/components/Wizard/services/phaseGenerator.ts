@@ -21,8 +21,6 @@ export interface GenerationConfig {
   projectName: string;
   /** Full conversation history from project discovery */
   conversationHistory: WizardMessage[];
-  /** Whether this is a resumed session (interrupted during document generation) */
-  isResuming?: boolean;
 }
 
 /**
@@ -49,6 +47,59 @@ export interface CreatedFileInfo {
   size: number;
   path: string;
   timestamp: number;
+  /** Brief description extracted from file content (first paragraph after title) */
+  description?: string;
+  /** Number of tasks (unchecked checkboxes) in the document */
+  taskCount?: number;
+}
+
+/**
+ * Extract a brief description from markdown content
+ * Looks for the first paragraph after the title heading
+ */
+function extractDescription(content: string): string | undefined {
+  // Split into lines and find content after the first heading
+  const lines = content.split('\n');
+  let foundHeading = false;
+  let descriptionLines: string[] = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // Skip empty lines before we find the heading
+    if (!foundHeading) {
+      if (trimmed.startsWith('# ')) {
+        foundHeading = true;
+      }
+      continue;
+    }
+
+    // Skip empty lines after heading
+    if (trimmed === '' && descriptionLines.length === 0) {
+      continue;
+    }
+
+    // Stop at next heading or task section
+    if (trimmed.startsWith('#') || trimmed.startsWith('- [')) {
+      break;
+    }
+
+    // Collect description lines (stop at empty line if we have content)
+    if (trimmed === '' && descriptionLines.length > 0) {
+      break;
+    }
+
+    descriptionLines.push(trimmed);
+  }
+
+  const description = descriptionLines.join(' ').trim();
+
+  // Truncate if too long
+  if (description.length > 150) {
+    return description.substring(0, 147) + '...';
+  }
+
+  return description || undefined;
 }
 
 /**
@@ -117,7 +168,6 @@ const GENERATION_TIMEOUT = 300000;
  * Generate the system prompt for document generation
  *
  * This prompt instructs the agent to:
- * - First check for and intelligently handle any existing Auto Run documents
  * - Create multiple Auto Run documents
  * - Make Phase 1 achievable without user input
  * - Make Phase 1 deliver a working prototype
@@ -138,21 +188,6 @@ export function generateDocumentGenerationPrompt(config: GenerationConfig): stri
     .join('\n\n');
 
   return `You are an expert project planner creating actionable task documents for "${projectDisplay}".
-
-## FIRST: Check for Existing Documents
-
-Before creating any new documents, check \`${directoryPath}/${AUTO_RUN_FOLDER_NAME}/\` for existing Phase-XX-*.md files.
-
-If existing documents are found:
-1. **Read and analyze them** to understand what planning has already been done
-2. **Assess their quality and completeness** - are they well-formed? Do they follow the format below?
-3. **Decide how to proceed**:
-   - If they are high-quality and complete, you can keep them as-is or refine them based on the conversation
-   - If they are incomplete or low-quality, improve or replace them
-   - If the conversation reveals the user wants something different, replace them entirely
-   - Add any missing phases that the existing docs don't cover
-
-You have full autonomy to modify, delete, or keep existing documents based on your assessment and the project requirements from the conversation.
 
 ## Your Task
 
@@ -688,22 +723,51 @@ class PhaseGenerator {
               resetTimeout();
               callbacks?.onActivity?.();
 
-              // If a .md file was created/changed, notify about it
-              if (data.filename?.endsWith('.md') && (data.eventType === 'rename' || data.eventType === 'change')) {
-                // Read the file to get its size for display
-                const fullPath = `${autoRunPath}/${data.filename}`;
-                window.maestro.fs.readFile(fullPath).then((content) => {
-                  if (content && typeof content === 'string') {
-                    callbacks?.onFileCreated?.({
-                      filename: data.filename,
-                      size: new Blob([content]).size,
-                      path: fullPath,
-                      timestamp: Date.now(),
-                    });
+              // If a file was created/changed, notify about it
+              // Note: Main process already filters for .md files but strips the extension
+              // when sending the event, so we check for any filename here
+              if (data.filename && (data.eventType === 'rename' || data.eventType === 'change')) {
+                // Re-add the .md extension since main process strips it
+                const filenameWithExt = data.filename.endsWith('.md') ? data.filename : `${data.filename}.md`;
+                const fullPath = `${autoRunPath}/${filenameWithExt}`;
+
+                // Use retry logic since file might still be being written
+                const readWithRetry = async (retries = 3, delayMs = 200): Promise<void> => {
+                  for (let attempt = 1; attempt <= retries; attempt++) {
+                    try {
+                      const content = await window.maestro.fs.readFile(fullPath);
+                      if (content && typeof content === 'string' && content.length > 0) {
+                        console.log('[PhaseGenerator] File read successful:', filenameWithExt, 'size:', content.length);
+                        callbacks?.onFileCreated?.({
+                          filename: filenameWithExt,
+                          size: new Blob([content]).size,
+                          path: fullPath,
+                          timestamp: Date.now(),
+                          description: extractDescription(content),
+                          taskCount: countTasks(content),
+                        });
+                        return;
+                      }
+                    } catch (err) {
+                      console.log(`[PhaseGenerator] File read attempt ${attempt}/${retries} failed for ${filenameWithExt}:`, err);
+                    }
+                    if (attempt < retries) {
+                      await new Promise(r => setTimeout(r, delayMs));
+                    }
                   }
-                }).catch(() => {
-                  // File might still be being written, ignore errors
-                });
+
+                  // Even if we couldn't read content, still notify that file exists
+                  // This provides feedback to user that files are being created
+                  console.log('[PhaseGenerator] Notifying file creation (without size):', filenameWithExt);
+                  callbacks?.onFileCreated?.({
+                    filename: filenameWithExt,
+                    size: 0, // Unknown size
+                    path: fullPath,
+                    timestamp: Date.now(),
+                  });
+                };
+
+                readWithRetry();
               }
             }
           });
@@ -856,6 +920,8 @@ class PhaseGenerator {
               size: new Blob([doc.content]).size,
               path: fullPath,
               timestamp: Date.now(),
+              description: extractDescription(doc.content),
+              taskCount: countTasks(doc.content),
             });
           }
 

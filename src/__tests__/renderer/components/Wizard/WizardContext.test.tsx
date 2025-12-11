@@ -81,7 +81,7 @@ function createMockDocument(
 describe('WizardContext', () => {
   describe('Constants', () => {
     it('has correct total steps', () => {
-      expect(WIZARD_TOTAL_STEPS).toBe(4);
+      expect(WIZARD_TOTAL_STEPS).toBe(5);
     });
 
     it('has correct step index mapping', () => {
@@ -89,7 +89,8 @@ describe('WizardContext', () => {
         'agent-selection': 1,
         'directory-selection': 2,
         'conversation': 3,
-        'phase-review': 4,
+        'preparing-plan': 4,
+        'phase-review': 5,
       });
     });
 
@@ -98,7 +99,8 @@ describe('WizardContext', () => {
         1: 'agent-selection',
         2: 'directory-selection',
         3: 'conversation',
-        4: 'phase-review',
+        4: 'preparing-plan',
+        5: 'phase-review',
       });
     });
 
@@ -330,6 +332,11 @@ describe('WizardContext', () => {
         act(() => {
           result.current.nextStep();
         });
+        expect(result.current.state.currentStep).toBe('preparing-plan');
+
+        act(() => {
+          result.current.nextStep();
+        });
         expect(result.current.state.currentStep).toBe('phase-review');
       });
 
@@ -369,6 +376,11 @@ describe('WizardContext', () => {
         act(() => {
           result.current.goToStep('phase-review');
         });
+
+        act(() => {
+          result.current.previousStep();
+        });
+        expect(result.current.state.currentStep).toBe('preparing-plan');
 
         act(() => {
           result.current.previousStep();
@@ -416,9 +428,14 @@ describe('WizardContext', () => {
         expect(result.current.getCurrentStepNumber()).toBe(3);
 
         act(() => {
-          result.current.goToStep('phase-review');
+          result.current.goToStep('preparing-plan');
         });
         expect(result.current.getCurrentStepNumber()).toBe(4);
+
+        act(() => {
+          result.current.goToStep('phase-review');
+        });
+        expect(result.current.getCurrentStepNumber()).toBe(5);
       });
     });
   });

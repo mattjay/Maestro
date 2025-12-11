@@ -320,6 +320,7 @@ interface MaestroAPI {
       lastActivityAt?: number;
     }>>;
     deleteMessagePair: (projectPath: string, sessionId: string, userMessageUuid: string, fallbackContent?: string) => Promise<{ success: boolean; linesRemoved?: number; error?: string }>;
+    getSessionTimestamps: (projectPath: string) => Promise<{ timestamps: string[] }>;
   };
   tempfile: {
     write: (content: string, filename?: string) => Promise<{ success: boolean; path?: string; error?: string }>;

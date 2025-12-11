@@ -25,12 +25,13 @@ export type WizardStep =
   | 'agent-selection'
   | 'directory-selection'
   | 'conversation'
+  | 'preparing-plan'
   | 'phase-review';
 
 /**
  * Total number of steps in the wizard
  */
-export const WIZARD_TOTAL_STEPS = 4;
+export const WIZARD_TOTAL_STEPS = 5;
 
 /**
  * Map step names to their numeric index (1-based for display)
@@ -39,7 +40,8 @@ export const STEP_INDEX: Record<WizardStep, number> = {
   'agent-selection': 1,
   'directory-selection': 2,
   'conversation': 3,
-  'phase-review': 4,
+  'preparing-plan': 4,
+  'phase-review': 5,
 };
 
 /**
@@ -49,7 +51,8 @@ export const INDEX_TO_STEP: Record<number, WizardStep> = {
   1: 'agent-selection',
   2: 'directory-selection',
   3: 'conversation',
-  4: 'phase-review',
+  4: 'preparing-plan',
+  5: 'phase-review',
 };
 
 /**

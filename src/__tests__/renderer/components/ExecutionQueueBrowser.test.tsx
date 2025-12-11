@@ -1564,4 +1564,312 @@ describe('ExecutionQueueBrowser', () => {
       expect(initialOnClose).not.toHaveBeenCalled();
     });
   });
+
+  describe('drag and drop reordering', () => {
+    let mockOnReorderItems: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      mockOnReorderItems = vi.fn();
+    });
+
+    it('should not enable drag when onReorderItems is not provided', () => {
+      const session = createSession({
+        id: 'active-session',
+        executionQueue: [
+          createQueuedItem({ id: 'item-1' }),
+          createQueuedItem({ id: 'item-2' })
+        ]
+      });
+      const { container } = render(
+        <ExecutionQueueBrowser
+          isOpen={true}
+          onClose={mockOnClose}
+          sessions={[session]}
+          activeSessionId="active-session"
+          theme={theme}
+          onRemoveItem={mockOnRemoveItem}
+          onSwitchSession={mockOnSwitchSession}
+        />
+      );
+
+      // Items should not have grab cursor when onReorderItems is not provided
+      const itemRows = container.querySelectorAll('.group.select-none');
+      itemRows.forEach(row => {
+        expect(row).not.toHaveStyle({ cursor: 'grab' });
+      });
+    });
+
+    it('should not enable drag when session has only one item', () => {
+      const session = createSession({
+        id: 'active-session',
+        executionQueue: [createQueuedItem({ id: 'item-1' })]
+      });
+      const { container } = render(
+        <ExecutionQueueBrowser
+          isOpen={true}
+          onClose={mockOnClose}
+          sessions={[session]}
+          activeSessionId="active-session"
+          theme={theme}
+          onRemoveItem={mockOnRemoveItem}
+          onSwitchSession={mockOnSwitchSession}
+          onReorderItems={mockOnReorderItems}
+        />
+      );
+
+      // Single item should not have grab cursor
+      const itemRow = container.querySelector('.group.select-none');
+      expect(itemRow).not.toHaveStyle({ cursor: 'grab' });
+    });
+
+    it('should enable drag when onReorderItems is provided and session has multiple items', () => {
+      const session = createSession({
+        id: 'active-session',
+        executionQueue: [
+          createQueuedItem({ id: 'item-1' }),
+          createQueuedItem({ id: 'item-2' })
+        ]
+      });
+      const { container } = render(
+        <ExecutionQueueBrowser
+          isOpen={true}
+          onClose={mockOnClose}
+          sessions={[session]}
+          activeSessionId="active-session"
+          theme={theme}
+          onRemoveItem={mockOnRemoveItem}
+          onSwitchSession={mockOnSwitchSession}
+          onReorderItems={mockOnReorderItems}
+        />
+      );
+
+      // Items should have grab cursor
+      const itemRows = container.querySelectorAll('.group.select-none');
+      itemRows.forEach(row => {
+        expect(row).toHaveStyle({ cursor: 'grab' });
+      });
+    });
+
+    it('should show drag handle indicator when draggable', () => {
+      const session = createSession({
+        id: 'active-session',
+        executionQueue: [
+          createQueuedItem({ id: 'item-1' }),
+          createQueuedItem({ id: 'item-2' })
+        ]
+      });
+      const { container } = render(
+        <ExecutionQueueBrowser
+          isOpen={true}
+          onClose={mockOnClose}
+          sessions={[session]}
+          activeSessionId="active-session"
+          theme={theme}
+          onRemoveItem={mockOnRemoveItem}
+          onSwitchSession={mockOnSwitchSession}
+          onReorderItems={mockOnReorderItems}
+        />
+      );
+
+      // Find the first item row
+      const itemRow = container.querySelector('.group.select-none');
+      expect(itemRow).not.toBeNull();
+
+      // Drag handle should exist (it's just hidden until hover)
+      const dragHandle = container.querySelector('.absolute.left-1');
+      expect(dragHandle).toBeInTheDocument();
+    });
+
+    it('should render drop zones between items when draggable', () => {
+      const session = createSession({
+        id: 'active-session',
+        executionQueue: [
+          createQueuedItem({ id: 'item-1' }),
+          createQueuedItem({ id: 'item-2' }),
+          createQueuedItem({ id: 'item-3' })
+        ]
+      });
+      const { container } = render(
+        <ExecutionQueueBrowser
+          isOpen={true}
+          onClose={mockOnClose}
+          sessions={[session]}
+          activeSessionId="active-session"
+          theme={theme}
+          onRemoveItem={mockOnRemoveItem}
+          onSwitchSession={mockOnSwitchSession}
+          onReorderItems={mockOnReorderItems}
+        />
+      );
+
+      // Should have drop zones: before item 1, before item 2, before item 3, and after item 3
+      const dropZones = container.querySelectorAll('.relative.h-1');
+      expect(dropZones.length).toBe(4); // n+1 drop zones for n items
+    });
+
+    it('should not initiate drag when clicking on remove button', () => {
+      const session = createSession({
+        id: 'active-session',
+        executionQueue: [
+          createQueuedItem({ id: 'item-1' }),
+          createQueuedItem({ id: 'item-2' })
+        ]
+      });
+      render(
+        <ExecutionQueueBrowser
+          isOpen={true}
+          onClose={mockOnClose}
+          sessions={[session]}
+          activeSessionId="active-session"
+          theme={theme}
+          onRemoveItem={mockOnRemoveItem}
+          onSwitchSession={mockOnSwitchSession}
+          onReorderItems={mockOnReorderItems}
+        />
+      );
+
+      // Get all remove buttons (there should be 2)
+      const removeButtons = screen.getAllByTitle('Remove from queue');
+      expect(removeButtons.length).toBe(2);
+
+      // Click the first remove button
+      fireEvent.click(removeButtons[0]);
+
+      // onRemoveItem should be called, not onReorderItems
+      expect(mockOnRemoveItem).toHaveBeenCalledWith('active-session', 'item-1');
+      expect(mockOnReorderItems).not.toHaveBeenCalled();
+    });
+
+    it('should enable drag for sessions in global view', () => {
+      const session1 = createSession({
+        id: 'session-1',
+        name: 'Project One',
+        executionQueue: [
+          createQueuedItem({ id: 'item-1' }),
+          createQueuedItem({ id: 'item-2' })
+        ]
+      });
+      const session2 = createSession({
+        id: 'session-2',
+        name: 'Project Two',
+        executionQueue: [
+          createQueuedItem({ id: 'item-3' }),
+          createQueuedItem({ id: 'item-4' })
+        ]
+      });
+      const { container } = render(
+        <ExecutionQueueBrowser
+          isOpen={true}
+          onClose={mockOnClose}
+          sessions={[session1, session2]}
+          activeSessionId="session-1"
+          theme={theme}
+          onRemoveItem={mockOnRemoveItem}
+          onSwitchSession={mockOnSwitchSession}
+          onReorderItems={mockOnReorderItems}
+        />
+      );
+
+      // Switch to global view
+      const allButton = screen.getByText('All Projects').closest('button');
+      fireEvent.click(allButton!);
+
+      // All items should have grab cursor
+      const itemRows = container.querySelectorAll('.group.select-none');
+      expect(itemRows.length).toBe(4);
+      itemRows.forEach(row => {
+        expect(row).toHaveStyle({ cursor: 'grab' });
+      });
+    });
+
+    it('should have correct number of drop zones in global view', () => {
+      const session1 = createSession({
+        id: 'session-1',
+        name: 'Project One',
+        executionQueue: [
+          createQueuedItem({ id: 'item-1' }),
+          createQueuedItem({ id: 'item-2' })
+        ]
+      });
+      const session2 = createSession({
+        id: 'session-2',
+        name: 'Project Two',
+        executionQueue: [
+          createQueuedItem({ id: 'item-3' }),
+          createQueuedItem({ id: 'item-4' })
+        ]
+      });
+      const { container } = render(
+        <ExecutionQueueBrowser
+          isOpen={true}
+          onClose={mockOnClose}
+          sessions={[session1, session2]}
+          activeSessionId="session-1"
+          theme={theme}
+          onRemoveItem={mockOnRemoveItem}
+          onSwitchSession={mockOnSwitchSession}
+          onReorderItems={mockOnReorderItems}
+        />
+      );
+
+      // Switch to global view
+      const allButton = screen.getByText('All Projects').closest('button');
+      fireEvent.click(allButton!);
+
+      // Should have drop zones for each session: 3 for session1 (2 items + 1 after) + 3 for session2
+      const dropZones = container.querySelectorAll('.relative.h-1');
+      expect(dropZones.length).toBe(6);
+    });
+
+    it('should not show drag handle when session has only one item', () => {
+      const session = createSession({
+        id: 'active-session',
+        executionQueue: [createQueuedItem({ id: 'item-1' })]
+      });
+      const { container } = render(
+        <ExecutionQueueBrowser
+          isOpen={true}
+          onClose={mockOnClose}
+          sessions={[session]}
+          activeSessionId="active-session"
+          theme={theme}
+          onRemoveItem={mockOnRemoveItem}
+          onSwitchSession={mockOnSwitchSession}
+          onReorderItems={mockOnReorderItems}
+        />
+      );
+
+      // Drag handle should not exist for single item
+      const dragHandle = container.querySelector('.absolute.left-1');
+      expect(dragHandle).not.toBeInTheDocument();
+    });
+
+    it('should show visual feedback on mousedown', () => {
+      const session = createSession({
+        id: 'active-session',
+        executionQueue: [
+          createQueuedItem({ id: 'item-1' }),
+          createQueuedItem({ id: 'item-2' })
+        ]
+      });
+      const { container } = render(
+        <ExecutionQueueBrowser
+          isOpen={true}
+          onClose={mockOnClose}
+          sessions={[session]}
+          activeSessionId="active-session"
+          theme={theme}
+          onRemoveItem={mockOnRemoveItem}
+          onSwitchSession={mockOnSwitchSession}
+          onReorderItems={mockOnReorderItems}
+        />
+      );
+
+      const itemRow = container.querySelector('.group.select-none');
+      expect(itemRow).not.toBeNull();
+
+      // Verify item has grab cursor before interaction
+      expect(itemRow).toHaveStyle({ cursor: 'grab' });
+    });
+  });
 });

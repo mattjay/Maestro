@@ -731,22 +731,11 @@ export function AgentSessionsBrowser({
     return date.toLocaleDateString();
   };
 
-  // Stable activity entries for the graph - only updates when switching to graph view
-  // This prevents the graph from re-rendering during pagination
-  const [activityEntries, setActivityEntries] = useState<ActivityEntry[]>([]);
-  const prevShowSearchPanelRef = useRef(showSearchPanel);
-
-  useEffect(() => {
-    const switchingToGraph = prevShowSearchPanelRef.current && !showSearchPanel;
-    prevShowSearchPanelRef.current = showSearchPanel;
-
-    // Update entries when: switching TO graph view, OR initial load completes while graph is shown
-    if ((switchingToGraph || (!loading && activityEntries.length === 0)) && sessions.length > 0) {
-      setActivityEntries(sessions.map(s => ({
-        timestamp: s.modifiedAt,
-      })));
-    }
-  }, [showSearchPanel, loading, sessions, activityEntries.length]);
+  // Activity entries for the graph - derived from filteredSessions so filters apply
+  // Since we auto-load all sessions in background, this will eventually include all data
+  const activityEntries = useMemo<ActivityEntry[]>(() => {
+    return filteredSessions.map(s => ({ timestamp: s.modifiedAt }));
+  }, [filteredSessions]);
 
   // Handle activity graph bar click - scroll to first session in that time range
   const handleGraphBarClick = useCallback((bucketStart: number, bucketEnd: number) => {

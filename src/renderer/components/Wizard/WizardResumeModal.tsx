@@ -11,7 +11,7 @@ import type { Theme, AgentConfig } from '../../types';
 import { useLayerStack } from '../../contexts/LayerStackContext';
 import { MODAL_PRIORITIES } from '../../constants/modalPriorities';
 import type { SerializableWizardState, WizardStep } from './WizardContext';
-import { STEP_INDEX } from './WizardContext';
+import { STEP_INDEX, WIZARD_TOTAL_STEPS } from './WizardContext';
 
 interface WizardResumeModalProps {
   theme: Theme;
@@ -32,6 +32,8 @@ function getStepDescription(step: WizardStep): string {
       return 'Directory Selection';
     case 'conversation':
       return 'Project Discovery';
+    case 'preparing-plan':
+      return 'Preparing Action Plans';
     case 'phase-review':
       return 'Phase Review';
     default:
@@ -43,7 +45,7 @@ function getStepDescription(step: WizardStep): string {
  * Get progress percentage based on step
  */
 function getProgressPercentage(step: WizardStep): number {
-  return ((STEP_INDEX[step] - 1) / 3) * 100;
+  return ((STEP_INDEX[step] - 1) / (WIZARD_TOTAL_STEPS - 1)) * 100;
 }
 
 export function WizardResumeModal({
@@ -212,7 +214,7 @@ export function WizardResumeModal({
                 Progress
               </span>
               <span className="text-xs font-medium" style={{ color: theme.colors.accent }}>
-                Step {STEP_INDEX[resumeState.currentStep]} of 4
+                Step {STEP_INDEX[resumeState.currentStep]} of {WIZARD_TOTAL_STEPS}
               </span>
             </div>
             <div

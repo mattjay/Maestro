@@ -232,14 +232,29 @@ export function DirectorySelectionScreen({ theme }: DirectorySelectionScreenProp
 
   /**
    * Attempt to proceed to next step
-   * Note: We no longer show a modal for existing docs - the agent will discover
-   * them during phase generation and make intelligent decisions about whether
-   * to continue, modify, or replace them.
+   * Blocks if Auto Run Docs folder exists and is not empty
    */
-  const attemptNextStep = useCallback(() => {
+  const attemptNextStep = useCallback(async () => {
     if (!canProceedToNext()) return;
+
+    // Check if Auto Run Docs folder exists and has files
+    try {
+      const autoRunPath = `${state.directoryPath}/${AUTO_RUN_FOLDER_NAME}`;
+      const docs = await window.maestro.autorun.listDocuments(autoRunPath);
+
+      if (docs && docs.length > 0) {
+        setDirectoryError(
+          `This project already has ${docs.length} Auto Run document${docs.length > 1 ? 's' : ''}. ` +
+          `Please manually delete the "${AUTO_RUN_FOLDER_NAME}" folder if you want to start fresh.`
+        );
+        return;
+      }
+    } catch {
+      // Folder doesn't exist or can't be read - that's fine, proceed
+    }
+
     nextStep();
-  }, [canProceedToNext, nextStep]);
+  }, [canProceedToNext, nextStep, state.directoryPath, setDirectoryError]);
 
   /**
    * Handle keyboard navigation

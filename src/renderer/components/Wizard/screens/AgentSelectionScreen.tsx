@@ -510,7 +510,7 @@ export function AgentSelectionScreen({ theme }: AgentSelectionScreenProps): JSX.
   return (
     <div
       ref={containerRef}
-      className="flex flex-col flex-1 min-h-0 px-8 py-6 overflow-y-auto"
+      className="flex flex-col flex-1 min-h-0 px-8 py-6 overflow-y-auto justify-between"
       onKeyDown={handleKeyDown}
       tabIndex={-1}
     >
@@ -527,7 +527,7 @@ export function AgentSelectionScreen({ theme }: AgentSelectionScreenProps): JSX.
           className="text-2xl font-semibold mb-2"
           style={{ color: theme.colors.textMain }}
         >
-          Choose Your AI Assistant
+          Choose Your Provider
         </h3>
         <p
           className="text-sm"
@@ -536,9 +536,6 @@ export function AgentSelectionScreen({ theme }: AgentSelectionScreenProps): JSX.
           Select the provider that will power your agent. Use arrow keys to navigate, Enter to select.
         </p>
       </div>
-
-      {/* Spacer */}
-      <div className="h-8" />
 
       {/* Section 2: Agent Grid */}
       <div className="flex justify-center">
@@ -658,14 +655,11 @@ export function AgentSelectionScreen({ theme }: AgentSelectionScreenProps): JSX.
         </div>
       </div>
 
-      {/* Spacer */}
-      <div className="h-10" />
-
       {/* Section 3: Name Your Agent - Prominent */}
       <div className="flex flex-col items-center">
         <label
           htmlFor="project-name"
-          className="text-lg font-medium mb-3"
+          className="text-2xl font-semibold mb-4"
           style={{ color: theme.colors.textMain }}
         >
           Name Your Agent
@@ -703,9 +697,6 @@ export function AgentSelectionScreen({ theme }: AgentSelectionScreenProps): JSX.
           </button>
         </div>
       </div>
-
-      {/* Flexible spacer to push footer down */}
-      <div className="flex-1 min-h-8" />
 
       {/* Section 4: Keyboard hints (footer) */}
       <div className="flex justify-center gap-6">

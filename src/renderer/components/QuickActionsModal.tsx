@@ -5,6 +5,7 @@ import { useLayerStack } from '../contexts/LayerStackContext';
 import { MODAL_PRIORITIES } from '../constants/modalPriorities';
 import { gitService } from '../services/git';
 import { formatShortcutKeys } from '../utils/shortcutFormatter';
+import type { WizardStep } from './Wizard/WizardContext';
 
 interface QuickAction {
   id: string;
@@ -62,6 +63,7 @@ interface QuickActionsModalProps {
   onToggleMarkdownRawMode?: () => void;
   setUpdateCheckModalOpen?: (open: boolean) => void;
   openWizard?: () => void;
+  wizardGoToStep?: (step: WizardStep) => void;
 }
 
 export function QuickActionsModal(props: QuickActionsModalProps) {
@@ -76,7 +78,7 @@ export function QuickActionsModal(props: QuickActionsModalProps) {
     setShortcutsHelpOpen, setAboutModalOpen, setLogViewerOpen, setProcessMonitorOpen,
     setAgentSessionsOpen, setActiveClaudeSessionId, setGitDiffPreview, setGitLogOpen,
     onRenameTab, onToggleReadOnlyMode, onOpenTabSwitcher, tabShortcuts, isAiMode, setPlaygroundOpen, onRefreshGitFileState,
-    onDebugReleaseQueuedItem, markdownRawMode, onToggleMarkdownRawMode, setUpdateCheckModalOpen, openWizard
+    onDebugReleaseQueuedItem, markdownRawMode, onToggleMarkdownRawMode, setUpdateCheckModalOpen, openWizard, wizardGoToStep
   } = props;
 
   const [search, setSearch] = useState('');
@@ -316,6 +318,17 @@ export function QuickActionsModal(props: QuickActionsModalProps) {
       subtext: `Process next item from queue (${activeSession.executionQueue.length} queued)`,
       action: () => {
         onDebugReleaseQueuedItem();
+        setQuickActionOpen(false);
+      }
+    }] : []),
+    ...(openWizard && wizardGoToStep ? [{
+      id: 'debugWizardPhaseReview',
+      label: 'Debug: Wizard → Review Action Plans',
+      subtext: 'Jump directly to Phase Review step (requires existing Auto Run docs)',
+      action: () => {
+        openWizard();
+        // Small delay to ensure wizard is open before navigating
+        setTimeout(() => wizardGoToStep('phase-review'), 50);
         setQuickActionOpen(false);
       }
     }] : []),

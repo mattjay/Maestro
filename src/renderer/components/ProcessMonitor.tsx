@@ -620,7 +620,7 @@ export function ProcessMonitor(props: ProcessMonitorProps) {
           ref={isSelected ? selectedNodeRef as React.RefObject<HTMLDivElement> : null}
           key={node.id}
           tabIndex={0}
-          className="px-4 py-2 flex items-center gap-2 cursor-default group"
+          className="px-4 py-1.5 cursor-default group"
           style={{
             paddingLeft: `${paddingLeft}px`,
             color: theme.colors.textMain,
@@ -632,75 +632,81 @@ export function ProcessMonitor(props: ProcessMonitorProps) {
           onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = `${theme.colors.accent}15`; }}
           onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent'; }}
         >
-          <div className="w-4 h-4 flex-shrink-0" />
-          <div
-            className="w-2 h-2 rounded-full flex-shrink-0"
-            style={{ backgroundColor: theme.colors.success }}
-          />
-          <span className="text-sm flex-1 truncate">{node.label}</span>
-          {node.isAutoRun && (
+          {/* First line: status dot, label, AUTO badge, kill button */}
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 flex-shrink-0" />
+            <div
+              className="w-2 h-2 rounded-full flex-shrink-0"
+              style={{ backgroundColor: theme.colors.success }}
+            />
+            <span className="text-sm flex-1 truncate">{node.label}</span>
+            {node.isAutoRun && (
+              <span
+                className="text-xs font-semibold px-1.5 py-0.5 rounded flex-shrink-0"
+                style={{
+                  backgroundColor: theme.colors.accent + '20',
+                  color: theme.colors.accent
+                }}
+              >
+                AUTO
+              </span>
+            )}
+            {/* Kill button */}
+            {node.processSessionId && (
+              <button
+                className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-opacity-20 transition-opacity"
+                style={{ color: theme.colors.error }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setKillConfirmProcessId(node.processSessionId!);
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${theme.colors.error}20`}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                title="Kill process"
+              >
+                <XCircle className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          {/* Second line: Claude session ID, PID, runtime, status - indented */}
+          <div className="flex items-center gap-3 mt-1" style={{ paddingLeft: '24px' }}>
+            {node.claudeSessionId && node.sessionId && onNavigateToSession && (
+              <button
+                className="text-xs font-mono hover:underline cursor-pointer"
+                style={{ color: theme.colors.accent }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onNavigateToSession(node.sessionId!, node.tabId);
+                  onClose();
+                }}
+                title="Click to navigate to this session"
+              >
+                {node.claudeSessionId.substring(0, 8)}...
+              </button>
+            )}
+            {node.claudeSessionId && (!node.sessionId || !onNavigateToSession) && (
+              <span className="text-xs font-mono" style={{ color: theme.colors.accent }}>
+                {node.claudeSessionId.substring(0, 8)}...
+              </span>
+            )}
+            <span className="text-xs font-mono" style={{ color: theme.colors.textDim }}>
+              PID: {node.pid}
+            </span>
+            {node.startTime && (
+              <span className="text-xs font-mono" style={{ color: theme.colors.textDim }}>
+                {formatRuntime(node.startTime)}
+              </span>
+            )}
             <span
-              className="text-xs font-semibold px-1.5 py-0.5 rounded flex-shrink-0"
+              className="text-xs px-2 py-0.5 rounded"
               style={{
-                backgroundColor: theme.colors.accent + '20',
-                color: theme.colors.accent
+                backgroundColor: `${theme.colors.success}20`,
+                color: theme.colors.success
               }}
             >
-              AUTO
+              Running
             </span>
-          )}
-          {node.claudeSessionId && node.sessionId && onNavigateToSession && (
-            <button
-              className="text-xs font-mono flex-shrink-0 hover:underline cursor-pointer"
-              style={{ color: theme.colors.accent }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onNavigateToSession(node.sessionId!, node.tabId);
-                onClose();
-              }}
-              title="Click to navigate to this session"
-            >
-              {node.claudeSessionId.substring(0, 8)}...
-            </button>
-          )}
-          {node.claudeSessionId && (!node.sessionId || !onNavigateToSession) && (
-            <span className="text-xs font-mono flex-shrink-0" style={{ color: theme.colors.accent }}>
-              {node.claudeSessionId.substring(0, 8)}...
-            </span>
-          )}
-          <span className="text-xs font-mono flex-shrink-0" style={{ color: theme.colors.textDim }}>
-            PID: {node.pid}
-          </span>
-          {node.startTime && (
-            <span className="text-xs font-mono flex-shrink-0" style={{ color: theme.colors.textDim }}>
-              {formatRuntime(node.startTime)}
-            </span>
-          )}
-          <span
-            className="text-xs px-2 py-0.5 rounded"
-            style={{
-              backgroundColor: `${theme.colors.success}20`,
-              color: theme.colors.success
-            }}
-          >
-            Running
-          </span>
-          {/* Kill button */}
-          {node.processSessionId && (
-            <button
-              className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-opacity-20 transition-opacity"
-              style={{ color: theme.colors.error }}
-              onClick={(e) => {
-                e.stopPropagation();
-                setKillConfirmProcessId(node.processSessionId!);
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${theme.colors.error}20`}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-              title="Kill process"
-            >
-              <XCircle className="w-4 h-4" />
-            </button>
-          )}
+          </div>
         </div>
       );
     }
