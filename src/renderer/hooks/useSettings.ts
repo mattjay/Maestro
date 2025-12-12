@@ -122,10 +122,10 @@ export interface UseSettingsReturn {
   setDefaultSaveToHistory: (value: boolean) => void;
   leftSidebarWidth: number;
   rightPanelWidth: number;
-  markdownRawMode: boolean;
+  markdownEditMode: boolean;
   setLeftSidebarWidth: (value: number) => void;
   setRightPanelWidth: (value: number) => void;
-  setMarkdownRawMode: (value: boolean) => void;
+  setMarkdownEditMode: (value: boolean) => void;
 
   // Terminal settings
   terminalWidth: number;
@@ -245,7 +245,7 @@ export function useSettings(): UseSettingsReturn {
   const [defaultSaveToHistory, setDefaultSaveToHistoryState] = useState(true); // History toggle defaults to on
   const [leftSidebarWidth, setLeftSidebarWidthState] = useState(256);
   const [rightPanelWidth, setRightPanelWidthState] = useState(384);
-  const [markdownRawMode, setMarkdownRawModeState] = useState(false);
+  const [markdownEditMode, setMarkdownEditModeState] = useState(false);
 
   // Terminal Config
   const [terminalWidth, setTerminalWidthState] = useState(100);
@@ -373,9 +373,9 @@ export function useSettings(): UseSettingsReturn {
     window.maestro.settings.set('rightPanelWidth', width);
   }, []);
 
-  const setMarkdownRawMode = useCallback((value: boolean) => {
-    setMarkdownRawModeState(value);
-    window.maestro.settings.set('markdownRawMode', value);
+  const setMarkdownEditMode = useCallback((value: boolean) => {
+    setMarkdownEditModeState(value);
+    window.maestro.settings.set('markdownEditMode', value);
   }, []);
 
   const setShortcuts = useCallback((value: Record<string, Shortcut>) => {
@@ -832,7 +832,7 @@ export function useSettings(): UseSettingsReturn {
       const savedCustomFonts = await window.maestro.settings.get('customFonts');
       const savedLeftSidebarWidth = await window.maestro.settings.get('leftSidebarWidth');
       const savedRightPanelWidth = await window.maestro.settings.get('rightPanelWidth');
-      const savedMarkdownRawMode = await window.maestro.settings.get('markdownRawMode');
+      const savedMarkdownEditMode = await window.maestro.settings.get('markdownEditMode');
       const savedShortcuts = await window.maestro.settings.get('shortcuts');
       const savedActiveThemeId = await window.maestro.settings.get('activeThemeId');
       const savedTerminalWidth = await window.maestro.settings.get('terminalWidth');
@@ -870,7 +870,7 @@ export function useSettings(): UseSettingsReturn {
       if (savedCustomFonts !== undefined) setCustomFontsState(savedCustomFonts);
       if (savedLeftSidebarWidth !== undefined) setLeftSidebarWidthState(Math.max(256, Math.min(600, savedLeftSidebarWidth)));
       if (savedRightPanelWidth !== undefined) setRightPanelWidthState(savedRightPanelWidth);
-      if (savedMarkdownRawMode !== undefined) setMarkdownRawModeState(savedMarkdownRawMode);
+      if (savedMarkdownEditMode !== undefined) setMarkdownEditModeState(savedMarkdownEditMode);
       if (savedActiveThemeId !== undefined) setActiveThemeIdState(savedActiveThemeId);
       if (savedTerminalWidth !== undefined) setTerminalWidthState(savedTerminalWidth);
       if (savedLogLevel !== undefined) setLogLevelState(savedLogLevel);
@@ -1023,10 +1023,10 @@ export function useSettings(): UseSettingsReturn {
     setDefaultSaveToHistory,
     leftSidebarWidth,
     rightPanelWidth,
-    markdownRawMode,
+    markdownEditMode,
     setLeftSidebarWidth,
     setRightPanelWidth,
-    setMarkdownRawMode,
+    setMarkdownEditMode,
     terminalWidth,
     setTerminalWidth,
     logLevel,
@@ -1099,7 +1099,7 @@ export function useSettings(): UseSettingsReturn {
     defaultSaveToHistory,
     leftSidebarWidth,
     rightPanelWidth,
-    markdownRawMode,
+    markdownEditMode,
     terminalWidth,
     logLevel,
     maxLogBuffer,
@@ -1135,7 +1135,7 @@ export function useSettings(): UseSettingsReturn {
     setDefaultSaveToHistory,
     setLeftSidebarWidth,
     setRightPanelWidth,
-    setMarkdownRawMode,
+    setMarkdownEditMode,
     setTerminalWidth,
     setLogLevel,
     setMaxLogBuffer,

@@ -135,8 +135,8 @@ const createDefaultProps = (overrides: Partial<React.ComponentProps<typeof Termi
   inputRef: { current: null } as React.RefObject<HTMLTextAreaElement>,
   logsEndRef: { current: null } as React.RefObject<HTMLDivElement>,
   maxOutputLines: 50,
-  markdownRawMode: false,
-  setMarkdownRawMode: vi.fn(),
+  markdownEditMode: false,
+  setMarkdownEditMode: vi.fn(),
   ...overrides,
 });
 
@@ -1053,7 +1053,7 @@ describe('TerminalOutput', () => {
 
       const props = createDefaultProps({
         session,
-        markdownRawMode: false,
+        markdownEditMode: false,
       });
 
       render(<TerminalOutput {...props} />);
@@ -1061,8 +1061,8 @@ describe('TerminalOutput', () => {
       expect(screen.getByTitle(/Show plain text/)).toBeInTheDocument();
     });
 
-    it('calls setMarkdownRawMode when toggle is clicked', async () => {
-      const setMarkdownRawMode = vi.fn();
+    it('calls setMarkdownEditMode when toggle is clicked', async () => {
+      const setMarkdownEditMode = vi.fn();
       const logs: LogEntry[] = [
         createLogEntry({ text: '# Heading', source: 'stdout' }),
       ];
@@ -1074,8 +1074,8 @@ describe('TerminalOutput', () => {
 
       const props = createDefaultProps({
         session,
-        markdownRawMode: false,
-        setMarkdownRawMode,
+        markdownEditMode: false,
+        setMarkdownEditMode,
       });
 
       render(<TerminalOutput {...props} />);
@@ -1085,7 +1085,7 @@ describe('TerminalOutput', () => {
         fireEvent.click(toggleButton);
       });
 
-      expect(setMarkdownRawMode).toHaveBeenCalledWith(true);
+      expect(setMarkdownEditMode).toHaveBeenCalledWith(true);
     });
   });
 
@@ -1627,7 +1627,7 @@ describe('helper function behaviors (tested via component)', () => {
 
       const props = createDefaultProps({
         session,
-        markdownRawMode: true,
+        markdownEditMode: true,
       });
 
       render(<TerminalOutput {...props} />);
@@ -1649,7 +1649,7 @@ describe('helper function behaviors (tested via component)', () => {
 
       const props = createDefaultProps({
         session,
-        markdownRawMode: true,
+        markdownEditMode: true,
       });
 
       render(<TerminalOutput {...props} />);

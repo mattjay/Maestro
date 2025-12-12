@@ -163,7 +163,7 @@ export default function MaestroConsole() {
     defaultSaveToHistory, setDefaultSaveToHistory,
     leftSidebarWidth, setLeftSidebarWidth,
     rightPanelWidth, setRightPanelWidth,
-    markdownRawMode, setMarkdownRawMode,
+    markdownEditMode, setMarkdownEditMode,
     terminalWidth, setTerminalWidth,
     logLevel, setLogLevel,
     logViewerSelectedLevels, setLogViewerSelectedLevels,
@@ -3697,7 +3697,7 @@ export default function MaestroConsole() {
         const isInAutoRunPanel = ctx.activeFocus === 'right' && ctx.activeRightTab === 'autorun';
         if (!isInAutoRunPanel && !ctx.previewFile) {
           e.preventDefault();
-          ctx.setMarkdownRawMode(!ctx.markdownRawMode);
+          ctx.setMarkdownEditMode(!ctx.markdownEditMode);
         }
       }
 
@@ -4571,7 +4571,7 @@ export default function MaestroConsole() {
     processMonitorOpen, logViewerOpen, createGroupModalOpen, confirmModalOpen, renameInstanceModalOpen,
     renameGroupModalOpen, activeSession, previewFile, fileTreeFilter, fileTreeFilterOpen, gitDiffPreview,
     gitLogOpen, lightboxImage, hasOpenLayers, hasOpenModal, visibleSessions, sortedSessions, groups,
-    bookmarksCollapsed, leftSidebarOpen, editingSessionId, editingGroupId, markdownRawMode, defaultSaveToHistory,
+    bookmarksCollapsed, leftSidebarOpen, editingSessionId, editingGroupId, markdownEditMode, defaultSaveToHistory,
     setLeftSidebarOpen, setRightPanelOpen, addNewSession, deleteSession, setQuickActionInitialMode,
     setQuickActionOpen, cycleSession, toggleInputMode, setShortcutsHelpOpen, setSettingsModalOpen,
     setSettingsTab, setActiveRightTab, handleSetActiveRightTab, setActiveFocus, setBookmarksCollapsed, setGroups,
@@ -4580,7 +4580,7 @@ export default function MaestroConsole() {
     setSessions, createTab, closeTab, reopenClosedTab, getActiveTab, setRenameTabId, setRenameTabInitialName,
     setRenameTabModalOpen, navigateToNextTab, navigateToPrevTab, navigateToTabByIndex, navigateToLastTab,
     setFileTreeFilterOpen, isShortcut, isTabShortcut, handleNavBack, handleNavForward, toggleUnreadFilter,
-    setTabSwitcherOpen, showUnreadOnly, stagedImages, handleSetLightboxImage, setMarkdownRawMode,
+    setTabSwitcherOpen, showUnreadOnly, stagedImages, handleSetLightboxImage, setMarkdownEditMode,
     toggleTabStar, setPromptComposerOpen, openWizardModal
   };
 
@@ -6787,8 +6787,8 @@ export default function MaestroConsole() {
             processQueuedItem(activeSessionId, nextItem);
             console.log('[Debug] Released queued item:', nextItem);
           }}
-          markdownRawMode={markdownRawMode}
-          onToggleMarkdownRawMode={() => setMarkdownRawMode(!markdownRawMode)}
+          markdownEditMode={markdownEditMode}
+          onToggleMarkdownEditMode={() => setMarkdownEditMode(!markdownEditMode)}
           setUpdateCheckModalOpen={setUpdateCheckModalOpen}
           openWizard={openWizardModal}
           wizardGoToStep={wizardGoToStep}
@@ -7145,7 +7145,7 @@ export default function MaestroConsole() {
         slashCommands={allSlashCommands}
         selectedSlashCommandIndex={selectedSlashCommandIndex}
         previewFile={previewFile}
-        markdownRawMode={markdownRawMode}
+        markdownEditMode={markdownEditMode}
         shortcuts={shortcuts}
         rightPanelOpen={rightPanelOpen}
         maxOutputLines={maxOutputLines}
@@ -7204,7 +7204,7 @@ export default function MaestroConsole() {
         selectedAtMentionIndex={selectedAtMentionIndex}
         setSelectedAtMentionIndex={setSelectedAtMentionIndex}
         setPreviewFile={setPreviewFile}
-        setMarkdownRawMode={setMarkdownRawMode}
+        setMarkdownEditMode={setMarkdownEditMode}
         setAboutModalOpen={setAboutModalOpen}
         setRightPanelOpen={setRightPanelOpen}
         inputRef={inputRef}
@@ -7529,6 +7529,14 @@ export default function MaestroConsole() {
           }
         }}
         onOpenPromptComposer={() => setPromptComposerOpen(true)}
+        onReplayMessage={(text: string, images?: string[]) => {
+          // Set staged images if the message had any
+          if (images && images.length > 0) {
+            setStagedImages(images);
+          }
+          // Use setTimeout to ensure state updates are applied before processing
+          setTimeout(() => processInput(text), 0);
+        }}
       />
       )}
 
