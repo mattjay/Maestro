@@ -29,16 +29,14 @@ import { useSwipeUp } from '../hooks/useSwipeUp';
 import { useVoiceInput } from '../hooks/useVoiceInput';
 import { useKeyboardVisibility } from '../hooks/useKeyboardVisibility';
 import { useSlashCommandAutocomplete } from '../hooks/useSlashCommandAutocomplete';
+import { useLongPressMenu } from '../hooks/useLongPressMenu';
 import { RecentCommandChips } from './RecentCommandChips';
 import { SlashCommandAutocomplete, type SlashCommand, DEFAULT_SLASH_COMMANDS } from './SlashCommandAutocomplete';
-import { QuickActionsMenu, type QuickAction } from './QuickActionsMenu';
+import { QuickActionsMenu } from './QuickActionsMenu';
 import type { CommandHistoryEntry } from '../hooks/useCommandHistory';
 
 /** Minimum touch target size per Apple HIG guidelines (44pt) */
 const MIN_TOUCH_TARGET = 44;
-
-/** Duration in ms to trigger long-press for quick actions menu */
-const LONG_PRESS_DURATION = 500;
 
 /** Default minimum height for the text input area */
 const MIN_INPUT_HEIGHT = 48;
@@ -259,11 +257,22 @@ export function CommandInputBar({
     focusRef: textareaRef as React.RefObject<HTMLTextAreaElement>,
   });
 
-  // Quick actions menu state
-  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
-  const [quickActionsAnchor, setQuickActionsAnchor] = useState<{ x: number; y: number } | null>(null);
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const sendButtonRef = useRef<HTMLButtonElement>(null);
+  // Long-press menu hook - handles quick actions menu state and touch handlers
+  const {
+    isMenuOpen: quickActionsOpen,
+    menuAnchor: quickActionsAnchor,
+    sendButtonRef,
+    handleTouchStart: handleSendButtonTouchStart,
+    handleTouchEnd: handleSendButtonTouchEnd,
+    handleTouchMove: handleSendButtonTouchMove,
+    handleQuickAction,
+    closeMenu: handleCloseQuickActions,
+  } = useLongPressMenu({
+    inputMode,
+    onModeToggle,
+    disabled: isDisabled,
+    value,
+  });
 
   // Separate flag for whether send is blocked (AI thinking)
   // When true, shows X button instead of send button
@@ -404,106 +413,6 @@ export function CommandInputBar({
     triggerHapticFeedback('strong');
     onInterrupt?.();
   }, [onInterrupt]);
-
-  /**
-   * Clear long-press timer (used when touch ends or moves)
-   */
-  const clearLongPressTimer = useCallback(() => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-  }, []);
-
-  /**
-   * Handle long-press start on send button
-   * Starts a timer that will show the quick actions menu
-   */
-  const handleSendButtonTouchStart = useCallback((e: React.TouchEvent<HTMLButtonElement>) => {
-    // Clear any existing timer
-    clearLongPressTimer();
-
-    // Get the button position for menu anchor
-    const button = sendButtonRef.current;
-    if (button) {
-      const rect = button.getBoundingClientRect();
-      const anchor = {
-        x: rect.left + rect.width / 2,
-        y: rect.top,
-      };
-
-      // Start long-press timer
-      longPressTimerRef.current = setTimeout(() => {
-        // Trigger haptic feedback for long-press activation
-        triggerHapticFeedback('medium');
-
-        // Show quick actions menu
-        setQuickActionsAnchor(anchor);
-        setQuickActionsOpen(true);
-
-        // Prevent the normal touch behavior
-        longPressTimerRef.current = null;
-      }, LONG_PRESS_DURATION);
-    }
-
-    // Scale down slightly on touch for tactile feedback
-    if (!isDisabled && value.trim()) {
-      e.currentTarget.style.transform = 'scale(0.95)';
-    }
-  }, [clearLongPressTimer, isDisabled, value]);
-
-  /**
-   * Handle touch end on send button
-   * Clears the long-press timer and handles normal tap
-   */
-  const handleSendButtonTouchEnd = useCallback((e: React.TouchEvent<HTMLButtonElement>) => {
-    e.currentTarget.style.transform = 'scale(1)';
-
-    // If quick actions menu is not open and timer was running, this was a normal tap
-    // The form onSubmit will handle the actual submission
-    clearLongPressTimer();
-  }, [clearLongPressTimer]);
-
-  /**
-   * Handle touch move on send button
-   * Cancels long-press if user moves finger
-   */
-  const handleSendButtonTouchMove = useCallback(() => {
-    clearLongPressTimer();
-  }, [clearLongPressTimer]);
-
-  /**
-   * Handle quick action selection from menu
-   */
-  const handleQuickAction = useCallback((action: QuickAction) => {
-    // Trigger haptic feedback
-    triggerHapticFeedback('medium');
-
-    if (action === 'switch_mode') {
-      // Toggle to the opposite mode
-      const newMode = inputMode === 'ai' ? 'terminal' : 'ai';
-      onModeToggle?.(newMode);
-    }
-  }, [inputMode, onModeToggle]);
-
-  /**
-   * Close quick actions menu
-   */
-  const handleCloseQuickActions = useCallback(() => {
-    setQuickActionsOpen(false);
-  }, []);
-
-  /**
-   * Cleanup timers on unmount
-   */
-  useEffect(() => {
-    return () => {
-      // Clean up long-press timer
-      if (longPressTimerRef.current) {
-        clearTimeout(longPressTimerRef.current);
-      }
-    };
-  }, []);
 
   /**
    * Handle click outside to collapse expanded input on mobile

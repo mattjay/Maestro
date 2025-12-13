@@ -169,3 +169,13 @@ export type {
   UseSlashCommandAutocompleteOptions,
   UseSlashCommandAutocompleteReturn,
 } from './useSlashCommandAutocomplete';
+
+export {
+  useLongPressMenu,
+  default as useLongPressMenuDefault,
+} from './useLongPressMenu';
+
+export type {
+  UseLongPressMenuOptions,
+  UseLongPressMenuReturn,
+} from './useLongPressMenu';
