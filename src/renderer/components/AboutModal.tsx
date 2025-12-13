@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { X, Wand2, ExternalLink, FileCode, BarChart3, Loader2, Trophy, Globe } from 'lucide-react';
+import { X, Wand2, ExternalLink, FileCode, BarChart3, Loader2, Trophy, Globe, Check } from 'lucide-react';
 import type { Theme, Session, AutoRunStats } from '../types';
 import { useLayerStack } from '../contexts/LayerStackContext';
 import { MODAL_PRIORITIES } from '../constants/modalPriorities';
@@ -329,7 +329,7 @@ export function AboutModal({ theme, sessions, autoRunStats, onClose, onOpenLeade
                   </span>
                 </div>
                 {isLeaderboardRegistered ? (
-                  <span className="text-xs px-1.5 py-0.5 rounded font-medium" style={{ backgroundColor: theme.colors.success, color: '#000' }}>Active</span>
+                  <Check className="w-4 h-4" style={{ color: theme.colors.success }} />
                 ) : (
                   <ExternalLink className="w-4 h-4" style={{ color: theme.colors.textDim }} />
                 )}

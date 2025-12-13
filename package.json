@@ -1,6 +1,6 @@
 {
   "name": "maestro",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Run AI coding agents autonomously for days.",
   "main": "dist/main/index.js",
   "author": {
@@ -10,7 +10,7 @@
   "license": "AGPL 3.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/maestro.git"
+    "url": "https://github.com/pedramamini/maestro.git"
   },
   "bin": {
     "maestro-cli": "./dist/cli/maestro-cli.js"
@@ -51,7 +51,11 @@
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
-      "identity": null,
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "notarize": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
       "target": [
         {
           "target": "dmg",
@@ -76,6 +80,7 @@
         }
       ]
     },
+    "afterSign": "scripts/notarize.js",
     "win": {
       "target": [
         {
@@ -149,6 +154,7 @@
     "ws": "^8.16.0"
   },
   "devDependencies": {
+    "@electron/notarize": "^3.1.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@types/adm-zip": "^0.5.7",
