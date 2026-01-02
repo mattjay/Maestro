@@ -1187,3 +1187,50 @@ export type {
   RegressionEntry,
   FormattedRegressionReport,
 } from './diff-formatter';
+
+// =============================================================================
+// Ignore Region Management
+// =============================================================================
+
+export {
+  // Constants
+  STATUS_BAR_HEIGHTS,
+  HOME_INDICATOR,
+  DYNAMIC_PATTERNS,
+  IGNORE_PRESETS,
+  // Static region creation
+  createStaticIgnoreRegion,
+  createStatusBarRegion,
+  createHomeIndicatorRegion,
+  createSystemUIIgnoreRegions,
+  // Element-based region creation
+  createElementBasedIgnoreRegion,
+  resolveElementBasedRegions,
+  // Pattern-based region creation
+  createPatternBasedIgnoreRegion,
+  // Dynamic content detection
+  detectDynamicContent,
+  // Suggestion
+  suggestIgnoreRegions,
+  // Validation
+  validateIgnoreRegion,
+  isPointInRegion,
+  regionsOverlap,
+  mergeOverlappingRegions,
+  // Presets
+  getDevicePreset,
+  // Conversion
+  toBasicIgnoreRegion,
+  toBasicIgnoreRegions,
+} from './ignore-regions';
+export type {
+  IgnoreRegionType,
+  ExtendedIgnoreRegion,
+  PatternType,
+  DynamicPattern,
+  DetectDynamicOptions,
+  DynamicContentResult,
+  SuggestIgnoreOptions,
+  IgnoreRegionSuggestion,
+  IgnoreRegionValidation,
+} from './ignore-regions';

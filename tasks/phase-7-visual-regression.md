@@ -263,23 +263,38 @@
 
 ### Dynamic Content Handling
 
-- [ ] Implement ignore region types
-  - [ ] **Static regions**: Fixed coordinates (e.g., clock area)
-  - [ ] **Element-based**: Ignore by accessibility ID
-  - [ ] **Pattern-based**: Ignore matching patterns (timestamps, etc.)
+- [x] Implement ignore region types
+  - [x] **Static regions**: Fixed coordinates (e.g., clock area)
+  - [x] **Element-based**: Ignore by accessibility ID
+  - [x] **Pattern-based**: Ignore matching patterns (timestamps, etc.)
+  **Completed**: Created comprehensive `ignore-regions.ts` module with:
+  - `IgnoreRegionType` enum: 'static' | 'element' | 'pattern'
+  - `ExtendedIgnoreRegion` interface with type, elementId, patternType, confidence
+  - `PatternType` enum for 11 pattern types (clock, date, timestamp, battery, signal, wifi, user_avatar, loading, random_id, carousel, animation)
+  - `DynamicPattern` definitions with keywords, element types, and confidence thresholds
 
-- [ ] Create `src/main/ios-tools/ignore-regions.ts`
-  - [ ] `addIgnoreRegion(baseline, region)` - add region to baseline
-  - [ ] `detectDynamicContent(screenshot)` - auto-detect likely dynamic areas
-  - [ ] `suggestIgnoreRegions(baseline, current)` - suggest regions based on patterns
+- [x] Create `src/main/ios-tools/ignore-regions.ts`
+  - [x] `addIgnoreRegion(baseline, region)` - add region to baseline (via metadata.ts addIgnoreRegion)
+  - [x] `detectDynamicContent(screenshot)` - auto-detect likely dynamic areas
+  - [x] `suggestIgnoreRegions(baseline, current)` - suggest regions based on patterns
+  **Completed**: Full module with:
+  - Static region creation: `createStaticIgnoreRegion`, `createStatusBarRegion`, `createHomeIndicatorRegion`, `createSystemUIIgnoreRegions`
+  - Element-based: `createElementBasedIgnoreRegion`, `resolveElementBasedRegions`
+  - Pattern-based: `createPatternBasedIgnoreRegion`
+  - Detection: `detectDynamicContent` with element pattern matching
+  - Suggestions: `suggestIgnoreRegions` with priority-based suggestions
+  - Validation: `validateIgnoreRegion`, `isPointInRegion`, `regionsOverlap`, `mergeOverlappingRegions`
+  - Presets: `IGNORE_PRESETS` for iPhone/iPad variants, `getDevicePreset`
+  - 73 passing unit tests
 
 ### Common Ignore Patterns
 
-- [ ] Implement common ignore patterns
-  - [ ] Status bar (time, battery, signal)
-  - [ ] Timestamps
-  - [ ] User avatars
-  - [ ] Random content placeholders
+- [x] Implement common ignore patterns
+  - [x] Status bar (time, battery, signal)
+  - [x] Timestamps
+  - [x] User avatars
+  - [x] Random content placeholders
+  **Completed**: Implemented via `DYNAMIC_PATTERNS` constant with 11 pattern types, each with keywords, element types, default rectangles, and confidence thresholds. Added `STATUS_BAR_HEIGHTS` for different device types (dynamicIsland: 59px, notch: 47px, homeButton: 20px, iPad: 24px).
 
 ---
 
