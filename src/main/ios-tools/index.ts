@@ -888,3 +888,39 @@ export type {
   PlaybookRunResult,
   StepResult,
 } from './playbook-runner';
+
+// =============================================================================
+// MaestroBridge Client
+// =============================================================================
+
+export {
+  // Main client class
+  BridgeClient,
+  // Discovery functions
+  discoverBridge,
+  discoverBridgePort,
+  extractTokenFromLogs,
+  createBridgeClient,
+  // Cached client management
+  getCachedBridgeClient,
+  clearCachedBridgeClient,
+  clearAllCachedBridgeClients,
+  // Convenience functions
+  waitForBridge,
+  // Constants
+  DEFAULT_BRIDGE_PORTS,
+  DEFAULT_BRIDGE_HOST,
+  DEFAULT_TIMEOUT,
+} from './bridge-client';
+export type {
+  BridgeConfig,
+  AppState,
+  RouteInfo,
+  NetworkRequestEntry,
+  NetworkLog,
+  AnalyticsEvent,
+  AnalyticsLog,
+  FeatureFlagEntry,
+  FeatureFlags,
+  BridgeDiscoveryResult,
+} from './bridge-client';
