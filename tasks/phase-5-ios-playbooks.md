@@ -669,7 +669,13 @@
   > - Result formatters (markdown, JSON, text, compact)
   > - Input validation (type checking, required fields, defaults)
   > - Wait action (timed waits, dry run bypass)
-- [ ] Write integration tests for each playbook
+- [x] Write integration tests for each playbook
+  > Created comprehensive integration tests for all playbooks:
+  > - `feature-ship-loop.test.ts` - 34 tests covering input validation, dry run, progress, result structure, assertions, and formatters
+  > - `crash-hunt.test.ts` - 31 tests covering input validation, dry run, progress, action weights, excluded elements, and formatters
+  > - `design-review.test.ts` - 33 tests covering input validation, dry run, device configuration, navigation maps, and formatters
+  > - `performance-check.test.ts` - 43 tests covering input validation, dry run, progress, result structure, metrics, flows, baseline, warm-up, and formatters
+  > Total: 141 integration tests across 4 playbook test files (regression-check.test.ts already existed)
 - [x] Test variable resolution
   > Covered by `resolveValue`, `resolveObject`, and `evaluateExpression` tests in playbook-runner.test.ts (14 tests covering input references, variable references, output references with nested properties, special context values, embedded templates, missing references, arrays, objects, loop variables, filters like default/length/json)
 - [x] Test loop handling
