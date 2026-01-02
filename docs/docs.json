@@ -69,7 +69,19 @@
               "group-chat",
               "remote-access",
               "ssh-remote-execution",
-              "ios-development",
+              {
+                "group": "iOS Development",
+                "pages": [
+                  "ios-development/index",
+                  "ios-development/setup",
+                  "ios-development/commands",
+                  "ios-development/playbooks",
+                  "ios-development/bridge",
+                  "ios-development/visual-regression",
+                  "ios-development/ci-integration",
+                  "ios-development/troubleshooting"
+                ]
+              },
               "configuration"
             ]
           },

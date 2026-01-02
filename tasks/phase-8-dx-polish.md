@@ -321,15 +321,23 @@
 
 ### Online Documentation
 
-- [ ] Create documentation pages
-  - [ ] `docs/ios-development/index.md` - overview
-  - [ ] `docs/ios-development/setup.md` - getting started
-  - [ ] `docs/ios-development/commands.md` - command reference
-  - [ ] `docs/ios-development/playbooks.md` - playbook guide
-  - [ ] `docs/ios-development/bridge.md` - MaestroBridge guide
-  - [ ] `docs/ios-development/visual-regression.md` - visual testing
-  - [ ] `docs/ios-development/ci-integration.md` - CI setup
-  - [ ] `docs/ios-development/troubleshooting.md` - common issues
+- [x] Create documentation pages *(Completed: Created comprehensive documentation in `docs/ios-development/` with 8 pages)*
+  - [x] `docs/ios-development/index.md` - overview with feature cards and quick start guide
+  - [x] `docs/ios-development/setup.md` - getting started with wizard walkthrough and configuration
+  - [x] `docs/ios-development/commands.md` - command reference for all iOS slash commands
+  - [x] `docs/ios-development/playbooks.md` - playbook guide with action reference and examples
+  - [x] `docs/ios-development/bridge.md` - MaestroBridge guide with Swift integration examples
+  - [x] `docs/ios-development/visual-regression.md` - visual testing with threshold configuration and ignore regions
+  - [x] `docs/ios-development/ci-integration.md` - CI setup for GitHub Actions, GitLab CI, CircleCI, and Bitrise
+  - [x] `docs/ios-development/troubleshooting.md` - common issues with solutions and quick reference
+
+  **Implementation Notes (Jan 2, 2026):**
+  - Created 8 comprehensive documentation pages totaling ~75KB of content
+  - Updated `docs.json` navigation to include iOS Development as nested group under Usage
+  - Pages follow existing Mintlify documentation patterns with proper frontmatter
+  - Includes CardGroup components, Steps, code examples, and tables
+  - Cross-references between pages via relative links
+  - Full coverage of all iOS commands, playbook actions, and troubleshooting scenarios
 
 ### Video Tutorials
 
