@@ -27,15 +27,25 @@
 
 ### Setup Wizard Implementation
 
-- [ ] Create `src/main/ios-tools/setup/wizard.ts`
-  - [ ] Interactive setup wizard flow
-  - [ ] Step-by-step guidance
-  - [ ] Progress indicators
-  - [ ] Error recovery
+- [x] Create `src/main/ios-tools/setup/wizard.ts`
+  - [x] Interactive setup wizard flow
+  - [x] Step-by-step guidance
+  - [x] Progress indicators
+  - [x] Error recovery
+
+  **Implementation Notes (Jan 2, 2026):**
+  - Created comprehensive wizard module with 7 steps: environment, project, simulator, xcuitest, bridge, sample-flow, summary
+  - State management with `createWizardState()`, `advanceStep()`, `processDecision()`, etc.
+  - Step execution functions for each step with detailed output formatting
+  - Progress tracking via `getProgress()` with percentage and step counts
+  - Error recovery through retry capability (step status can be reset from failed to pending)
+  - Configuration generation with `generateConfig()` and persistence via `saveConfig()`
+  - Sample flow generation with `generateSampleFlow()`
+  - 51 unit tests covering all wizard functionality
 
 ### Wizard Steps
 
-- [ ] **Step 1: Environment Check**
+- [x] **Step 1: Environment Check** (implemented in `executeEnvironmentStep()`)
   ```
   🔍 Checking iOS Development Environment...
 
@@ -48,7 +58,7 @@
   [Yes] [Skip for now]
   ```
 
-- [ ] **Step 2: Project Detection**
+- [x] **Step 2: Project Detection** (implemented in `executeProjectStep()`)
   ```
   📁 Analyzing project at /path/to/project...
 
@@ -59,7 +69,7 @@
   Is this correct? [Yes] [Select different project]
   ```
 
-- [ ] **Step 3: Simulator Selection**
+- [x] **Step 3: Simulator Selection** (implemented in `executeSimulatorStep()`)
   ```
   📱 Select default simulator for testing:
 
@@ -71,7 +81,7 @@
   [Select] [Use all]
   ```
 
-- [ ] **Step 4: XCUITest Setup**
+- [x] **Step 4: XCUITest Setup** (implemented in `executeXCUITestStep()`)
   ```
   🧪 XCUITest Configuration
 
@@ -85,7 +95,7 @@
   [Create XCUITest target] [Skip - use Maestro CLI only]
   ```
 
-- [ ] **Step 5: MaestroBridge Setup (Optional)**
+- [x] **Step 5: MaestroBridge Setup (Optional)** (implemented in `executeBridgeStep()`)
   ```
   🔌 MaestroBridge Integration (Optional)
 
@@ -99,7 +109,7 @@
   [Add to project] [Skip]
   ```
 
-- [ ] **Step 6: Sample Flow Generation**
+- [x] **Step 6: Sample Flow Generation** (implemented in `executeSampleFlowStep()` and `generateSampleFlow()`)
   ```
   📝 Generate Sample Flow
 
@@ -115,7 +125,7 @@
   Try it with: /ios.run_flow maestro/sample_flow.yaml
   ```
 
-- [ ] **Step 7: Summary**
+- [x] **Step 7: Summary** (implemented in `executeSummaryStep()`)
   ```
   🎉 iOS Development Environment Ready!
 
@@ -365,8 +375,8 @@
 
 ## Testing
 
-- [ ] Write tests for setup wizard
-- [ ] Write tests for configuration management
+- [x] Write tests for setup wizard (51 tests in wizard.test.ts)
+- [x] Write tests for configuration management (included in wizard.test.ts)
 - [ ] Test on fresh macOS installation
 - [ ] Test with various Xcode versions
 - [ ] Test with various project structures
