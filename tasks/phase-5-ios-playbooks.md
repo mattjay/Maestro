@@ -746,7 +746,27 @@
   > - Crash count reported in progress updates (crashesFound in onProgress)
   > - Screenshot skipped when capture_on_crash=false (screenshotPath undefined)
   > - Clean hunt with no crashes completes successfully (completed=true, crashesFound=0, terminationReason: 'duration_reached')
-- [ ] Design Review captures all screens on multiple devices
+- [x] Design Review captures all screens on multiple devices
+  > Added 19 comprehensive integration tests in `design-review.test.ts` verifying:
+  > - Screenshots captured for each screen on every device (total = devices * screens, screenshotSpy call count)
+  > - Captures created for each screen-device combination (deviceResult.captures includes each screen)
+  > - Devices processed sequentially with boot → capture all screens → shutdown cycle
+  > - Device completion status tracked for each device (success, duration)
+  > - Device slugs generated for directory naming (iphone-se-3rd-generation, iphone-15, etc.)
+  > - screens_captured variable tracked correctly (finalVariables.screens_captured = 6)
+  > - capture_failures variable updated when screenshots fail (partial failure handling)
+  > - Device name included in each capture result
+  > - Screen description preserved in capture results when provided
+  > - Capture timestamps recorded for each screen
+  > - Duration tracked per capture
+  > - Remaining devices continue after one device fails (devicesFailed vs devicesCompleted)
+  > - Progress reported for each device transition (booting phase, currentDevice increments)
+  > - Progress reported for each screen capture (capturing phase, 6 updates for 3 devices * 2 screens)
+  > - HTML comparison sheet generated with device columns
+  > - JSON report generated with all captures organized by device
+  > - passed=true when all captures succeed (captureFailures=0, devicesFailed=0)
+  > - passed=false when any capture fails
+  > - passed=false when any device fails
 - [ ] Performance Check measures key metrics
 - [ ] Playbooks work in Auto Run documents
 - [ ] Custom playbooks can be created

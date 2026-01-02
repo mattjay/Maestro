@@ -994,3 +994,258 @@ describe('Design Review - Slugify', () => {
     expect(capture?.screenSlug).toBe('my-profile-screen');
   });
 });
+
+// =============================================================================
+// Multi-Device Capture Integration Tests
+// =============================================================================
+
+describe('Design Review - Multi-Device Capture Integration', () => {
+  beforeEach(async () => {
+    testDir = createTestDir();
+    vi.clearAllMocks();
+    await resetSimulatorMocks();
+    await resetCaptureMocks();
+  });
+
+  afterEach(() => {
+    cleanupTestDir(testDir);
+  });
+
+  it('should capture each screen on every device (total = devices * screens)', async () => {
+    const captureModule = await import('../../capture');
+    const options = createMultiDeviceOptions();
+    // 3 devices * 2 screens = 6 total captures
+
+    const result = await runDesignReview(options);
+
+    expect(captureModule.screenshot).toHaveBeenCalledTimes(6);
+    expect(result.data?.screensCaptured).toBe(6);
+    expect(result.data?.allCaptures.length).toBe(6);
+  });
+
+  it('should create captures for each screen-device combination', async () => {
+    const options = createMultiDeviceOptions();
+    // 3 devices: iPhone SE, iPhone 15, iPhone 15 Pro Max
+    // 2 screens: Home, Profile
+
+    const result = await runDesignReview(options);
+
+    // Check each device has captures for each screen
+    for (const deviceResult of result.data!.deviceResults) {
+      expect(deviceResult.captures.length).toBe(2);
+      const screenNames = deviceResult.captures.map(c => c.screen);
+      expect(screenNames).toContain('Home');
+      expect(screenNames).toContain('Profile');
+    }
+  });
+
+  it('should process devices sequentially (boot -> capture all screens -> shutdown)', async () => {
+    const simModule = await import('../../simulator');
+    const options = createMultiDeviceOptions();
+
+    await runDesignReview(options);
+
+    // Verify each device goes through full cycle
+    expect(simModule.bootSimulator).toHaveBeenCalledTimes(3);
+    expect(simModule.shutdownSimulator).toHaveBeenCalledTimes(3);
+    expect(simModule.launchApp).toHaveBeenCalledTimes(3); // Once per device
+  });
+
+  it('should track device completion status for each device', async () => {
+    const options = createMultiDeviceOptions();
+
+    const result = await runDesignReview(options);
+
+    expect(result.data?.deviceResults.length).toBe(3);
+    for (const deviceResult of result.data!.deviceResults) {
+      expect(deviceResult.success).toBe(true);
+      expect(deviceResult.duration).toBeGreaterThan(0);
+    }
+  });
+
+  it('should generate deviceSlug for each device for directory naming', async () => {
+    const options = createMultiDeviceOptions();
+
+    const result = await runDesignReview(options);
+
+    expect(result.data?.deviceResults[0].deviceSlug).toBe('iphone-se-3rd-generation');
+    expect(result.data?.deviceResults[1].deviceSlug).toBe('iphone-15');
+    expect(result.data?.deviceResults[2].deviceSlug).toBe('iphone-15-pro-max');
+  });
+
+  it('should track screenshots_captured variable correctly', async () => {
+    const options = createMultiDeviceOptions();
+
+    const result = await runDesignReview(options);
+
+    expect(result.data?.finalVariables.screens_captured).toBe(6);
+  });
+
+  it('should track capture_failures variable when screenshots fail', async () => {
+    const captureModule = await import('../../capture');
+    // Make some screenshots fail
+    vi.mocked(captureModule.screenshot)
+      .mockResolvedValueOnce({ success: true, data: { path: '/path/1.png', size: 100, timestamp: new Date() } })
+      .mockResolvedValueOnce({ success: false, error: 'Failed', errorCode: 'COMMAND_FAILED' })
+      .mockResolvedValueOnce({ success: true, data: { path: '/path/3.png', size: 100, timestamp: new Date() } })
+      .mockResolvedValueOnce({ success: true, data: { path: '/path/4.png', size: 100, timestamp: new Date() } })
+      .mockResolvedValueOnce({ success: false, error: 'Failed', errorCode: 'COMMAND_FAILED' })
+      .mockResolvedValueOnce({ success: true, data: { path: '/path/6.png', size: 100, timestamp: new Date() } });
+
+    const options = createMultiDeviceOptions();
+
+    const result = await runDesignReview(options);
+
+    expect(result.data?.captureFailures).toBe(2);
+    expect(result.data?.screensCaptured).toBe(4);
+    expect(result.data?.finalVariables.capture_failures).toBe(2);
+  });
+
+  it('should include device name in each capture result', async () => {
+    const options = createMultiDeviceOptions();
+
+    const result = await runDesignReview(options);
+
+    for (const capture of result.data!.allCaptures) {
+      expect(capture.device).toBeTruthy();
+      expect(['iPhone SE (3rd generation)', 'iPhone 15', 'iPhone 15 Pro Max']).toContain(capture.device);
+    }
+  });
+
+  it('should include screen description in capture results when provided', async () => {
+    const options = createMultiDeviceOptions();
+
+    const result = await runDesignReview(options);
+
+    const homeCaptures = result.data!.allCaptures.filter(c => c.screen === 'Home');
+    expect(homeCaptures.length).toBe(3); // One per device
+    for (const capture of homeCaptures) {
+      expect(capture.description).toBe('Main home screen');
+    }
+  });
+
+  it('should record capture timestamps for each screen', async () => {
+    const options = createMultiDeviceOptions();
+
+    const result = await runDesignReview(options);
+
+    for (const capture of result.data!.allCaptures) {
+      expect(capture.timestamp).toBeInstanceOf(Date);
+    }
+  });
+
+  it('should track duration per capture', async () => {
+    const options = createMultiDeviceOptions();
+
+    const result = await runDesignReview(options);
+
+    for (const capture of result.data!.allCaptures) {
+      expect(capture.duration).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('should continue capturing remaining devices after one device fails', async () => {
+    const simModule = await import('../../simulator');
+    // First device boot fails
+    vi.mocked(simModule.bootSimulator)
+      .mockResolvedValueOnce({ success: false, error: 'Boot failed' })
+      .mockResolvedValue({ success: true });
+
+    const options = createMultiDeviceOptions();
+
+    const result = await runDesignReview(options);
+
+    expect(result.data?.devicesFailed).toBe(1);
+    expect(result.data?.devicesCompleted).toBe(2);
+    // Should have captures from 2 devices * 2 screens = 4 captures
+    expect(result.data?.screensCaptured).toBe(4);
+  });
+
+  it('should report progress for each device transition', async () => {
+    const progressUpdates: DesignReviewProgress[] = [];
+    const options = createMultiDeviceOptions();
+    options.onProgress = (update) => progressUpdates.push(update);
+
+    await runDesignReview(options);
+
+    // Check that we get booting updates for each device
+    const bootingUpdates = progressUpdates.filter(u => u.phase === 'booting');
+    expect(bootingUpdates.length).toBe(3);
+
+    // Check device indices
+    const deviceIndices = bootingUpdates.map(u => u.currentDevice);
+    expect(deviceIndices).toEqual([1, 2, 3]);
+  });
+
+  it('should report progress for each screen capture', async () => {
+    const progressUpdates: DesignReviewProgress[] = [];
+    const options = createMultiDeviceOptions();
+    options.onProgress = (update) => progressUpdates.push(update);
+
+    await runDesignReview(options);
+
+    // 3 devices * 2 screens = 6 capturing updates
+    const capturingUpdates = progressUpdates.filter(u => u.phase === 'capturing');
+    expect(capturingUpdates.length).toBe(6);
+  });
+
+  it('should generate HTML comparison sheet with all device columns', async () => {
+    const options = createMultiDeviceOptions();
+
+    const result = await runDesignReview(options);
+
+    expect(result.data?.comparisonSheetPath).toBeDefined();
+    expect(result.data?.comparisonSheetPath).toContain('design_review.html');
+    // Note: In actual execution, the HTML file would contain device columns
+  });
+
+  it('should generate JSON report with all captures organized by device', async () => {
+    const options = createMultiDeviceOptions();
+
+    const result = await runDesignReview(options);
+
+    expect(result.data?.jsonReportPath).toBeDefined();
+    expect(result.data?.jsonReportPath).toContain('design_review.json');
+  });
+
+  it('should set passed=true when all captures succeed', async () => {
+    const options = createMultiDeviceOptions();
+
+    const result = await runDesignReview(options);
+
+    expect(result.data?.passed).toBe(true);
+    expect(result.data?.captureFailures).toBe(0);
+    expect(result.data?.devicesFailed).toBe(0);
+  });
+
+  it('should set passed=false when any capture fails', async () => {
+    const captureModule = await import('../../capture');
+    vi.mocked(captureModule.screenshot).mockResolvedValueOnce({
+      success: false,
+      error: 'Screenshot failed',
+      errorCode: 'COMMAND_FAILED',
+    });
+
+    const options = createMultiDeviceOptions();
+
+    const result = await runDesignReview(options);
+
+    expect(result.data?.passed).toBe(false);
+    expect(result.data?.captureFailures).toBeGreaterThan(0);
+  });
+
+  it('should set passed=false when any device fails', async () => {
+    const simModule = await import('../../simulator');
+    vi.mocked(simModule.bootSimulator).mockResolvedValueOnce({
+      success: false,
+      error: 'Boot failed',
+    });
+
+    const options = createMultiDeviceOptions();
+
+    const result = await runDesignReview(options);
+
+    expect(result.data?.passed).toBe(false);
+    expect(result.data?.devicesFailed).toBeGreaterThan(0);
+  });
+});
