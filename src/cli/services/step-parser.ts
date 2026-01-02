@@ -28,6 +28,9 @@ import {
   SnapshotStep,
   InspectStep,
   PlaybookStep,
+  BaselineStep,
+  DiffStep,
+  RegressionStep,
   STEP_PATTERN,
   IS_IOS_STEP_PATTERN,
 } from './step-types';
@@ -355,6 +358,14 @@ function resolveStep(raw: RawParsedStep, context?: ParseContext): IOSStep | null
     // Playbook execution
     case 'ios.playbook':
       return resolvePlaybook(raw, base, context);
+
+    // Visual regression
+    case 'ios.baseline':
+      return resolveBaseline(raw, base, context);
+    case 'ios.diff':
+      return resolveDiff(raw, base, context);
+    case 'ios.regression':
+      return resolveRegression(raw, base, context);
 
     default:
       throw new Error(`Unknown step type: ${raw.type}`);
@@ -951,5 +962,160 @@ function resolvePlaybook(
     continueOnError,
     sessionId,
     timeout,
+  };
+}
+
+/**
+ * Resolve a baseline step.
+ *
+ * Supports syntax:
+ *   - ios.baseline: { save: "screen_name" }
+ *   - ios.baseline: { update: "screen_name" }
+ *   - ios.baseline: { save: "step_1", after_step: 1 }
+ *   - ios.baseline: { list: true, project: "MyApp" }
+ */
+function resolveBaseline(
+  raw: RawParsedStep,
+  base: Pick<IOSStep, 'lineNumber' | 'rawText'>,
+  context?: ParseContext
+): BaselineStep {
+  const value = raw.value;
+
+  if (typeof value !== 'object') {
+    throw new Error('ios.baseline requires an object with action (save, update, delete, list, or show)');
+  }
+
+  const obj = value as Record<string, unknown>;
+
+  // Determine action from object keys
+  let action: BaselineStep['action'] = 'save';
+  let name: string | undefined;
+
+  if (obj.save) {
+    action = 'save';
+    name = obj.save as string;
+  } else if (obj.update) {
+    action = 'update';
+    name = obj.update as string;
+  } else if (obj.delete) {
+    action = 'delete';
+    name = obj.delete as string;
+  } else if (obj.show) {
+    action = 'show';
+    name = obj.show as string;
+  } else if (obj.list) {
+    action = 'list';
+    // list doesn't require a name
+  } else if (obj.name) {
+    // Explicit action + name format
+    action = (obj.action as BaselineStep['action']) || 'save';
+    name = obj.name as string;
+  }
+
+  return {
+    ...base,
+    type: 'ios.baseline',
+    action,
+    name,
+    project: obj.project as string | undefined,
+    deviceFamily: (obj.deviceFamily || obj.device_family) as string | undefined,
+    autoDeviceFamily: (obj.autoDeviceFamily || obj.auto_device_family) as boolean | undefined,
+    description: obj.description as string | undefined,
+    tags: obj.tags as string[] | undefined,
+    afterStep: (obj.afterStep || obj.after_step) as number | undefined,
+    bundleId: (obj.bundleId as string | undefined) || context?.bundleId,
+  };
+}
+
+/**
+ * Resolve a diff step.
+ *
+ * Supports syntax:
+ *   - ios.diff: { baseline: "screen_name" }
+ *   - ios.diff: { baseline: "screen_name", threshold: 0.05 }
+ *   - ios.diff: { flow: "checkout_flow" }
+ *   - ios.diff: { all: true, project: "MyApp" }
+ */
+function resolveDiff(
+  raw: RawParsedStep,
+  base: Pick<IOSStep, 'lineNumber' | 'rawText'>,
+  context?: ParseContext
+): DiffStep {
+  const value = raw.value;
+
+  if (typeof value === 'string') {
+    // Simple format: ios.diff: "screen_name"
+    return {
+      ...base,
+      type: 'ios.diff',
+      baseline: value,
+      bundleId: context?.bundleId,
+    };
+  }
+
+  if (typeof value !== 'object') {
+    throw new Error('ios.diff requires a baseline name or configuration object');
+  }
+
+  const obj = value as Record<string, unknown>;
+
+  return {
+    ...base,
+    type: 'ios.diff',
+    baseline: obj.baseline as string | undefined,
+    flow: obj.flow as string | undefined,
+    all: obj.all as boolean | undefined,
+    project: obj.project as string | undefined,
+    threshold: obj.threshold as number | undefined,
+    output: obj.output as string | undefined,
+    update: obj.update as boolean | undefined,
+    deviceFamily: (obj.deviceFamily || obj.device_family) as string | undefined,
+    bundleId: (obj.bundleId as string | undefined) || context?.bundleId,
+  };
+}
+
+/**
+ * Resolve a regression step.
+ *
+ * Supports syntax:
+ *   - ios.regression: { project: "MyApp" }
+ *   - ios.regression: { project: "MyApp", mode: "quick" }
+ *   - ios.regression: { project: "MyApp", threshold: 0.05, fail_fast: true }
+ */
+function resolveRegression(
+  raw: RawParsedStep,
+  base: Pick<IOSStep, 'lineNumber' | 'rawText'>,
+  context?: ParseContext
+): RegressionStep {
+  const value = raw.value;
+
+  if (typeof value === 'string') {
+    // Simple format: ios.regression: "project_name"
+    return {
+      ...base,
+      type: 'ios.regression',
+      project: value,
+      bundleId: context?.bundleId,
+    };
+  }
+
+  if (typeof value !== 'object') {
+    throw new Error('ios.regression requires a project name or configuration object');
+  }
+
+  const obj = value as Record<string, unknown>;
+
+  return {
+    ...base,
+    type: 'ios.regression',
+    project: obj.project as string | undefined,
+    mode: obj.mode as RegressionStep['mode'] | undefined,
+    threshold: obj.threshold as number | undefined,
+    output: obj.output as string | undefined,
+    failFast: (obj.failFast || obj.fail_fast) as boolean | undefined,
+    update: obj.update as boolean | undefined,
+    deviceFamily: (obj.deviceFamily || obj.device_family) as string | undefined,
+    verbose: obj.verbose as boolean | undefined,
+    bundleId: (obj.bundleId as string | undefined) || context?.bundleId,
   };
 }

@@ -357,20 +357,43 @@
 
 ## IPC Handlers
 
-- [ ] Add visual regression IPC handlers
-  - [ ] Register `ios:baseline:save` handler
-  - [ ] Register `ios:baseline:update` handler
-  - [ ] Register `ios:baseline:list` handler
-  - [ ] Register `ios:baseline:delete` handler
-  - [ ] Register `ios:diff:compare` handler
-  - [ ] Register `ios:diff:flow` handler
-  - [ ] Register `ios:regression:run` handler
+- [x] Add visual regression IPC handlers
+  - [x] Register `ios:baseline:save` handler
+  - [x] Register `ios:baseline:update` handler
+  - [x] Register `ios:baseline:list` handler
+  - [x] Register `ios:baseline:delete` handler
+  - [x] Register `ios:diff:compare` handler
+  - [x] Register `ios:diff:flow` handler
+  - [x] Register `ios:regression:run` handler
+
+  **Completed**: Added comprehensive IPC handlers in `src/main/ipc/handlers/ios.ts` and corresponding API methods in `src/main/preload.ts`:
+
+  **Baseline handlers** (`ios:baseline:*`):
+  - `save` - Create new baseline with optional device family auto-detection
+  - `update` - Update existing baseline with new screenshot
+  - `list` - List baselines with device family filter
+  - `delete` - Remove baseline
+  - `get` - Get baseline details including metadata and paths
+  - `projects` - List all projects with baselines
+  - `addIgnoreRegion` - Add dynamic ignore regions
+  - `coverage` - Get device baseline coverage report
+  - `export` - Export baselines for sharing
+  - `import` - Import baselines
+
+  **Diff/Comparison handlers** (`ios:diff:*`):
+  - `compare` - Compare screenshot against baseline with full analysis and agent-formatted output
+  - `flow` - Compare multi-step flow against baseline sequence
+
+  **Regression handlers** (`ios:regression:*`):
+  - `run` - Execute full regression test suite with configurable options (threshold, failFast, updateOnFail, mode)
+
+  All handlers use `withIpcErrorLogging` for consistent error handling and are accessible via `window.maestro.ios.baseline.*`, `window.maestro.ios.diff.*`, and `window.maestro.ios.regression.*`.
 
 ---
 
 ## Auto Run Integration
 
-- [ ] Enable visual regression in Auto Run
+- [x] Enable visual regression in Auto Run
   ```markdown
   ## Visual Regression Check
 
@@ -384,6 +407,7 @@
     - ios.diff: { baseline: "login_step_1", threshold: 0.01 }
     - ios.assert: { condition: "diff.match", message: "Login step 1 matches baseline" }
   ```
+  **Completed**: Added `ios.baseline`, `ios.diff`, and `ios.regression` step types to the Auto Run step parser and executor. Step types are defined in `step-types.ts`, parsing is handled in `step-parser.ts` (with `resolveBaseline`, `resolveDiff`, `resolveRegression` functions), and execution is implemented in `step-executor.ts` (with `executeBaseline`, `executeDiff`, `executeRegression` functions). All 90 step-parser tests pass including 26 new visual regression tests.
 
 ---
 

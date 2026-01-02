@@ -615,3 +615,229 @@ describe('playbook steps', () => {
     });
   });
 });
+
+// =============================================================================
+// Visual Regression Step Tests (Phase 7)
+// =============================================================================
+
+import type { BaselineStep, DiffStep, RegressionStep } from '../step-types';
+
+describe('visual regression steps', () => {
+  describe('isIOSStep with visual regression', () => {
+    it('should detect ios.baseline pattern', () => {
+      expect(isIOSStep('- ios.baseline: { "save": "login_screen" }')).toBe(true);
+      expect(isIOSStep('  - ios.baseline: { "update": "home_screen" }')).toBe(true);
+      expect(isIOSStep('- ios.baseline: { "list": true }')).toBe(true);
+    });
+
+    it('should detect ios.diff pattern', () => {
+      expect(isIOSStep('- ios.diff: { "baseline": "login_screen" }')).toBe(true);
+      expect(isIOSStep('- ios.diff: "screen_name"')).toBe(true);
+      expect(isIOSStep('- ios.diff: { "all": true, "project": "MyApp" }')).toBe(true);
+    });
+
+    it('should detect ios.regression pattern', () => {
+      expect(isIOSStep('- ios.regression: { "project": "MyApp" }')).toBe(true);
+      expect(isIOSStep('- ios.regression: "project_name"')).toBe(true);
+    });
+  });
+
+  describe('parseLine with ios.baseline', () => {
+    it('should parse ios.baseline save action', () => {
+      const result = parseLine('- ios.baseline: { "save": "login_screen" }', 1) as BaselineStep;
+      expect(result).not.toBeNull();
+      expect(result.type).toBe('ios.baseline');
+      expect(result.action).toBe('save');
+      expect(result.name).toBe('login_screen');
+    });
+
+    it('should parse ios.baseline update action', () => {
+      const result = parseLine('- ios.baseline: { "update": "home_screen" }', 1) as BaselineStep;
+      expect(result).not.toBeNull();
+      expect(result.type).toBe('ios.baseline');
+      expect(result.action).toBe('update');
+      expect(result.name).toBe('home_screen');
+    });
+
+    it('should parse ios.baseline delete action', () => {
+      const result = parseLine('- ios.baseline: { "delete": "old_screen" }', 1) as BaselineStep;
+      expect(result).not.toBeNull();
+      expect(result.type).toBe('ios.baseline');
+      expect(result.action).toBe('delete');
+      expect(result.name).toBe('old_screen');
+    });
+
+    it('should parse ios.baseline list action', () => {
+      const result = parseLine('- ios.baseline: { "list": true }', 1) as BaselineStep;
+      expect(result).not.toBeNull();
+      expect(result.type).toBe('ios.baseline');
+      expect(result.action).toBe('list');
+    });
+
+    it('should parse ios.baseline show action', () => {
+      const result = parseLine('- ios.baseline: { "show": "login_screen" }', 1) as BaselineStep;
+      expect(result).not.toBeNull();
+      expect(result.type).toBe('ios.baseline');
+      expect(result.action).toBe('show');
+      expect(result.name).toBe('login_screen');
+    });
+
+    it('should parse ios.baseline with project and device family', () => {
+      const result = parseLine('- ios.baseline: { "save": "screen", "project": "MyApp", "device_family": "iphone-standard" }', 1) as BaselineStep;
+      expect(result).not.toBeNull();
+      expect(result.project).toBe('MyApp');
+      expect(result.deviceFamily).toBe('iphone-standard');
+    });
+
+    it('should parse ios.baseline with description and tags', () => {
+      const result = parseLine('- ios.baseline: { "save": "screen", "description": "Login screen baseline", "tags": ["auth", "critical"] }', 1) as BaselineStep;
+      expect(result).not.toBeNull();
+      expect(result.description).toBe('Login screen baseline');
+      expect(result.tags).toEqual(['auth', 'critical']);
+    });
+
+    it('should apply bundleId from context', () => {
+      const result = parseLine('- ios.baseline: { "save": "screen" }', 1, {
+        bundleId: 'com.test.app',
+      }) as BaselineStep;
+      expect(result).not.toBeNull();
+      expect(result.bundleId).toBe('com.test.app');
+    });
+  });
+
+  describe('parseLine with ios.diff', () => {
+    it('should parse ios.diff with simple string (baseline name)', () => {
+      const result = parseLine('- ios.diff: "login_screen"', 1) as DiffStep;
+      expect(result).not.toBeNull();
+      expect(result.type).toBe('ios.diff');
+      expect(result.baseline).toBe('login_screen');
+    });
+
+    it('should parse ios.diff with baseline object', () => {
+      const result = parseLine('- ios.diff: { "baseline": "login_screen", "threshold": 0.05 }', 1) as DiffStep;
+      expect(result).not.toBeNull();
+      expect(result.type).toBe('ios.diff');
+      expect(result.baseline).toBe('login_screen');
+      expect(result.threshold).toBe(0.05);
+    });
+
+    it('should parse ios.diff with flow mode', () => {
+      const result = parseLine('- ios.diff: { "flow": "checkout_flow" }', 1) as DiffStep;
+      expect(result).not.toBeNull();
+      expect(result.flow).toBe('checkout_flow');
+    });
+
+    it('should parse ios.diff with all mode', () => {
+      const result = parseLine('- ios.diff: { "all": true, "project": "MyApp" }', 1) as DiffStep;
+      expect(result).not.toBeNull();
+      expect(result.all).toBe(true);
+      expect(result.project).toBe('MyApp');
+    });
+
+    it('should parse ios.diff with update option', () => {
+      const result = parseLine('- ios.diff: { "baseline": "screen", "update": true }', 1) as DiffStep;
+      expect(result).not.toBeNull();
+      expect(result.update).toBe(true);
+    });
+
+    it('should parse ios.diff with output path', () => {
+      const result = parseLine('- ios.diff: { "baseline": "screen", "output": "/tmp/diff.png" }', 1) as DiffStep;
+      expect(result).not.toBeNull();
+      expect(result.output).toBe('/tmp/diff.png');
+    });
+  });
+
+  describe('parseLine with ios.regression', () => {
+    it('should parse ios.regression with simple string (project name)', () => {
+      const result = parseLine('- ios.regression: "MyApp"', 1) as RegressionStep;
+      expect(result).not.toBeNull();
+      expect(result.type).toBe('ios.regression');
+      expect(result.project).toBe('MyApp');
+    });
+
+    it('should parse ios.regression with project object', () => {
+      const result = parseLine('- ios.regression: { "project": "MyApp", "mode": "quick" }', 1) as RegressionStep;
+      expect(result).not.toBeNull();
+      expect(result.type).toBe('ios.regression');
+      expect(result.project).toBe('MyApp');
+      expect(result.mode).toBe('quick');
+    });
+
+    it('should parse ios.regression with full mode', () => {
+      const result = parseLine('- ios.regression: { "project": "MyApp", "mode": "full" }', 1) as RegressionStep;
+      expect(result).not.toBeNull();
+      expect(result.mode).toBe('full');
+    });
+
+    it('should parse ios.regression with flows-only mode', () => {
+      const result = parseLine('- ios.regression: { "project": "MyApp", "mode": "flows-only" }', 1) as RegressionStep;
+      expect(result).not.toBeNull();
+      expect(result.mode).toBe('flows-only');
+    });
+
+    it('should parse ios.regression with fail_fast option', () => {
+      const result = parseLine('- ios.regression: { "project": "MyApp", "fail_fast": true }', 1) as RegressionStep;
+      expect(result).not.toBeNull();
+      expect(result.failFast).toBe(true);
+    });
+
+    it('should parse ios.regression with verbose option', () => {
+      const result = parseLine('- ios.regression: { "project": "MyApp", "verbose": true }', 1) as RegressionStep;
+      expect(result).not.toBeNull();
+      expect(result.verbose).toBe(true);
+    });
+
+    it('should parse ios.regression with threshold and output', () => {
+      const result = parseLine('- ios.regression: { "project": "MyApp", "threshold": 0.02, "output": "/tmp/diffs" }', 1) as RegressionStep;
+      expect(result).not.toBeNull();
+      expect(result.threshold).toBe(0.02);
+      expect(result.output).toBe('/tmp/diffs');
+    });
+
+    it('should parse ios.regression with update option', () => {
+      const result = parseLine('- ios.regression: { "project": "MyApp", "update": true }', 1) as RegressionStep;
+      expect(result).not.toBeNull();
+      expect(result.update).toBe(true);
+    });
+  });
+
+  describe('parseDocument with visual regression', () => {
+    it('should parse visual regression steps alongside other steps', () => {
+      const content = `
+# Visual Regression Testing
+
+- ios.baseline: { "save": "login_screen" }
+- ios.tap: "#submit"
+- ios.diff: { "baseline": "login_screen" }
+- ios.regression: { "project": "MyApp" }
+`;
+
+      const result = parseDocument(content);
+
+      expect(result.steps).toHaveLength(4);
+      expect(result.errors).toHaveLength(0);
+      expect(result.steps[0].type).toBe('ios.baseline');
+      expect(result.steps[1].type).toBe('ios.tap');
+      expect(result.steps[2].type).toBe('ios.diff');
+      expect(result.steps[3].type).toBe('ios.regression');
+    });
+  });
+
+  describe('extractUncheckedSteps with visual regression', () => {
+    it('should extract unchecked visual regression steps', () => {
+      const content = `
+- [ ] ios.baseline: { "save": "screen1" }
+- [x] ios.baseline: { "save": "completed" }
+- [ ] ios.diff: { "baseline": "screen1" }
+- [ ] ios.regression: { "project": "MyApp" }
+`;
+
+      const steps = extractUncheckedSteps(content);
+
+      expect(steps).toHaveLength(3);
+      expect(steps[0].type).toBe('ios.baseline');
+      expect(steps[1].type).toBe('ios.diff');
+      expect(steps[2].type).toBe('ios.regression');
+    });
+  });
+});

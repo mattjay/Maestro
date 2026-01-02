@@ -75,7 +75,11 @@ export type StepType =
   | 'ios.snapshot'
   | 'ios.inspect'
   // Playbook execution
-  | 'ios.playbook';
+  | 'ios.playbook'
+  // Visual regression
+  | 'ios.baseline'
+  | 'ios.diff'
+  | 'ios.regression';
 
 // =============================================================================
 // Step Definitions
@@ -266,6 +270,104 @@ export interface PlaybookStep extends BaseStep {
   timeout?: number;
 }
 
+/**
+ * Visual baseline step.
+ *
+ * Captures and manages visual baselines for regression testing.
+ *
+ * Syntax examples:
+ *   - ios.baseline: { save: "login_screen" }
+ *   - ios.baseline: { save: "home_screen", project: "MyApp" }
+ *   - ios.baseline: { update: "login_screen" }
+ *   - ios.baseline: { save: "step_1", after_step: 1 }
+ */
+export interface BaselineStep extends BaseStep {
+  type: 'ios.baseline';
+  /** Action to perform: save, update, delete, list, show */
+  action: 'save' | 'update' | 'delete' | 'list' | 'show';
+  /** Baseline name (required for save, update, delete, show) */
+  name?: string;
+  /** Project name for organizing baselines */
+  project?: string;
+  /** Device family for device-specific baselines */
+  deviceFamily?: string;
+  /** Auto-detect device family from simulator */
+  autoDeviceFamily?: boolean;
+  /** Description for the baseline */
+  description?: string;
+  /** Tags for categorizing baselines */
+  tags?: string[];
+  /** After which flow step to capture (for flow integration) */
+  afterStep?: number;
+  /** Bundle ID for app context */
+  bundleId?: string;
+}
+
+/**
+ * Visual diff step.
+ *
+ * Compares current screen against a baseline.
+ *
+ * Syntax examples:
+ *   - ios.diff: { baseline: "login_screen" }
+ *   - ios.diff: { baseline: "home_screen", threshold: 0.01 }
+ *   - ios.diff: { flow: "checkout_flow" }
+ *   - ios.diff: { all: true, project: "MyApp" }
+ */
+export interface DiffStep extends BaseStep {
+  type: 'ios.diff';
+  /** Baseline name to compare against */
+  baseline?: string;
+  /** Flow name to compare all steps */
+  flow?: string;
+  /** Compare all baselines in project */
+  all?: boolean;
+  /** Project name */
+  project?: string;
+  /** Pixel difference threshold (0-1), default 0.1 */
+  threshold?: number;
+  /** Path to save diff image */
+  output?: string;
+  /** Update baseline if different */
+  update?: boolean;
+  /** Device family filter */
+  deviceFamily?: string;
+  /** Bundle ID for app context */
+  bundleId?: string;
+}
+
+/**
+ * Visual regression step.
+ *
+ * Runs comprehensive regression testing against all baselines.
+ *
+ * Syntax examples:
+ *   - ios.regression: { project: "MyApp" }
+ *   - ios.regression: { project: "MyApp", mode: "quick" }
+ *   - ios.regression: { project: "MyApp", threshold: 0.05, fail_fast: true }
+ */
+export interface RegressionStep extends BaseStep {
+  type: 'ios.regression';
+  /** Project name to run regression on */
+  project?: string;
+  /** Regression mode: full, quick, flows-only */
+  mode?: 'full' | 'quick' | 'flows-only';
+  /** Pixel difference threshold (0-1), default 0.1 */
+  threshold?: number;
+  /** Output directory for diff images and reports */
+  output?: string;
+  /** Stop on first failure */
+  failFast?: boolean;
+  /** Update baselines that fail */
+  update?: boolean;
+  /** Device family filter */
+  deviceFamily?: string;
+  /** Verbose output with details for each comparison */
+  verbose?: boolean;
+  /** Bundle ID for app context */
+  bundleId?: string;
+}
+
 /** Union of all step types */
 export type IOSStep =
   | AssertVisibleStep
@@ -285,7 +387,10 @@ export type IOSStep =
   | SwipeStep
   | SnapshotStep
   | InspectStep
-  | PlaybookStep;
+  | PlaybookStep
+  | BaselineStep
+  | DiffStep
+  | RegressionStep;
 
 // =============================================================================
 // Step Execution Results
