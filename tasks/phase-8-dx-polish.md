@@ -167,9 +167,9 @@
 
 ### Project Configuration
 
-- [ ] Create `src/main/ios-tools/config.ts`
-  - [ ] Store project-level iOS configuration
-  - [ ] Support `.maestro/ios-config.json`
+- [x] Create `src/main/ios-tools/config.ts`
+  - [x] Store project-level iOS configuration
+  - [x] Support `.maestro/ios-config.json`
 
   ```json
   {
@@ -199,9 +199,20 @@
   }
   ```
 
+  **Completed Notes:**
+  - Created comprehensive config module with 64 unit tests
+  - `IOSProjectConfig` interface with full project, simulator, XCUITest, bridge, baselines, and flows settings
+  - `IOSGlobalSettings` interface for user-wide settings (default simulator, screenshot format, log retention, diff threshold)
+  - `IOSMergedConfig` combines project + global with effective values resolved via precedence
+  - Functions: `loadProjectConfig`, `saveProjectConfig`, `updateProjectConfig`, `deleteProjectConfig`
+  - Validation functions with errors, warnings, and suggestions
+  - Recent projects tracking in global settings
+  - Path utilities: `resolveProjectPath`, `getEffectiveFlowsDirectory`, `getEffectiveBaselinesDirectory`
+  - Exported from `ios-tools/index.ts` with proper naming to avoid conflicts
+
 ### Global Configuration
 
-- [ ] Support global iOS settings in `~/.maestro/ios-settings.json`
+- [x] Support global iOS settings in `~/.maestro/ios-settings.json`
   ```json
   {
     "defaultSimulator": "iPhone 15 Pro",
@@ -210,6 +221,11 @@
     "logRetentionDays": 7
   }
   ```
+
+  **Completed Notes:**
+  - Includes: `defaultSimulator`, `defaultSimulatorUdid`, `maestroCliPath`, `screenshotFormat`, `logRetentionDays`, `defaultBridgePort`, `autoBootSimulator`, `diffThreshold`, `telemetry`, `recentProjects`, `customFlowsDirectory`, `customBaselinesDirectory`
+  - Functions: `loadGlobalSettings`, `saveGlobalSettings`, `updateGlobalSettings`, `initializeGlobalSettings`
+  - Falls back to sensible defaults when file doesn't exist
 
 ---
 

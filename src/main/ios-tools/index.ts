@@ -1306,3 +1306,65 @@ export type {
   JSONExportData,
   JSONTestResult,
 } from './ci-export';
+
+// =============================================================================
+// Configuration Management
+// =============================================================================
+
+export {
+  // Constants
+  CONFIG_VERSION,
+  CONFIG_DIRECTORY,
+  PROJECT_CONFIG_FILENAME,
+  GLOBAL_CONFIG_DIRECTORY,
+  GLOBAL_SETTINGS_FILENAME,
+  DEFAULT_FLOWS_DIRECTORY as CONFIG_DEFAULT_FLOWS_DIRECTORY,  // Renamed to avoid conflict
+  DEFAULT_BASELINES_DIRECTORY as CONFIG_DEFAULT_BASELINES_DIRECTORY,  // Renamed to avoid conflict
+  DEFAULT_BRIDGE_PORT as CONFIG_DEFAULT_BRIDGE_PORT,  // Renamed to avoid conflict
+  DEFAULT_SCREENSHOT_FORMAT,
+  DEFAULT_LOG_RETENTION_DAYS,
+  // Default value functions
+  getDefaultGlobalSettings,
+  getDefaultProjectConfig,
+  // Path utilities
+  getGlobalConfigDirectory,
+  getGlobalSettingsPath,
+  getProjectConfigDirectory,
+  getProjectConfigPath,
+  // Global settings operations
+  hasGlobalSettings,
+  loadGlobalSettings,
+  saveGlobalSettings,
+  updateGlobalSettings,
+  // Project config operations
+  hasProjectConfig,
+  loadProjectConfig,
+  saveProjectConfig,
+  updateProjectConfig,
+  deleteProjectConfig,
+  // Merged config
+  loadMergedConfig,
+  // Validation
+  validateProjectConfig,
+  validateGlobalSettings,
+  // Recent projects
+  addRecentProject,
+  getRecentProjects,
+  clearRecentProjects,
+  // Initialization
+  initializeGlobalSettings,
+  initializeProjectConfig,
+  // Utility functions
+  resolveProjectPath,
+  getEffectiveFlowsDirectory,
+  getEffectiveBaselinesDirectory,
+  formatConfig,
+  formatMergedConfigSummary,
+} from './config';
+export type {
+  IOSProjectConfig,
+  IOSGlobalSettings,
+  IOSMergedConfig,
+  ConfigValidationResult,
+  RecentProject,
+} from './config';
