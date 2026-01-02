@@ -455,11 +455,35 @@
 
 ## Documentation
 
-- [ ] Document Swift package usage
-- [ ] Document all endpoints
-- [ ] Document security model
-- [ ] Document slash commands
-- [ ] Provide sample app with bridge
+- [x] Document Swift package usage
+  > **Completed:** Added comprehensive MaestroBridge section to `docs/ios-development.md` covering:
+  > - Overview and Quick Start guide for AppDelegate and SwiftUI
+  > - Installation via Swift Package Manager with debug-only configuration
+  > - All six bridge slash commands with examples and output formats
+- [x] Document all endpoints
+  > **Completed:** HTTP Endpoints Reference table in `docs/ios-development.md` documents all 15 endpoints:
+  > - `/ping`, `/state`, `/state/{key}`, `/route`, `/route/stack`, `/route/history`
+  > - `/network`, `/network/{id}`, DELETE `/network`, `/analytics`, `/analytics/sources`, DELETE `/analytics`
+  > - `/flags`, `/flags/{name}`, POST `/state/set`
+  > - Authentication via Bearer token documented
+- [x] Document security model
+  > **Completed:** Security Model section in `docs/ios-development.md` covers all 6 layers:
+  > - Compile-Time Guards, Build Configuration, Runtime Assertion
+  > - Localhost Binding, Token Authentication, State Mutation Guards
+  > - Best practices for secure usage
+- [x] Document slash commands
+  > **Completed:** Bridge Slash Commands section in `docs/ios-development.md` documents all commands:
+  > - `/ios.bridge.state` with key and --json options
+  > - `/ios.bridge.route` with --stack option
+  > - `/ios.bridge.network` with --last and --errors options
+  > - `/ios.bridge.analytics` with --filter and --last options
+  > - `/ios.bridge.flags` with flag name argument
+  > - `/ios.bridge.set` with --confirm requirement
+- [x] Provide sample app with bridge
+  > **Completed:** Sample app integration provided in multiple forms:
+  > - `IntegrationTests.swift` contains `SampleAppIntegration` class with User, Cart, AppSettings models
+  > - README.md in MaestroBridge package contains full AppDelegate example
+  > - `docs/ios-development.md` contains Quick Start code for AppDelegate and SwiftUI
 
 ## Acceptance Criteria
 
