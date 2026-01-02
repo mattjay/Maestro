@@ -1368,3 +1368,40 @@ export type {
   ConfigValidationResult,
   RecentProject,
 } from './config';
+
+// =============================================================================
+// Contextual Tips
+// =============================================================================
+
+export {
+  // Constants
+  DOCS_BASE_URL,
+  DOCS_PAGES,
+  // Documentation link functions
+  getDocLink,
+  getCommandDocLink,
+  getErrorDocLink,
+  // Next steps
+  getNextSteps,
+  // Error tips
+  getErrorTip,
+  // Contextual tips generation
+  generateContextualTips,
+  // Formatting functions
+  formatContextualTips,
+  formatNextSteps,
+  formatErrorTip,
+  formatCompactTip,
+  // Workflow suggestions
+  WORKFLOW_SUGGESTIONS,
+  getWorkflowSuggestions,
+  formatWorkflowSuggestion,
+} from './contextual-tips';
+export type {
+  IOSCommand,
+  ContextualTip,
+  ActionContext,
+  NextStep,
+  ErrorTip,
+  WorkflowSuggestion,
+} from './contextual-tips';

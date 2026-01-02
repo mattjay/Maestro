@@ -304,10 +304,20 @@
   - [x] Examples for each command *(Extended examples available with `--examples` or `-e` flag)*
   - [x] Common troubleshooting *(Full troubleshooting guide with `--troubleshoot` or `-t` flag covering: Xcode setup, simulators, Maestro CLI, element interactions, flow automation, visual regression, and MaestroBridge)*
 
-- [ ] Create contextual tips
-  - [ ] Show tips when errors occur
-  - [ ] Suggest next steps after actions
-  - [ ] Link to relevant documentation
+- [x] Create contextual tips *(Completed: Created comprehensive contextual tips system at `src/main/ios-tools/contextual-tips.ts` with 81 passing tests)*
+  - [x] Show tips when errors occur *(Error tips with title, message, recovery tips, quick fixes, doc links, and related commands for all IOSErrorCode and InteractionErrorCode values)*
+  - [x] Suggest next steps after actions *(Next steps generated for all commands based on success/failure state and action context)*
+  - [x] Link to relevant documentation *(Documentation links via `getDocLink()`, `getCommandDocLink()`, `getErrorDocLink()` pointing to docs.runmaestro.ai/ios-development)*
+
+  **Implementation Notes (Jan 2, 2026):**
+  - Core types: `IOSCommand`, `ContextualTip`, `ActionContext`, `NextStep`, `ErrorTip`, `WorkflowSuggestion`
+  - Documentation helpers: `DOCS_BASE_URL`, `DOCS_PAGES`, `getDocLink()`, `getCommandDocLink()`, `getErrorDocLink()`
+  - Next step generation via `getNextSteps()` for all iOS commands (snapshot, inspect, tap, type, scroll, swipe, run_flow, playbook, baseline, diff, regression, setup, bridge.*)
+  - Error tips via `getErrorTip()` covering environment, element interaction, Maestro/flow, and screenshot/timeout errors
+  - Contextual tips generation via `generateContextualTips()` with priority-based sorting
+  - Workflow suggestions: Feature Development, Visual Regression Setup, Debug Element Issue, Environment Check
+  - Formatting functions: `formatContextualTips()`, `formatNextSteps()`, `formatErrorTip()`, `formatCompactTip()`, `formatWorkflowSuggestion()`
+  - Exported from `ios-tools/index.ts` for use in slash commands
 
 ### Online Documentation
 
