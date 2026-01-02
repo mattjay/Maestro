@@ -128,6 +128,17 @@ export {
   type BridgeCommandResult,
 } from './ios-bridge';
 
+// iOS Baseline Command
+export {
+  executeBaselineCommand,
+  parseBaselineArgs,
+  baselineCommandMetadata,
+  type BaselineSubcommand,
+  type IgnoreRegionArg,
+  type BaselineCommandArgs,
+  type BaselineCommandResult,
+} from './ios-baseline';
+
 // Command registry for all slash commands
 export interface SlashCommandMetadata {
   command: string;
@@ -158,6 +169,7 @@ import {
   bridgeFlagsCommandMetadata,
   bridgeSetCommandMetadata,
 } from './ios-bridge';
+import { baselineCommandMetadata } from './ios-baseline';
 
 export const iosSlashCommandMetadata: SlashCommandMetadata[] = [
   snapshotCommandMetadata,
@@ -174,4 +186,5 @@ export const iosSlashCommandMetadata: SlashCommandMetadata[] = [
   bridgeAnalyticsCommandMetadata,
   bridgeFlagsCommandMetadata,
   bridgeSetCommandMetadata,
+  baselineCommandMetadata,
 ];
