@@ -415,14 +415,28 @@
 
 ### HTML Report Generation
 
-- [ ] Create `src/main/ios-tools/regression-report.ts`
-  - [ ] Generate HTML report with:
-    - [ ] Summary statistics
-    - [ ] Thumbnail grid of all comparisons
-    - [ ] Side-by-side comparison viewer
-    - [ ] Diff overlay toggle
-    - [ ] Filter by status (passed/failed)
-    - [ ] Zoom and pan controls
+- [x] Create `src/main/ios-tools/regression-report.ts`
+  - [x] Generate HTML report with:
+    - [x] Summary statistics
+    - [x] Thumbnail grid of all comparisons
+    - [x] Side-by-side comparison viewer
+    - [x] Diff overlay toggle
+    - [x] Filter by status (passed/failed)
+    - [x] Zoom and pan controls
+  **Completed**: Created comprehensive `regression-report.ts` module with:
+  - `generateHTMLReport(entries, options)` - Generate HTML from RegressionEntry array
+  - `generateHTMLFromReport(report, options)` - Generate HTML from RegressionReport object
+  - Interactive features: thumbnail grid with click-to-expand, side-by-side/overlay/diff/swipe view modes
+  - Filter controls: All/Passed/Failed/Errors/Updated filter buttons + search input
+  - Zoom controls: +/- buttons and fit-to-screen option
+  - Keyboard navigation: Escape to close, Arrow keys to navigate between comparisons
+  - Dark mode support with CSS custom properties
+  - HTML escaping for security (XSS prevention)
+  - Embedded images option (base64) for self-contained reports
+  - Custom CSS injection support
+  - Exports: `HTMLReportOptions`, `HTMLReportEntry`, `HTMLReportResult`, `ReportSummary` types
+  - Added 48 passing unit tests in `__tests__/regression-report.test.ts`
+  - Exported from `ios-tools/index.ts`
 
 ### CI Integration
 

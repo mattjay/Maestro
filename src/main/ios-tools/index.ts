@@ -1253,3 +1253,23 @@ export type {
   IgnoreRegionSuggestion,
   IgnoreRegionValidation,
 } from './ignore-regions';
+
+// =============================================================================
+// HTML Regression Report Generation
+// =============================================================================
+
+export {
+  // Main functions
+  generateHTMLReport,
+  generateHTMLFromReport,
+  // Constants
+  DEFAULT_REPORT_TITLE,
+  DEFAULT_THUMBNAIL_WIDTH,
+  DEFAULT_THUMBNAIL_HEIGHT,
+} from './regression-report';
+export type {
+  HTMLReportOptions,
+  HTMLReportEntry,
+  HTMLReportResult,
+  ReportSummary,
+} from './regression-report';
