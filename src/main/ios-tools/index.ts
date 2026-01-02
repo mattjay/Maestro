@@ -1160,3 +1160,30 @@ export type {
   ImageDiffErrorCode,
   ImageDiffError,
 } from './image-diff';
+
+// =============================================================================
+// Diff Formatting (Agent-Consumable Output)
+// =============================================================================
+
+export {
+  // Main formatting functions
+  formatDiffForAgent,
+  formatRegressionReport,
+  // Change formatting
+  formatChange,
+  formatChangeSummaryCompact,
+  // JSON output
+  formatDiffAsJson,
+  // Helpers
+  formatSeverity,
+  calculateSeverityBreakdown,
+  // Constants
+  DEFAULT_MAX_REGIONS,
+  SEVERITY_THRESHOLDS as DIFF_SEVERITY_THRESHOLDS,  // Renamed to avoid conflict
+} from './diff-formatter';
+export type {
+  DiffFormatOptions,
+  FormattedDiff,
+  RegressionEntry,
+  FormattedRegressionReport,
+} from './diff-formatter';

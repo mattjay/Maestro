@@ -211,8 +211,8 @@
 
 ## Agent-Consumable Output
 
-- [ ] Create `src/main/ios-tools/diff-formatter.ts`
-  - [ ] Format comparison results for agent
+- [x] Create `src/main/ios-tools/diff-formatter.ts`
+  - [x] Format comparison results for agent
     ```
     ## Visual Comparison: login_screen
 
@@ -243,7 +243,19 @@
     `/ios.baseline update login_screen`
     ```
 
-  - [ ] Implement `formatRegressionReport(results)` - full regression summary
+  - [x] Implement `formatRegressionReport(results)` - full regression summary
+
+  **Completed**: Created comprehensive diff-formatter.ts module with:
+  - `formatDiffForAgent()` - formats single comparison with status, similarity, changed pixels, changed regions with severity indicators (🔴/🟡/🟢), file paths, and recommendations
+  - `formatRegressionReport()` - formats full regression report with summary statistics, results table, detailed failure info, error sections, and recommendations
+  - `formatChange()` - formats individual change entries
+  - `formatChangeSummaryCompact()` - compact summary of changes
+  - `formatDiffAsJson()` - JSON output for programmatic consumption
+  - Helper functions: `formatSeverity()`, `calculateSeverityBreakdown()`
+  - Constants: `DEFAULT_MAX_REGIONS` (10), `SEVERITY_THRESHOLDS` (HIGH: 0.7, MEDIUM: 0.3)
+  - All types exported: `DiffFormatOptions`, `FormattedDiff`, `RegressionEntry`, `FormattedRegressionReport`
+  - Added 50 passing unit tests in `__tests__/diff-formatter.test.ts`
+  - Exported from `ios-tools/index.ts`
 
 ---
 
