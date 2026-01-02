@@ -439,7 +439,14 @@
   > **Completed:** Interceptor tests:
   > - `NetworkInterceptorAdvancedTests` (5 tests): Header redaction, max requests limit, error counting, request with detail, enable/disable
   > - `AnalyticsInterceptorAdvancedTests` (5 tests): Max events limit, SDK integration helpers, filter by source/time, typed properties
-- [ ] Write integration tests with sample app
+- [x] Write integration tests with sample app
+  > **Completed:** Comprehensive integration test suite in `IntegrationTests.swift`:
+  > - `SampleAppIntegration` class: Demonstrates real app integration patterns with User, Cart, AppSettings models
+  > - `BridgeHTTPClient`: HTTP client for making requests to the bridge server
+  > - `MaestroBridgeIntegrationTests` (21 tests): Full HTTP endpoint testing including ping, state, routes, network, analytics, feature flags, authentication, set state, 404 handling, concurrent requests
+  > - `MaestroBridgeE2EScenarioTests` (3 tests): User journey tracking, error tracking, verify user/cart scenarios
+  > - `MaestroBridgePerformanceTests` (2 tests): Ping latency and network fetch latency benchmarks
+  > - All 117 tests pass with `swift test`
 - [x] Test security (debug-only, token validation)
   > **Completed:** Security tests:
   > - `DebugGuardTests` (5 tests): Debug only function, debug only value, debug only property, bridge enabled flag, runtime check
