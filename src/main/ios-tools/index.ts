@@ -1273,3 +1273,36 @@ export type {
   HTMLReportResult,
   ReportSummary,
 } from './regression-report';
+
+// =============================================================================
+// CI Export (JUnit XML, JSON, Artifact Bundles)
+// =============================================================================
+
+export {
+  // Main export functions
+  exportToJUnitXML,
+  exportToJSON,
+  generateArtifactBundle,
+  exportAll,
+  // CI environment detection
+  detectCIEnvironment,
+  isCI,
+  // CI config helpers
+  getCIConfigSnippet,
+  // Constants
+  EXPORT_FORMAT_VERSION,
+  GENERATOR_NAME,
+  DEFAULT_SUITE_NAME,
+  DEFAULT_PACKAGE_NAME,
+} from './ci-export';
+export type {
+  CIExportOptions,
+  JUnitExportOptions,
+  JSONExportOptions,
+  ArtifactBundleOptions,
+  ExportResult,
+  ExportSummary,
+  CIEnvironment,
+  JSONExportData,
+  JSONTestResult,
+} from './ci-export';
