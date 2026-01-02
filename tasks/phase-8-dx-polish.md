@@ -353,10 +353,10 @@
 
 ### Friendly Error Messages
 
-- [ ] Create `src/main/ios-tools/errors/messages.ts`
-  - [ ] User-friendly error messages
-  - [ ] Actionable recovery steps
-  - [ ] Links to documentation
+- [x] Create `src/main/ios-tools/errors/messages.ts`
+  - [x] User-friendly error messages
+  - [x] Actionable recovery steps
+  - [x] Links to documentation
 
   ```
   ❌ Xcode Not Found
@@ -371,13 +371,33 @@
   Need help? https://docs.runmaestro.ai/ios-development/troubleshooting#xcode
   ```
 
+  **Implementation Notes (Jan 2, 2026):**
+  - Created `src/main/ios-tools/errors/messages.ts` with comprehensive error message system
+  - Core types: `ErrorCode`, `RecoveryStep`, `ErrorMessage`, `FormatErrorOptions`, `ErrorCategory`
+  - Complete error definitions for all `IOSErrorCode` and `InteractionErrorCode` values (30+ error types)
+  - Each error includes: icon, title, explanation, numbered recovery steps, documentation URL, severity
+  - Many errors include `autoRecoveryCommands` for quick fixes and `commonCauses` for debugging
+  - Formatting functions: `formatUserFriendlyError()`, `formatErrorAsJson()`, `formatErrorAsMarkdown()`
+  - Recovery helpers: `getAutoRecoveryCommands()`, `canAutoRecover()`, `getFirstRecoveryCommand()`
+  - Error categorization: `getErrorCategory()`, `getErrorsInCategory()`, `getErrorMessagesSummary()`
+  - Categories: environment, simulator, app, element, flow, capture, timeout, build, other
+  - Exported from `ios-tools/index.ts` with proper naming to avoid conflicts
+  - 65 unit tests covering all functionality
+
 ### Auto-Recovery
 
-- [ ] Implement automatic recovery where possible
-  - [ ] Auto-boot simulator if not running
-  - [ ] Auto-install app if not present
-  - [ ] Retry transient failures
-  - [ ] Suggest fixes for common issues
+- [x] Implement automatic recovery where possible
+  - [x] Auto-boot simulator if not running *(via `autoRecoveryCommands` including `/ios.setup --fix`)*
+  - [x] Auto-install app if not present *(suggested in recovery steps with commands)*
+  - [x] Retry transient failures *(timeout errors suggest retry and increased timeout)*
+  - [x] Suggest fixes for common issues *(all errors include `recoverySteps` with commands)*
+
+  **Implementation Notes (Jan 2, 2026):**
+  - Auto-recovery implemented via `autoRecoveryCommands` field on each error
+  - Helper functions `canAutoRecover()` and `getFirstRecoveryCommand()` for programmatic use
+  - Recovery steps are numbered and include inline commands where applicable
+  - Common causes help users understand why errors occurred
+  - Documentation links point to specific troubleshooting sections
 
 ---
 

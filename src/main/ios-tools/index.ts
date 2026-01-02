@@ -1405,3 +1405,34 @@ export type {
   ErrorTip,
   WorkflowSuggestion,
 } from './contextual-tips';
+
+// =============================================================================
+// User-Friendly Error Messages
+// =============================================================================
+
+export {
+  // Error messages
+  ERROR_MESSAGES as FRIENDLY_ERROR_MESSAGES,  // Renamed to avoid conflict with existing ERROR_MESSAGES
+  getErrorMessage as getFriendlyErrorMessage,  // Renamed to avoid conflict with existing functions
+  // Formatting
+  formatUserFriendlyError,
+  formatErrorAsJson as formatFriendlyErrorAsJson,  // Renamed to avoid conflict
+  formatErrorAsMarkdown,
+  // Recovery helpers
+  getAutoRecoveryCommands,
+  canAutoRecover,
+  getFirstRecoveryCommand,
+  getDocumentationUrl as getErrorDocumentationUrl,  // Renamed to avoid conflict with contextual-tips
+  getErrorSeverity,
+  // Categorization
+  getErrorCategory,
+  getErrorsInCategory,
+  getErrorMessagesSummary,
+} from './errors';
+export type {
+  ErrorCode,
+  RecoveryStep,
+  ErrorMessage as FriendlyErrorMessage,  // Renamed to avoid potential conflicts
+  FormatErrorOptions,
+  ErrorCategory,
+} from './errors';
