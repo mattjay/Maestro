@@ -487,8 +487,15 @@
 
 ## Acceptance Criteria
 
-- [ ] MaestroBridge Swift Package builds and links
-- [ ] Bridge only runs in DEBUG builds
+- [x] MaestroBridge Swift Package builds and links
+  > **Verified:** Package builds successfully with `swift build` (0.17s) and all 117 unit tests pass with `swift test`. HTTP server starts on configured ports, all endpoints respond correctly.
+- [x] Bridge only runs in DEBUG builds
+  > **Verified:** Multiple defense layers ensure debug-only operation:
+  > - `MaestroBridge.start()` wrapped in `#if DEBUG` (lines 76-102) - prints warning and no-ops in release
+  > - `BridgeServer.start()` has `#if !DEBUG` early return (lines 114-117) as secondary defense
+  > - `DebugOnlyGuard.assertDebugBuild()` called at startup - triggers `fatalError` if reached in release
+  > - SwiftUI/UIKit extensions also use `#if DEBUG` guards
+  > - `DebugGuardTests` test class validates all guard mechanisms (5 tests)
 - [ ] Token authentication works
 - [ ] `/ios.bridge.state` returns app state
 - [ ] `/ios.bridge.route` returns navigation state
