@@ -21,6 +21,10 @@ import {
   type PlaybookAssertion,
 } from '../playbooks/feature-ship-loop';
 import { ensurePlaybooksDirectory } from '../playbook-loader';
+import * as simulator from '../simulator';
+import * as build from '../build';
+import * as assertions from '../assertions';
+import * as snapshot from '../snapshot';
 
 // =============================================================================
 // Mocks
@@ -1011,5 +1015,479 @@ describe('runFeatureShipLoop - Simulator Resolution', () => {
 
     expect(result.data!.simulator).toBeDefined();
     expect(result.data!.simulator.udid).toBe('test-udid-1234');
+  });
+});
+
+// =============================================================================
+// Iteration Execution Tests (Non-Dry-Run)
+// =============================================================================
+
+describe('runFeatureShipLoop - Iteration Execution', () => {
+  beforeEach(() => {
+    testDir = createTestDir();
+    playbooksDir = createTestDir();
+    ensurePlaybooksDirectory(playbooksDir);
+
+    const playbookDir = path.join(playbooksDir, 'Feature-Ship-Loop');
+    fs.mkdirSync(playbookDir, { recursive: true });
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const yaml = require('js-yaml');
+    fs.writeFileSync(
+      path.join(playbookDir, 'playbook.yaml'),
+      yaml.dump({
+        name: 'iOS Feature Ship Loop',
+        version: '1.0.0',
+        variables: {
+          iteration: 0,
+          max_iterations: 10,
+          build_success: false,
+          assertions_passed: false,
+        },
+        steps: [{ action: 'ios.build' }],
+      })
+    );
+
+    // Reset all mocks to their default passing state
+    vi.mocked(build.build).mockResolvedValue({
+      success: true,
+      data: {
+        appPath: '/tmp/test.app',
+        scheme: 'TestApp',
+        configuration: 'Debug',
+        buildTime: 5000,
+      },
+    });
+    vi.mocked(assertions.assertVisible).mockResolvedValue({
+      success: true,
+      data: {
+        passed: true,
+        status: 'passed',
+        message: 'Element is visible',
+      },
+    });
+    vi.mocked(assertions.assertNotVisible).mockResolvedValue({
+      success: true,
+      data: {
+        passed: true,
+        status: 'passed',
+        message: 'Element is not visible',
+      },
+    });
+    vi.mocked(assertions.assertNoCrash).mockResolvedValue({
+      success: true,
+      data: {
+        passed: true,
+        status: 'passed',
+        message: 'No crash detected',
+      },
+    });
+  });
+
+  afterEach(() => {
+    cleanupTestDir(testDir);
+    cleanupTestDir(playbooksDir);
+    vi.clearAllMocks();
+  });
+
+  it('should execute actual iterations when dryRun is false', async () => {
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Feature-Ship-Loop', 'playbook.yaml'),
+      maxIterations: 1,
+      iterationDelay: 10, // Speed up tests
+    });
+
+    const result = await runFeatureShipLoop(options);
+
+    expect(result.success).toBe(true);
+    expect(result.data).toBeDefined();
+    // With mocked assertions passing, should complete in 1 iteration
+    expect(result.data!.iterationsRun).toBeGreaterThan(0);
+    expect(result.data!.iterations.length).toBe(result.data!.iterationsRun);
+  });
+
+  it('should stop loop when all assertions pass', async () => {
+    // With default mocks, assertions pass immediately
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Feature-Ship-Loop', 'playbook.yaml'),
+      maxIterations: 10,
+      iterationDelay: 10,
+    });
+
+    const result = await runFeatureShipLoop(options);
+
+    expect(result.success).toBe(true);
+    expect(result.data!.passed).toBe(true);
+    expect(result.data!.terminationReason).toBe('assertions_passed');
+    // Should stop early since assertions pass immediately
+    expect(result.data!.iterationsRun).toBe(1);
+  });
+
+  it('should iterate until max_iterations when assertions fail', async () => {
+    // Mock assertions to fail
+    vi.mocked(assertions.assertVisible).mockResolvedValue({
+      success: true,
+      data: {
+        passed: false,
+        status: 'failed',
+        message: 'Element not visible',
+      },
+    });
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Feature-Ship-Loop', 'playbook.yaml'),
+      maxIterations: 3,
+      iterationDelay: 10,
+    });
+
+    const result = await runFeatureShipLoop(options);
+
+    expect(result.success).toBe(true);
+    expect(result.data!.passed).toBe(false);
+    expect(result.data!.terminationReason).toBe('max_iterations');
+    expect(result.data!.iterationsRun).toBe(3);
+  });
+
+  it('should track each iteration with timing information', async () => {
+    // Mock assertions to fail so we get 2 iterations
+    vi.mocked(assertions.assertVisible).mockResolvedValue({
+      success: true,
+      data: {
+        passed: false,
+        status: 'failed',
+        message: 'Element not visible',
+      },
+    });
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Feature-Ship-Loop', 'playbook.yaml'),
+      maxIterations: 2,
+      iterationDelay: 10,
+    });
+
+    const result = await runFeatureShipLoop(options);
+
+    expect(result.data!.iterations.length).toBe(2);
+
+    for (let i = 0; i < result.data!.iterations.length; i++) {
+      const iteration = result.data!.iterations[i];
+      expect(iteration.iteration).toBe(i + 1);
+      expect(iteration.startTime).toBeInstanceOf(Date);
+      expect(iteration.endTime).toBeInstanceOf(Date);
+      expect(iteration.duration).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('should record assertion results for each iteration', async () => {
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Feature-Ship-Loop', 'playbook.yaml'),
+      maxIterations: 1,
+      iterationDelay: 10,
+    });
+
+    const result = await runFeatureShipLoop(options);
+
+    expect(result.data!.iterations[0].assertions).toBeDefined();
+    expect(result.data!.iterations[0].assertions.length).toBe(options.inputs.assertions.length);
+
+    for (const assertionResult of result.data!.iterations[0].assertions) {
+      expect(assertionResult.assertion).toBeDefined();
+      expect(typeof assertionResult.passed).toBe('boolean');
+    }
+  });
+
+  it('should report progress through all phases during iteration', async () => {
+    const progressPhases: string[] = [];
+    const onProgress = vi.fn((update) => {
+      progressPhases.push(update.phase);
+    });
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Feature-Ship-Loop', 'playbook.yaml'),
+      maxIterations: 1,
+      iterationDelay: 10,
+      onProgress,
+    });
+
+    await runFeatureShipLoop(options);
+
+    // Should see all major phases
+    expect(progressPhases).toContain('initializing');
+    expect(progressPhases).toContain('building');
+    expect(progressPhases).toContain('launching');
+    expect(progressPhases).toContain('verifying');
+  });
+
+  it('should update variables as iterations progress', async () => {
+    vi.mocked(assertions.assertVisible).mockResolvedValue({
+      success: true,
+      data: {
+        passed: false,
+        status: 'failed',
+        message: 'Element not visible',
+      },
+    });
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Feature-Ship-Loop', 'playbook.yaml'),
+      maxIterations: 3,
+      iterationDelay: 10,
+    });
+
+    const result = await runFeatureShipLoop(options);
+
+    // Final variables should reflect completed iterations
+    expect(result.data!.finalVariables.iteration).toBe(3);
+    expect(result.data!.finalVariables.build_success).toBe(true);
+    expect(result.data!.finalVariables.assertions_passed).toBe(false);
+  });
+
+  it('should set assertions_passed=true when all assertions pass', async () => {
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Feature-Ship-Loop', 'playbook.yaml'),
+      maxIterations: 5,
+      iterationDelay: 10,
+    });
+
+    const result = await runFeatureShipLoop(options);
+
+    expect(result.data!.passed).toBe(true);
+    expect(result.data!.finalVariables.assertions_passed).toBe(true);
+  });
+
+  it('should track which iteration each assertion first passed on', async () => {
+    // First iteration: first assertion passes, second fails
+    // Second iteration: both pass
+    let callCount = 0;
+    vi.mocked(assertions.assertVisible).mockImplementation(async () => {
+      callCount++;
+      // First call (iteration 1, assertion 1) passes
+      // Second call would be assertion 2, but we use no_crash for that
+      return {
+        success: true,
+        data: {
+          passed: true,
+          status: 'passed',
+          message: 'Element visible',
+        },
+      };
+    });
+
+    vi.mocked(assertions.assertNoCrash).mockImplementation(async () => {
+      // Make it fail first time, pass second time
+      const shouldPass = callCount > 1;
+      return {
+        success: true,
+        data: {
+          passed: shouldPass,
+          status: shouldPass ? 'passed' : 'failed',
+          message: shouldPass ? 'No crash' : 'Crash detected',
+        },
+      };
+    });
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Feature-Ship-Loop', 'playbook.yaml'),
+      maxIterations: 5,
+      iterationDelay: 10,
+    });
+
+    const result = await runFeatureShipLoop(options);
+
+    expect(result.data!.assertionsSummary.assertions).toBeDefined();
+    // First assertion (visible) should have passed on iteration 1
+    const visibleAssertion = result.data!.assertionsSummary.assertions.find(
+      a => a.assertion.type === 'visible'
+    );
+    expect(visibleAssertion?.passedOn).toBe(1);
+  });
+
+  it('should terminate with build_failed when build fails', async () => {
+    vi.mocked(build.build).mockResolvedValue({
+      success: false,
+      error: 'Build failed with exit code 65',
+      errorCode: 'BUILD_FAILED',
+    });
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Feature-Ship-Loop', 'playbook.yaml'),
+      maxIterations: 5,
+      iterationDelay: 10,
+    });
+
+    const result = await runFeatureShipLoop(options);
+
+    expect(result.success).toBe(true);
+    expect(result.data!.passed).toBe(false);
+    expect(result.data!.terminationReason).toBe('build_failed');
+    expect(result.data!.iterationsRun).toBe(0);
+  });
+
+  it('should capture snapshots for each iteration when collectSnapshots is true', async () => {
+    const captureSnapshotSpy = vi.mocked(snapshot.captureSnapshot);
+
+    // Make assertions fail to get multiple iterations
+    vi.mocked(assertions.assertVisible).mockResolvedValue({
+      success: true,
+      data: {
+        passed: false,
+        status: 'failed',
+        message: 'Element not visible',
+      },
+    });
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Feature-Ship-Loop', 'playbook.yaml'),
+      maxIterations: 3,
+      iterationDelay: 10,
+      collectSnapshots: true,
+    });
+
+    await runFeatureShipLoop(options);
+
+    // Should have captured snapshot for each iteration
+    expect(captureSnapshotSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it('should not capture snapshots when collectSnapshots is false', async () => {
+    const captureSnapshotSpy = vi.mocked(snapshot.captureSnapshot);
+    captureSnapshotSpy.mockClear();
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Feature-Ship-Loop', 'playbook.yaml'),
+      maxIterations: 1,
+      iterationDelay: 10,
+      collectSnapshots: false,
+    });
+
+    await runFeatureShipLoop(options);
+
+    expect(captureSnapshotSpy).not.toHaveBeenCalled();
+  });
+
+  it('should continue checking assertions after first failure when continueOnAssertionFailure is true', async () => {
+    let assertVisibleCallCount = 0;
+    let assertNoCrashCallCount = 0;
+
+    vi.mocked(assertions.assertVisible).mockImplementation(async () => {
+      assertVisibleCallCount++;
+      return {
+        success: true,
+        data: {
+          passed: false,
+          status: 'failed',
+          message: 'Element not visible',
+        },
+      };
+    });
+
+    vi.mocked(assertions.assertNoCrash).mockImplementation(async () => {
+      assertNoCrashCallCount++;
+      return {
+        success: true,
+        data: {
+          passed: true,
+          status: 'passed',
+          message: 'No crash',
+        },
+      };
+    });
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Feature-Ship-Loop', 'playbook.yaml'),
+      maxIterations: 1,
+      iterationDelay: 10,
+      continueOnAssertionFailure: true,
+    });
+
+    await runFeatureShipLoop(options);
+
+    // Both assertions should have been checked despite first failing
+    expect(assertVisibleCallCount).toBe(1);
+    expect(assertNoCrashCallCount).toBe(1);
+  });
+
+  it('should stop at first failed assertion when continueOnAssertionFailure is false', async () => {
+    let assertVisibleCallCount = 0;
+    let assertNoCrashCallCount = 0;
+
+    vi.mocked(assertions.assertVisible).mockImplementation(async () => {
+      assertVisibleCallCount++;
+      return {
+        success: true,
+        data: {
+          passed: false,
+          status: 'failed',
+          message: 'Element not visible',
+        },
+      };
+    });
+
+    vi.mocked(assertions.assertNoCrash).mockImplementation(async () => {
+      assertNoCrashCallCount++;
+      return {
+        success: true,
+        data: {
+          passed: true,
+          status: 'passed',
+          message: 'No crash',
+        },
+      };
+    });
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Feature-Ship-Loop', 'playbook.yaml'),
+      maxIterations: 1,
+      iterationDelay: 10,
+      continueOnAssertionFailure: false, // Default but explicit
+    });
+
+    await runFeatureShipLoop(options);
+
+    // Should stop after first assertion fails
+    expect(assertVisibleCallCount).toBe(1);
+    expect(assertNoCrashCallCount).toBe(0);
+  });
+
+  it('should relaunch app on each iteration when relaunchOnIteration is true', async () => {
+    const launchAppSpy = vi.mocked(simulator.launchApp);
+    const terminateAppSpy = vi.mocked(simulator.terminateApp);
+
+    // Make assertions fail to get multiple iterations
+    vi.mocked(assertions.assertVisible).mockResolvedValue({
+      success: true,
+      data: {
+        passed: false,
+        status: 'failed',
+        message: 'Element not visible',
+      },
+    });
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Feature-Ship-Loop', 'playbook.yaml'),
+      maxIterations: 3,
+      iterationDelay: 10,
+      relaunchOnIteration: true,
+    });
+
+    await runFeatureShipLoop(options);
+
+    // Should launch and terminate for each iteration
+    expect(launchAppSpy).toHaveBeenCalledTimes(3);
+    expect(terminateAppSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it('should write summary files to artifacts directory', async () => {
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Feature-Ship-Loop', 'playbook.yaml'),
+      maxIterations: 1,
+      iterationDelay: 10,
+    });
+
+    const result = await runFeatureShipLoop(options);
+
+    // Check that artifacts directory exists and has summary files
+    expect(fs.existsSync(result.data!.artifactsDir)).toBe(true);
+    expect(fs.existsSync(path.join(result.data!.artifactsDir, 'summary.txt'))).toBe(true);
+    expect(fs.existsSync(path.join(result.data!.artifactsDir, 'result.json'))).toBe(true);
   });
 });

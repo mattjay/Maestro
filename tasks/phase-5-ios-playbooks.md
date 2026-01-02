@@ -696,7 +696,21 @@
 
 ## Acceptance Criteria
 
-- [ ] Feature Ship Loop can iterate through build/test cycles
+- [x] Feature Ship Loop can iterate through build/test cycles
+  > Added 16 comprehensive integration tests in `feature-ship-loop.test.ts` verifying:
+  > - Iterations execute when dryRun is false
+  > - Loop stops when all assertions pass (terminationReason: 'assertions_passed')
+  > - Loop continues until max_iterations when assertions fail
+  > - Each iteration tracks timing information (startTime, endTime, duration)
+  > - Assertion results are recorded for each iteration
+  > - Progress phases (initializing, building, launching, verifying) are reported
+  > - Variables update as iterations progress (iteration count, build_success, assertions_passed)
+  > - Tracks which iteration each assertion first passed on
+  > - Build failures terminate with build_failed reason
+  > - Snapshots captured per iteration when collectSnapshots=true
+  > - continueOnAssertionFailure controls assertion evaluation
+  > - relaunchOnIteration controls app launch cycle
+  > - Summary files written to artifacts directory
 - [ ] Regression Check captures and compares screenshots
 - [ ] Crash Hunt detects and reports crashes
 - [ ] Design Review captures all screens on multiple devices
