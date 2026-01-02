@@ -797,7 +797,22 @@
   > - Progress reported during cold/warm launch measurement (measuring_launch phase)
   > - Progress reported during flow measurement (measuring_flows phase with currentFlow)
   > - Elapsed time included in final progress update (elapsed > 0, percentComplete = 100)
-- [ ] Playbooks work in Auto Run documents
+- [x] Playbooks work in Auto Run documents
+  > Added comprehensive integration tests verifying the complete flow from parsing to execution:
+  > - `playbook-step-executor.test.ts` - 27 unit tests covering:
+  >   - Successful execution with inputs, session IDs, dry run, timeout, continueOnError, progress callbacks
+  >   - Failure handling (playbook not found, execution failures, thrown errors, no result)
+  >   - Artifacts collection
+  >   - Result formatting (markdown, JSON, compact)
+  > - `autorun-playbook-integration.test.ts` - 10 integration tests covering:
+  >   - End-to-end: parse Auto Run document → extract ios.playbook step → execute via playbook-step-executor
+  >   - Unchecked playbook steps in task list format (checkbox-style)
+  >   - Multiple playbooks in sequence
+  >   - Mixed iOS steps with playbooks (assertions, taps, waits, playbooks)
+  >   - Error handling and formatting for reporting
+  >   - Context propagation (session ID, playbooks directory)
+  >   - Progress callbacks forwarding
+  > - Total: 100 tests passing across step-parser (63), playbook-step-executor (27), and integration (10)
 - [ ] Custom playbooks can be created
 - [ ] Progress is reported during execution
 - [ ] Artifacts are collected and organized
