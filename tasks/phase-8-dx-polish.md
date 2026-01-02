@@ -144,11 +144,22 @@
 
 ### Slash Command
 
-- [ ] Create `src/main/slash-commands/ios-setup.ts`
-  - [ ] `/ios.setup` - run interactive wizard
-  - [ ] `/ios.setup --check` - only check environment
-  - [ ] `/ios.setup --fix` - attempt to fix issues
-  - [ ] `/ios.setup --reset` - reset configuration
+- [x] Create `src/main/slash-commands/ios-setup.ts`
+  - [x] `/ios.setup` - run interactive wizard
+  - [x] `/ios.setup --check` - only check environment
+  - [x] `/ios.setup --fix` - attempt to fix issues
+  - [x] `/ios.setup --reset` - reset configuration
+
+  **Implementation Notes (Jan 2, 2026):**
+  - Created comprehensive slash command handler with 4 modes: wizard, check, fix, reset
+  - Argument parsing with `parseSetupArgs()` supporting `-p/--project` for custom paths
+  - Wizard mode integrates with wizard.ts for step-by-step setup flow
+  - Check mode runs `detectEnvironment()`, `detectProjectType()`, `detectExistingIntegration()` in parallel
+  - Fix mode automatically creates `.maestro/`, `maestro/`, and `ios-baselines/` directories, boots recommended simulator
+  - Reset mode safely deletes config with backup info display
+  - All modes return formatted Markdown output for AI terminal display
+  - 52 unit tests covering all modes, argument parsing, and edge cases
+  - Command metadata registered in `src/main/slash-commands/index.ts` for autocomplete
 
 ---
 

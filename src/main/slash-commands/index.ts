@@ -164,6 +164,17 @@ export {
   type RegressionTestResult,
 } from './ios-regression';
 
+// iOS Setup Command
+export {
+  executeSetupCommand,
+  parseSetupArgs,
+  continueWizard,
+  setupCommandMetadata,
+  type SetupMode,
+  type SetupCommandArgs,
+  type SetupCommandResult,
+} from './ios-setup';
+
 // Command registry for all slash commands
 export interface SlashCommandMetadata {
   command: string;
@@ -197,6 +208,7 @@ import {
 import { baselineCommandMetadata } from './ios-baseline';
 import { diffCommandMetadata } from './ios-diff';
 import { regressionCommandMetadata } from './ios-regression';
+import { setupCommandMetadata } from './ios-setup';
 
 export const iosSlashCommandMetadata: SlashCommandMetadata[] = [
   snapshotCommandMetadata,
@@ -216,4 +228,5 @@ export const iosSlashCommandMetadata: SlashCommandMetadata[] = [
   baselineCommandMetadata,
   diffCommandMetadata,
   regressionCommandMetadata,
+  setupCommandMetadata,
 ];
