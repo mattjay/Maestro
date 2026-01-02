@@ -1079,3 +1079,84 @@ export type {
   RegressionReport,
   RegressionSummary,
 } from './baselines';
+
+// =============================================================================
+// Image Diff (Visual Comparison)
+// =============================================================================
+
+export {
+  // Constants
+  DEFAULT_THRESHOLD,
+  DEFAULT_ANTIALIASING,
+  DEFAULT_INCLUDE_TRANSPARENT,
+  DEFAULT_ALPHA_TOLERANCE,
+  DEFAULT_UNCHANGED_ALPHA,
+  DEFAULT_DIFF_COLOR,
+  DEFAULT_ANTIALIAS_COLOR,
+  DEFAULT_BOUNDING_BOX_COLOR,
+  DEFAULT_BOUNDING_BOX_THICKNESS,
+  DEFAULT_SIDE_BY_SIDE_GAP,
+  MIN_REGION_PIXELS,
+  REGION_MERGE_GAP,
+  SEVERITY_THRESHOLDS,
+  // Image loading
+  loadImage,
+  getImageInfo,
+  saveImage,
+  // Ignore mask handling
+  createIgnoreMask,
+  applyIgnoreMask,
+  // Core comparison
+  compareImages,
+  compareAndSave,
+  // Quick helpers
+  areImagesIdentical,
+  getSimilarity,
+  imagesMatch,
+  // Diff generation
+  generateOverlayDiff,
+  generateHighlightDiff,
+  generateSideBySide as generateSideBySideDiff,  // Renamed to avoid ambiguity
+  generateOnionSkin,
+  drawBoundingBoxes,
+  generateDiff,
+  generateMultipleDiffs,
+  // Analysis
+  findChangedRegions,
+  classifyChange,
+  calculateSeverity,
+  analyzeChanges,
+  generateChangeSummary,
+  formatAnalysisReport,
+  // Convenience functions
+  fullComparison,
+  quickCompare,
+  generateDiffReport,
+} from './image-diff';
+export type {
+  // Image data types
+  ImageData,
+  ImageInfo,
+  // Comparison options
+  ImageCompareOptions,
+  DiffOutputOptions,
+  // Comparison results
+  ImageCompareResult,
+  // Changed region types
+  ChangeType as ImageChangeType,  // Renamed to avoid conflict with baselines
+  DetectedChange,
+  ChangeSummary,
+  // Analysis results
+  ImageAnalysisResult,
+  // Diff generation
+  DiffMode,
+  DiffGenerationOptions,
+  DiffGenerationResult,
+  // Batch operations
+  BatchCompareItem,
+  BatchCompareItemResult,
+  BatchCompareResult,
+  // Error types
+  ImageDiffErrorCode,
+  ImageDiffError,
+} from './image-diff';
