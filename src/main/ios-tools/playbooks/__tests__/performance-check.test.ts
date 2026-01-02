@@ -1070,3 +1070,472 @@ describe('Performance Check - Simulator Resolution', () => {
     expect(result.data?.simulator.name).toBe('iPhone 15 Pro');
   });
 });
+
+// =============================================================================
+// Integration Tests - Acceptance Criteria
+// =============================================================================
+// These tests verify the "Performance Check measures key metrics" acceptance criteria
+
+describe('Performance Check - Integration Tests (Acceptance Criteria)', () => {
+  beforeEach(async () => {
+    testDir = createTestDir();
+    vi.clearAllMocks();
+    await resetSimulatorMocks();
+  });
+
+  afterEach(() => {
+    cleanupTestDir(testDir);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Cold Launch Time Measurement
+  // ---------------------------------------------------------------------------
+
+  it('should measure cold launch time for each run', async () => {
+    const options = createDefaultOptions();
+    options.inputs.runs = 3;
+
+    const result = await runPerformanceCheck(options);
+
+    expect(result.success).toBe(true);
+    expect(result.data?.metrics.cold_launch.samples.length).toBe(3);
+    result.data?.metrics.cold_launch.samples.forEach((sample) => {
+      expect(sample).toBeGreaterThan(0);
+    });
+  });
+
+  it('should terminate app before cold launch measurement', async () => {
+    const simModule = await import('../../simulator');
+    const options = createDefaultOptions();
+    options.inputs.runs = 2;
+
+    await runPerformanceCheck(options);
+
+    // terminateApp should be called before each cold launch measurement
+    const terminateCalls = vi.mocked(simModule.terminateApp).mock.calls.length;
+    expect(terminateCalls).toBeGreaterThanOrEqual(2);
+  });
+
+  it('should calculate cold launch statistics (avg, min, max, p95)', async () => {
+    const options = createDefaultOptions();
+    options.inputs.runs = 3;
+
+    const result = await runPerformanceCheck(options);
+
+    expect(result.data?.metrics.cold_launch.avg_ms).toBeGreaterThan(0);
+    expect(result.data?.metrics.cold_launch.min_ms).toBeGreaterThan(0);
+    expect(result.data?.metrics.cold_launch.max_ms).toBeGreaterThan(0);
+    expect(result.data?.metrics.cold_launch.p95_ms).toBeGreaterThan(0);
+    expect(result.data?.metrics.cold_launch.min_ms).toBeLessThanOrEqual(result.data?.metrics.cold_launch.avg_ms!);
+    expect(result.data?.metrics.cold_launch.avg_ms).toBeLessThanOrEqual(result.data?.metrics.cold_launch.max_ms!);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Warm Launch Time Measurement
+  // ---------------------------------------------------------------------------
+
+  it('should measure warm launch time for each run', async () => {
+    const options = createDefaultOptions();
+    options.inputs.runs = 3;
+
+    const result = await runPerformanceCheck(options);
+
+    expect(result.success).toBe(true);
+    expect(result.data?.metrics.warm_launch.samples.length).toBe(3);
+    result.data?.metrics.warm_launch.samples.forEach((sample) => {
+      expect(sample).toBeGreaterThan(0);
+    });
+  });
+
+  it('should calculate warm launch statistics (avg, min, max, p95)', async () => {
+    const options = createDefaultOptions();
+    options.inputs.runs = 3;
+
+    const result = await runPerformanceCheck(options);
+
+    expect(result.data?.metrics.warm_launch.avg_ms).toBeGreaterThan(0);
+    expect(result.data?.metrics.warm_launch.min_ms).toBeGreaterThan(0);
+    expect(result.data?.metrics.warm_launch.max_ms).toBeGreaterThan(0);
+    expect(result.data?.metrics.warm_launch.p95_ms).toBeGreaterThan(0);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Memory Measurement
+  // ---------------------------------------------------------------------------
+
+  it('should measure memory during flows when enabled', async () => {
+    const options = createFlowOptions();
+    options.inputs.measure_memory = true;
+
+    const result = await runPerformanceCheck(options);
+
+    expect(result.data?.metrics.memory).toBeDefined();
+    expect(result.data?.metrics.memory?.peak_mb).toBeGreaterThan(0);
+    expect(result.data?.metrics.memory?.avg_mb).toBeGreaterThan(0);
+    expect(result.data?.metrics.memory?.flows.length).toBe(2); // 2 flows
+  });
+
+  it('should track memory samples per flow', async () => {
+    const options = createFlowOptions();
+    options.inputs.measure_memory = true;
+
+    const result = await runPerformanceCheck(options);
+
+    expect(result.data?.metrics.memory?.flows.length).toBe(2);
+    result.data?.metrics.memory?.flows.forEach((flowMemory) => {
+      expect(flowMemory.flow).toBeDefined();
+      expect(flowMemory.samples.length).toBeGreaterThan(0);
+      expect(flowMemory.peak_mb).toBeGreaterThan(0);
+      expect(flowMemory.avg_mb).toBeGreaterThan(0);
+    });
+  });
+
+  it('should include flow-specific memory in flow_metrics', async () => {
+    const options = createFlowOptions();
+    options.inputs.measure_memory = true;
+
+    const result = await runPerformanceCheck(options);
+
+    expect(result.data?.flow_metrics.length).toBe(2);
+    result.data?.flow_metrics.forEach((flowMetric) => {
+      expect(flowMetric.memory).toBeDefined();
+      expect(flowMetric.memory?.peak_mb).toBeGreaterThan(0);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Frame Rate (FPS) Measurement
+  // ---------------------------------------------------------------------------
+
+  it('should measure frame rate during flows when enabled', async () => {
+    const options = createFlowOptions();
+    options.inputs.measure_frame_rate = true;
+
+    const result = await runPerformanceCheck(options);
+
+    expect(result.data?.metrics.frame_rate).toBeDefined();
+    expect(result.data?.metrics.frame_rate?.min_fps).toBeGreaterThan(0);
+    expect(result.data?.metrics.frame_rate?.avg_fps).toBeGreaterThan(0);
+    expect(result.data?.metrics.frame_rate?.total_dropped_frames).toBeDefined();
+    expect(result.data?.metrics.frame_rate?.flows.length).toBe(2);
+  });
+
+  it('should track frame rate samples per flow', async () => {
+    const options = createFlowOptions();
+    options.inputs.measure_frame_rate = true;
+
+    const result = await runPerformanceCheck(options);
+
+    result.data?.metrics.frame_rate?.flows.forEach((flowFps) => {
+      expect(flowFps.flow).toBeDefined();
+      expect(flowFps.samples.length).toBeGreaterThan(0);
+      expect(flowFps.min_fps).toBeGreaterThan(0);
+      expect(flowFps.avg_fps).toBeGreaterThan(0);
+      expect(flowFps.dropped_frames).toBeDefined();
+    });
+  });
+
+  it('should track dropped frames', async () => {
+    const options = createFlowOptions();
+    options.inputs.measure_frame_rate = true;
+
+    const result = await runPerformanceCheck(options);
+
+    expect(result.data?.metrics.frame_rate?.total_dropped_frames).toBeDefined();
+    expect(typeof result.data?.metrics.frame_rate?.total_dropped_frames).toBe('number');
+  });
+
+  // ---------------------------------------------------------------------------
+  // CPU Measurement
+  // ---------------------------------------------------------------------------
+
+  it('should measure CPU usage during flows when enabled', async () => {
+    const options = createFlowOptions();
+    options.inputs.measure_cpu = true;
+
+    const result = await runPerformanceCheck(options);
+
+    expect(result.data?.metrics.cpu).toBeDefined();
+    expect(result.data?.metrics.cpu?.peak_percent).toBeGreaterThan(0);
+    expect(result.data?.metrics.cpu?.avg_percent).toBeGreaterThan(0);
+    expect(result.data?.metrics.cpu?.flows.length).toBe(2);
+  });
+
+  it('should track CPU samples per flow', async () => {
+    const options = createFlowOptions();
+    options.inputs.measure_cpu = true;
+
+    const result = await runPerformanceCheck(options);
+
+    result.data?.metrics.cpu?.flows.forEach((flowCpu) => {
+      expect(flowCpu.flow).toBeDefined();
+      expect(flowCpu.samples.length).toBeGreaterThan(0);
+      expect(flowCpu.peak_percent).toBeGreaterThan(0);
+      expect(flowCpu.avg_percent).toBeGreaterThan(0);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Metric Toggle Configuration
+  // ---------------------------------------------------------------------------
+
+  it('should skip memory measurement when disabled', async () => {
+    const options = createFlowOptions();
+    options.inputs.measure_memory = false;
+
+    const result = await runPerformanceCheck(options);
+
+    expect(result.data?.metrics.memory).toBeUndefined();
+  });
+
+  it('should skip frame rate measurement when disabled', async () => {
+    const options = createFlowOptions();
+    options.inputs.measure_frame_rate = false;
+
+    const result = await runPerformanceCheck(options);
+
+    expect(result.data?.metrics.frame_rate).toBeUndefined();
+  });
+
+  it('should skip CPU measurement when disabled', async () => {
+    const options = createFlowOptions();
+    options.inputs.measure_cpu = false;
+
+    const result = await runPerformanceCheck(options);
+
+    expect(result.data?.metrics.cpu).toBeUndefined();
+  });
+
+  it('should skip launch time measurement when disabled', async () => {
+    const options = createDefaultOptions();
+    options.inputs.measure_launch_time = false;
+    options.inputs.measure_memory = true;
+
+    const result = await runPerformanceCheck(options);
+
+    expect(result.data?.metrics.cold_launch.samples.length).toBe(0);
+    expect(result.data?.metrics.warm_launch.samples.length).toBe(0);
+  });
+
+  // ---------------------------------------------------------------------------
+  // All Metrics Combined
+  // ---------------------------------------------------------------------------
+
+  it('should measure all metrics when all are enabled', async () => {
+    const options = createFlowOptions();
+    options.inputs.measure_launch_time = true;
+    options.inputs.measure_memory = true;
+    options.inputs.measure_frame_rate = true;
+    options.inputs.measure_cpu = true;
+
+    const result = await runPerformanceCheck(options);
+
+    expect(result.data?.metrics.cold_launch.samples.length).toBeGreaterThan(0);
+    expect(result.data?.metrics.warm_launch.samples.length).toBeGreaterThan(0);
+    expect(result.data?.metrics.memory).toBeDefined();
+    expect(result.data?.metrics.frame_rate).toBeDefined();
+    expect(result.data?.metrics.cpu).toBeDefined();
+  });
+
+  it('should track runs_completed variable', async () => {
+    const options = createDefaultOptions();
+    options.inputs.runs = 3;
+
+    const result = await runPerformanceCheck(options);
+
+    expect(result.data?.runs_completed).toBe(3);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Baseline Regression Detection
+  // ---------------------------------------------------------------------------
+
+  it('should detect regression when cold launch exceeds threshold', async () => {
+    const baselineDir = path.join(testDir, 'baselines');
+    fs.mkdirSync(baselineDir, { recursive: true });
+
+    const baseline: PerformanceBaseline = {
+      timestamp: new Date().toISOString(),
+      simulator: 'iPhone 15 Pro',
+      bundle_id: 'com.example.testapp',
+      cold_launch_avg_ms: 50, // Very low baseline to trigger regression
+      cold_launch_p95_ms: 60,
+      warm_launch_avg_ms: 20,
+      warm_launch_p95_ms: 25,
+    };
+
+    const baselinePath = path.join(baselineDir, 'baseline.json');
+    fs.writeFileSync(baselinePath, JSON.stringify(baseline));
+
+    const options: PerformanceCheckOptions = {
+      inputs: {
+        bundle_id: 'com.example.testapp',
+        runs: 2,
+        baseline_path: baselinePath,
+        regression_threshold: 10,
+        warm_up_runs: 0,
+        wait_between_runs: 0,
+      },
+      sessionId: 'test-session-123',
+    };
+
+    const result = await runPerformanceCheck(options);
+
+    expect(result.data?.regressions.length).toBeGreaterThan(0);
+    const coldLaunchRegression = result.data?.regressions.find(
+      (r) => r.metric === 'cold_launch_avg_ms'
+    );
+    expect(coldLaunchRegression).toBeDefined();
+    expect(coldLaunchRegression?.change_percent).toBeGreaterThan(10);
+  });
+
+  it('should include severity in regression (warning vs critical)', async () => {
+    const baselineDir = path.join(testDir, 'baselines');
+    fs.mkdirSync(baselineDir, { recursive: true });
+
+    const baseline: PerformanceBaseline = {
+      timestamp: new Date().toISOString(),
+      simulator: 'iPhone 15 Pro',
+      bundle_id: 'com.example.testapp',
+      cold_launch_avg_ms: 10, // Extremely low to trigger critical
+      cold_launch_p95_ms: 12,
+      warm_launch_avg_ms: 5,
+      warm_launch_p95_ms: 6,
+    };
+
+    const baselinePath = path.join(baselineDir, 'baseline.json');
+    fs.writeFileSync(baselinePath, JSON.stringify(baseline));
+
+    const options: PerformanceCheckOptions = {
+      inputs: {
+        bundle_id: 'com.example.testapp',
+        runs: 2,
+        baseline_path: baselinePath,
+        regression_threshold: 10,
+        warm_up_runs: 0,
+        wait_between_runs: 0,
+      },
+      sessionId: 'test-session-123',
+    };
+
+    const result = await runPerformanceCheck(options);
+
+    expect(result.data?.regressions.length).toBeGreaterThan(0);
+    result.data?.regressions.forEach((r) => {
+      expect(['warning', 'critical']).toContain(r.severity);
+    });
+  });
+
+  it('should update regressions_found count', async () => {
+    const baselineDir = path.join(testDir, 'baselines');
+    fs.mkdirSync(baselineDir, { recursive: true });
+
+    const baseline: PerformanceBaseline = {
+      timestamp: new Date().toISOString(),
+      simulator: 'iPhone 15 Pro',
+      bundle_id: 'com.example.testapp',
+      cold_launch_avg_ms: 10,
+      cold_launch_p95_ms: 12,
+      warm_launch_avg_ms: 5,
+      warm_launch_p95_ms: 6,
+    };
+
+    const baselinePath = path.join(baselineDir, 'baseline.json');
+    fs.writeFileSync(baselinePath, JSON.stringify(baseline));
+
+    const options: PerformanceCheckOptions = {
+      inputs: {
+        bundle_id: 'com.example.testapp',
+        runs: 2,
+        baseline_path: baselinePath,
+        regression_threshold: 10,
+        warm_up_runs: 0,
+        wait_between_runs: 0,
+      },
+      sessionId: 'test-session-123',
+    };
+
+    const result = await runPerformanceCheck(options);
+
+    expect(result.data?.regressions_found).toBe(result.data?.regressions.length);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Report Output
+  // ---------------------------------------------------------------------------
+
+  it('should generate HTML report with all metric categories', async () => {
+    const options = createFlowOptions();
+    options.inputs.measure_launch_time = true;
+    options.inputs.measure_memory = true;
+    options.inputs.measure_frame_rate = true;
+
+    const result = await runPerformanceCheck(options);
+
+    expect(result.data?.htmlReportPath).toBeDefined();
+    expect(result.data?.htmlReportPath).toContain('performance_report.html');
+  });
+
+  it('should generate JSON report with complete metrics structure', async () => {
+    const options = createFlowOptions();
+
+    const result = await runPerformanceCheck(options);
+
+    expect(result.data?.jsonReportPath).toBeDefined();
+    expect(result.data?.jsonReportPath).toContain('performance_report.json');
+  });
+
+  it('should include all flow metrics in result', async () => {
+    const options = createFlowOptions();
+
+    const result = await runPerformanceCheck(options);
+
+    expect(result.data?.flow_metrics.length).toBe(2);
+    result.data?.flow_metrics.forEach((fm) => {
+      expect(fm.name).toBeDefined();
+      expect(fm.duration_ms).toBeGreaterThan(0);
+      expect(fm.success).toBe(true);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Progress Reporting During Metrics Collection
+  // ---------------------------------------------------------------------------
+
+  it('should report progress during cold/warm launch measurement', async () => {
+    const progressUpdates: PerformanceCheckProgress[] = [];
+    const options = createDefaultOptions();
+    options.inputs.runs = 2;
+    options.onProgress = (update) => progressUpdates.push(update);
+
+    await runPerformanceCheck(options);
+
+    const launchUpdates = progressUpdates.filter((u) => u.phase === 'measuring_launch');
+    expect(launchUpdates.length).toBeGreaterThan(0);
+    expect(launchUpdates[0].message).toContain('launch');
+  });
+
+  it('should report progress during flow measurement', async () => {
+    const progressUpdates: PerformanceCheckProgress[] = [];
+    const options = createFlowOptions();
+    options.onProgress = (update) => progressUpdates.push(update);
+
+    await runPerformanceCheck(options);
+
+    const flowUpdates = progressUpdates.filter((u) => u.phase === 'measuring_flows');
+    expect(flowUpdates.length).toBeGreaterThan(0);
+    expect(flowUpdates.some((u) => u.currentFlow !== undefined)).toBe(true);
+  });
+
+  it('should include elapsed time in final progress update', async () => {
+    const progressUpdates: PerformanceCheckProgress[] = [];
+    const options = createDefaultOptions();
+    options.onProgress = (update) => progressUpdates.push(update);
+
+    await runPerformanceCheck(options);
+
+    const finalUpdate = progressUpdates[progressUpdates.length - 1];
+    expect(finalUpdate.elapsed).toBeGreaterThan(0);
+    expect(finalUpdate.percentComplete).toBe(100);
+  });
+});

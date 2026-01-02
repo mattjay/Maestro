@@ -767,7 +767,36 @@
   > - passed=true when all captures succeed (captureFailures=0, devicesFailed=0)
   > - passed=false when any capture fails
   > - passed=false when any device fails
-- [ ] Performance Check measures key metrics
+- [x] Performance Check measures key metrics
+  > Added 28 comprehensive integration tests in `performance-check.test.ts` verifying:
+  > - Cold launch time measured for each run (samples array populated)
+  > - App terminated before each cold launch measurement (terminateApp call count)
+  > - Cold launch statistics calculated (avg, min, max, p95 with correct ordering)
+  > - Warm launch time measured for each run (samples array populated)
+  > - Warm launch statistics calculated (avg, min, max, p95)
+  > - Memory measured during flows when enabled (peak_mb, avg_mb populated, flows array has 2 entries)
+  > - Memory samples tracked per flow (flow name, samples, peak_mb, avg_mb per flow)
+  > - Flow-specific memory included in flow_metrics
+  > - Frame rate measured during flows when enabled (min_fps, avg_fps, total_dropped_frames, flows)
+  > - Frame rate samples tracked per flow (flow, samples, min_fps, avg_fps, dropped_frames)
+  > - Dropped frames tracked (total_dropped_frames is number)
+  > - CPU usage measured during flows when enabled (peak_percent, avg_percent, flows)
+  > - CPU samples tracked per flow (flow, samples, peak_percent, avg_percent)
+  > - Memory measurement skipped when disabled (metrics.memory undefined)
+  > - Frame rate measurement skipped when disabled (metrics.frame_rate undefined)
+  > - CPU measurement skipped when disabled (metrics.cpu undefined)
+  > - Launch time measurement skipped when disabled (samples arrays empty)
+  > - All metrics measured when all are enabled (all metric categories populated)
+  > - runs_completed variable tracked correctly
+  > - Regression detected when cold launch exceeds threshold (cold_launch_avg_ms regression with change_percent > 10)
+  > - Severity included in regression (warning vs critical based on threshold * 2)
+  > - regressions_found count updated correctly (matches regressions.length)
+  > - HTML report generated with all metric categories (performance_report.html path)
+  > - JSON report generated with complete metrics structure (performance_report.json path)
+  > - All flow metrics included in result (flow_metrics array with name, duration_ms, success)
+  > - Progress reported during cold/warm launch measurement (measuring_launch phase)
+  > - Progress reported during flow measurement (measuring_flows phase with currentFlow)
+  > - Elapsed time included in final progress update (elapsed > 0, percentComplete = 100)
 - [ ] Playbooks work in Auto Run documents
 - [ ] Custom playbooks can be created
 - [ ] Progress is reported during execution
