@@ -341,11 +341,18 @@
 
 ### Video Tutorials
 
-- [ ] Script tutorial videos
-  - [ ] "Getting Started with iOS in Maestro" (5 min)
-  - [ ] "Automating iOS UI Tests" (10 min)
-  - [ ] "Visual Regression Testing" (8 min)
-  - [ ] "Deep Debugging with MaestroBridge" (10 min)
+- [x] Script tutorial videos
+  - [x] "Getting Started with iOS in Maestro" (5 min)
+  - [x] "Automating iOS UI Tests" (10 min)
+  - [x] "Visual Regression Testing" (8 min)
+  - [x] "Deep Debugging with MaestroBridge" (10 min)
+
+  **Implementation Notes (Jan 2, 2026):**
+  - Created comprehensive video scripts in `docs/ios-development/video-scripts/`
+  - Each script includes: timestamped sections, visual cues, narrator dialogue, code examples, pre/post-production notes
+  - Scripts follow consistent format with timing breakdowns and B-roll suggestions
+  - Total series duration: ~33 minutes covering setup, UI automation, visual regression, and MaestroBridge
+  - README.md index provides series overview and production guidelines
 
 ---
 
