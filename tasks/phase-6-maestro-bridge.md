@@ -504,7 +504,15 @@
   > - **Integration tests** (MaestroBridgeIntegrationTests): `testUnauthorizedWithoutToken` verifies 401 when missing header, `testUnauthorizedWithWrongToken` verifies 401 for wrong credentials
   > - **TypeScript client** (bridge-client.ts:239-245): Properly sends `Authorization: Bearer <token>` header on all requests
   > - All 137 Swift tests pass, including comprehensive auth scenarios
-- [ ] `/ios.bridge.state` returns app state
+- [x] `/ios.bridge.state` returns app state
+  > **Verified:** Complete implementation across all layers:
+  > - **Swift StateEndpoint** (StateEndpoint.swift:24-53): Handles GET /state (full snapshot) and GET /state/{key} (specific key), returns AppState with timestamp, viewControllerStack, currentViewController, customState, and featureFlags
+  > - **BridgeServer routing** (BridgeServer.swift:307-313): Routes /state and /state/{key} requests to StateEndpoint handlers
+  > - **TypeScript client** (bridge-client.ts:341-351): `getState()` and `getStateKey()` methods properly call HTTP endpoints
+  > - **Slash command** (ios-bridge.ts:432-485): `executeBridgeStateCommand()` parses args, connects to bridge, fetches state, formats output for human-readable display
+  > - **IPC handler** (ios.ts:2617-2632): `ios:bridge:getState` handler exposed via preload.ts
+  > - **Tests:** StateEndpointTests (4 tests), integration tests testGetFullState/testGetSpecificStateKey/testGetNonExistentStateKey, 69 slash command tests, all passing
+  > - **Test counts:** 117 Swift tests, 132 TypeScript tests all pass
 - [ ] `/ios.bridge.route` returns navigation state
 - [ ] `/ios.bridge.network` returns network log
 - [ ] `/ios.bridge.analytics` returns events
