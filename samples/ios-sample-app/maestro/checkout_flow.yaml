@@ -1,0 +1,133 @@
+# Checkout Flow - Sample Maestro Flow
+# Demonstrates a complete e-commerce checkout flow with form filling and validation.
+#
+# Usage:
+#   /ios.run_flow maestro/checkout_flow.yaml
+#
+# Prerequisites:
+#   - User must be logged in
+#   - Cart must have items (or flow will add sample items)
+
+appId: com.maestro.sampleapp
+name: Checkout Flow
+tags:
+  - checkout
+  - e2e
+  - purchase
+
+env:
+  TEST_CARD_NUMBER: "4242424242424242"
+  TEST_EXPIRY: "12/28"
+  TEST_CVC: "123"
+
+---
+# Launch the app
+- launchApp
+
+# Navigate to the Shop tab
+- tapOn:
+    id: "tabBar_shop"
+
+# Wait for products to load
+- assertVisible: "Featured Products"
+- takeScreenshot: "shop_screen"
+
+# Scroll to find a product
+- scrollUntilVisible:
+    element:
+      text: "Premium Widget"
+    direction: DOWN
+
+# Tap on the product
+- tapOn: "Premium Widget"
+
+# Wait for product details
+- assertVisible: "Product Details"
+- takeScreenshot: "product_details"
+
+# Add to cart
+- tapOn: "Add to Cart"
+
+# Verify cart badge updated
+- assertVisible:
+    id: "cartBadge"
+    text: "1"
+
+# Go to cart
+- tapOn:
+    id: "cartButton"
+
+# Verify cart contents
+- assertVisible: "Your Cart"
+- assertVisible: "Premium Widget"
+- takeScreenshot: "cart_screen"
+
+# Proceed to checkout
+- tapOn: "Checkout"
+
+# Wait for checkout form
+- assertVisible: "Shipping Information"
+
+# Fill shipping form
+- tapOn:
+    id: "shippingName"
+- inputText: "John Doe"
+
+- tapOn:
+    id: "shippingAddress"
+- inputText: "123 Test Street"
+
+- tapOn:
+    id: "shippingCity"
+- inputText: "San Francisco"
+
+- tapOn:
+    id: "shippingZip"
+- inputText: "94105"
+
+- hideKeyboard
+- takeScreenshot: "shipping_filled"
+
+# Continue to payment
+- tapOn: "Continue to Payment"
+
+# Wait for payment form
+- assertVisible: "Payment Information"
+
+# Fill payment form (using env variables)
+- tapOn:
+    id: "cardNumber"
+- inputText: "${TEST_CARD_NUMBER}"
+
+- tapOn:
+    id: "cardExpiry"
+- inputText: "${TEST_EXPIRY}"
+
+- tapOn:
+    id: "cardCvc"
+- inputText: "${TEST_CVC}"
+
+- hideKeyboard
+- takeScreenshot: "payment_filled"
+
+# Review order
+- tapOn: "Review Order"
+
+# Wait for order summary
+- assertVisible: "Order Summary"
+- assertVisible: "Premium Widget"
+- takeScreenshot: "order_summary"
+
+# Confirm the order
+- tapOn: "Place Order"
+
+# Wait for confirmation (allow longer timeout for network)
+- assertVisible:
+    text: "Order Confirmed"
+    timeout: 10000
+
+# Verify order number is displayed
+- assertVisible:
+    containsText: "Order #"
+
+- takeScreenshot: "order_confirmation"

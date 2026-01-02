@@ -1,0 +1,104 @@
+# Navigation Flow Template
+#
+# Demonstrates tab bar and screen navigation patterns:
+# - Tab bar switching
+# - Back navigation
+# - Screen transition assertions
+# - Navigation stack verification
+#
+# Usage:
+#   1. Update appId and element identifiers
+#   2. Run with: /ios.run_flow maestro/navigation_flow.yaml
+
+appId: com.your.app
+name: Tab Navigation Flow
+tags:
+  - navigation
+  - smoke
+
+---
+# Launch the app (assumes already logged in)
+- launchApp
+
+# Verify we're on the home screen
+- assertVisible: "Home"
+- takeScreenshot: "nav_home"
+
+# --- Tab Bar Navigation ---
+
+# Navigate to each tab and verify the screen loads
+
+# Tab 1: Profile
+- tapOn:
+    id: "tabBar_profile"
+
+# Wait for profile screen (navigation can have animations)
+- wait: 500
+
+- assertVisible: "Profile"
+- takeScreenshot: "nav_profile"
+
+# Tab 2: Settings
+- tapOn:
+    id: "tabBar_settings"
+
+- wait: 500
+
+- assertVisible: "Settings"
+- takeScreenshot: "nav_settings"
+
+# Tab 3: Search/Browse
+- tapOn:
+    id: "tabBar_search"
+
+- wait: 500
+
+- assertVisible: "Search"
+- takeScreenshot: "nav_search"
+
+# Return to Home tab
+- tapOn:
+    id: "tabBar_home"
+
+- wait: 500
+
+- assertVisible: "Home"
+
+# --- Push Navigation ---
+
+# Navigate into a detail screen
+- tapOn:
+    text: "View Details"
+
+# Verify detail screen appears
+- assertVisible: "Detail View"
+- takeScreenshot: "nav_detail"
+
+# Navigate back
+- tapOn:
+    id: "backButton"
+
+# Or use the press key approach for standard back buttons
+# - pressKey: back
+
+# Verify we returned to home
+- assertVisible: "Home"
+
+# --- Modal Navigation ---
+
+# Open a modal
+- tapOn: "Open Modal"
+
+# Verify modal is displayed
+- assertVisible: "Modal Title"
+- takeScreenshot: "nav_modal"
+
+# Close the modal
+- tapOn: "Close"
+
+# Verify modal is dismissed
+- assertNotVisible: "Modal Title"
+
+# Final verification
+- assertVisible: "Home"
+- takeScreenshot: "nav_complete"

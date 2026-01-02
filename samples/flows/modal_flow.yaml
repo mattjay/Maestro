@@ -1,0 +1,166 @@
+# Modal and Alert Flow Template
+#
+# Demonstrates modal and alert handling patterns:
+# - System alerts (permissions)
+# - App alerts
+# - Bottom sheets
+# - Full-screen modals
+# - Action sheets
+#
+# Usage:
+#   1. Update appId and element identifiers
+#   2. Run with: /ios.run_flow maestro/modal_flow.yaml
+
+appId: com.your.app
+name: Modal and Alert Flow
+tags:
+  - modals
+  - alerts
+
+---
+- launchApp
+
+# Verify we're on the main screen
+- assertVisible: "Home"
+- takeScreenshot: "before_modals"
+
+# --- System Permission Alert ---
+
+# Trigger an action that requests camera permission
+- tapOn: "Take Photo"
+
+# Handle the system permission alert
+# Note: The exact text depends on the permission type and iOS version
+- tapOn:
+    containsText: "Allow"
+
+# Or if you want to deny:
+# - tapOn:
+#     containsText: "Don't Allow"
+
+# Verify the camera UI appears (permission granted)
+- wait: 1000
+- takeScreenshot: "camera_granted"
+
+# Close camera
+- tapOn: "Cancel"
+
+# --- App Alert (UIAlertController) ---
+
+# Trigger an app alert
+- tapOn: "Show Alert"
+
+# Verify alert is displayed
+- assertVisible: "Confirm Action"
+- takeScreenshot: "app_alert"
+
+# Tap the confirm button
+- tapOn: "Confirm"
+
+# Verify alert is dismissed
+- assertNotVisible: "Confirm Action"
+
+# --- Alert with Text Input ---
+
+# Trigger an alert with text field
+- tapOn: "Rename Item"
+
+# Verify alert with text field
+- assertVisible: "Enter New Name"
+
+# Type in the alert text field
+# Note: May need to tap the text field first
+- inputText: "New Item Name"
+
+# Confirm
+- tapOn: "Save"
+
+# Verify change was applied
+- assertVisible: "New Item Name"
+
+# --- Bottom Sheet ---
+
+# Trigger a bottom sheet
+- tapOn: "Share"
+
+# Wait for sheet animation
+- wait: 500
+
+# Verify bottom sheet is visible
+- assertVisible: "Share Options"
+- takeScreenshot: "bottom_sheet"
+
+# Select an option
+- tapOn: "Copy Link"
+
+# Verify sheet dismissed and action completed
+- assertNotVisible: "Share Options"
+- assertVisible: "Link Copied"
+
+# --- Full-Screen Modal ---
+
+# Open a full-screen modal
+- tapOn: "Compose"
+
+# Verify modal is displayed
+- assertVisible: "New Message"
+- takeScreenshot: "full_modal"
+
+# Fill in modal content
+- tapOn:
+    id: "messageField"
+- inputText: "Hello, World!"
+
+# Close modal with save
+- tapOn: "Send"
+
+# Or cancel without saving
+# - tapOn: "Cancel"
+# - tapOn: "Discard" # If there's a confirmation
+
+# Verify we're back on main screen
+- assertVisible: "Home"
+
+# --- Action Sheet ---
+
+# Trigger an action sheet
+- tapOn: "More Options"
+
+# Wait for action sheet animation
+- wait: 300
+
+# Verify action sheet is visible
+- assertVisible: "Choose Action"
+- takeScreenshot: "action_sheet"
+
+# Select an action
+- tapOn: "Delete"
+
+# Handle destructive action confirmation
+- assertVisible: "Are you sure?"
+- tapOn: "Delete"
+
+# Verify action completed
+- assertNotVisible: "Choose Action"
+
+# --- Swipe to Dismiss Modal ---
+
+# Open a swipeable modal
+- tapOn: "View Details"
+
+# Verify modal is open
+- assertVisible: "Details"
+- takeScreenshot: "swipeable_modal"
+
+# Swipe down to dismiss (iOS sheet behavior)
+- swipe:
+    start: "50%, 30%"
+    end: "50%, 80%"
+    duration: 300
+
+# Verify modal is dismissed
+- assertNotVisible: "Details"
+- assertVisible: "Home"
+
+# Final state
+- takeScreenshot: "after_modals"

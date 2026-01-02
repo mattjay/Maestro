@@ -1,0 +1,142 @@
+# Scroll and List Flow Template
+#
+# Demonstrates scrolling and list interaction patterns:
+# - Vertical scrolling
+# - Horizontal scrolling
+# - Scroll until visible
+# - Pull to refresh
+# - Infinite scroll/pagination
+#
+# Usage:
+#   1. Update appId and element identifiers
+#   2. Run with: /ios.run_flow maestro/scroll_flow.yaml
+
+appId: com.your.app
+name: Scroll and List Flow
+tags:
+  - scroll
+  - lists
+
+---
+- launchApp
+
+# Navigate to a list screen
+- tapOn: "Products"
+
+# Verify list appears
+- assertVisible: "Product List"
+- takeScreenshot: "list_initial"
+
+# --- Basic Vertical Scroll ---
+
+# Scroll down to see more content
+- scroll:
+    direction: DOWN
+
+# Wait for scroll animation
+- wait: 300
+
+# Verify we scrolled (new content visible)
+- takeScreenshot: "list_scrolled"
+
+# --- Scroll Until Visible ---
+
+# Scroll until a specific item is visible
+# Useful when you need to find an item in a long list
+- scrollUntilVisible:
+    element:
+      text: "Premium Widget"
+    direction: DOWN
+
+# Verify the target element is now visible
+- assertVisible: "Premium Widget"
+- takeScreenshot: "list_found_item"
+
+# Tap on the found item
+- tapOn: "Premium Widget"
+
+# Verify detail screen
+- assertVisible: "Product Details"
+
+# Go back
+- tapOn:
+    id: "backButton"
+
+# --- Pull to Refresh ---
+
+# Perform pull-to-refresh gesture
+# Swipe from top area downward
+- swipe:
+    start: "50%, 20%"
+    end: "50%, 60%"
+    duration: 300
+
+# Wait for refresh animation and data load
+- wait: 2000
+
+# Verify content is still visible (refresh completed)
+- assertVisible: "Product List"
+- takeScreenshot: "list_refreshed"
+
+# --- Horizontal Scroll (Carousel) ---
+
+# If there's a horizontal carousel
+- scroll:
+    elementId: "featuredCarousel"
+    direction: RIGHT
+
+# Wait for scroll
+- wait: 300
+
+# Screenshot of carousel state
+- takeScreenshot: "carousel_scrolled"
+
+# Scroll back
+- scroll:
+    elementId: "featuredCarousel"
+    direction: LEFT
+
+# --- Scroll to Top ---
+
+# Scroll to the very top of the list
+- scroll:
+    direction: UP
+
+# Repeat a few times to ensure we're at top
+- scroll:
+    direction: UP
+
+# Verify first item is visible
+- assertVisible: "Featured Products"
+- takeScreenshot: "list_top"
+
+# --- Scroll to Bottom (Pagination) ---
+
+# Scroll to bottom to trigger pagination/load more
+- scroll:
+    direction: DOWN
+
+- scroll:
+    direction: DOWN
+
+- scroll:
+    direction: DOWN
+
+# Look for loading indicator or "Load More" button
+# This depends on your app's pagination implementation
+
+# If using infinite scroll, wait for new items
+- wait: 1500
+
+# Screenshot showing more items loaded
+- takeScreenshot: "list_paginated"
+
+# --- Scroll Within Specific Element ---
+
+# Scroll within a scrollable container (not the main view)
+- scroll:
+    elementId: "itemDescription"
+    direction: DOWN
+
+# Verify scroll happened within that element
+- takeScreenshot: "nested_scroll"

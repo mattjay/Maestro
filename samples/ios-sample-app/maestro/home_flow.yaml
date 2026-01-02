@@ -1,0 +1,61 @@
+# Home Flow - Sample Maestro Flow
+# Demonstrates navigation through the home screen and tab interactions.
+#
+# Usage:
+#   /ios.run_flow maestro/home_flow.yaml
+#
+# Prerequisites:
+#   - User must be logged in (run login_flow.yaml first or use a seeded state)
+
+appId: com.maestro.sampleapp
+name: Home Screen Navigation
+tags:
+  - home
+  - navigation
+  - tabs
+
+---
+# Launch the app (assumes logged in state)
+- launchApp
+
+# Wait for the home screen
+- assertVisible: "Dashboard"
+
+# Take screenshot of the initial home state
+- takeScreenshot: "home_initial"
+
+# Navigate to the Profile tab
+- tapOn:
+    id: "tabBar_profile"
+
+# Verify profile screen appears
+- assertVisible: "Profile Settings"
+- takeScreenshot: "profile_tab"
+
+# Navigate to the Settings tab
+- tapOn:
+    id: "tabBar_settings"
+
+# Verify settings screen appears
+- assertVisible: "App Settings"
+- takeScreenshot: "settings_tab"
+
+# Navigate back to Home tab
+- tapOn:
+    id: "tabBar_home"
+
+# Verify we're back on the dashboard
+- assertVisible: "Dashboard"
+
+# Test pull-to-refresh
+- swipe:
+    start: "50%, 30%"
+    end: "50%, 70%"
+    duration: 300
+
+# Wait for refresh animation to complete
+- wait: 2000
+
+# Verify content is still visible after refresh
+- assertVisible: "Dashboard"
+- takeScreenshot: "home_after_refresh"

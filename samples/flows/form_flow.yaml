@@ -1,0 +1,142 @@
+# Form Filling Flow Template
+#
+# Demonstrates form interaction patterns:
+# - Text field input
+# - Dropdown/picker selection
+# - Toggle switches
+# - Form validation
+# - Error handling
+#
+# Usage:
+#   1. Update appId and element identifiers
+#   2. Run with: /ios.run_flow maestro/form_flow.yaml
+
+appId: com.your.app
+name: Form Filling Flow
+tags:
+  - forms
+  - input
+
+env:
+  TEST_NAME: "John Doe"
+  TEST_EMAIL: "john.doe@example.com"
+  TEST_PHONE: "555-123-4567"
+
+---
+- launchApp
+
+# Navigate to form
+- tapOn: "Create Account"
+
+# Verify form appears
+- assertVisible: "Registration Form"
+- takeScreenshot: "form_empty"
+
+# --- Text Fields ---
+
+# Fill in name field (using environment variable)
+- tapOn:
+    id: "nameField"
+- inputText: "${TEST_NAME}"
+
+# Fill in email field
+- tapOn:
+    id: "emailField"
+- inputText: "${TEST_EMAIL}"
+
+# Fill in phone field
+- tapOn:
+    id: "phoneField"
+- inputText: "${TEST_PHONE}"
+
+# Hide keyboard after text input
+- hideKeyboard
+
+# --- Dropdown/Picker Selection ---
+
+# Open country picker
+- tapOn:
+    id: "countryPicker"
+
+# Wait for picker to appear
+- wait: 300
+
+# Select a country from the list
+- tapOn: "United States"
+
+# Verify selection is shown
+- assertVisible:
+    id: "countryPicker"
+    containsText: "United States"
+
+# --- Toggle Switches ---
+
+# Enable notifications toggle
+- tapOn:
+    id: "notificationsToggle"
+
+# Accept terms toggle
+- tapOn:
+    id: "termsToggle"
+
+# --- Checkbox/Radio Selection ---
+
+# Select subscription tier
+- tapOn:
+    id: "tierPremium"
+
+# Verify selection
+# (checkmarks or filled radio buttons)
+- assertVisible:
+    id: "tierPremium"
+    # Element should show selected state
+
+# --- Date Picker ---
+
+# Open date picker
+- tapOn:
+    id: "birthdatePicker"
+
+# Navigate to correct date
+# Note: Date picker interaction varies by picker style
+- tapOn: "Done"
+
+# Screenshot of filled form
+- takeScreenshot: "form_filled"
+
+# --- Form Validation ---
+
+# Clear a required field to trigger validation
+- tapOn:
+    id: "nameField"
+- eraseText
+- hideKeyboard
+
+# Try to submit
+- tapOn: "Submit"
+
+# Verify validation error appears
+- assertVisible:
+    containsText: "required"
+
+# Screenshot of validation error
+- takeScreenshot: "form_validation_error"
+
+# Fix the error
+- tapOn:
+    id: "nameField"
+- inputText: "${TEST_NAME}"
+- hideKeyboard
+
+# --- Form Submission ---
+
+# Submit the form
+- tapOn: "Submit"
+
+# Wait for success (may have network delay)
+- assertVisible:
+    text: "Registration Complete"
+    timeout: 10000
+
+# Final screenshot
+- takeScreenshot: "form_success"

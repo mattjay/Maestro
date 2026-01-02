@@ -1,0 +1,31 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "path": "./SampleApp/SampleApp.xcodeproj",
+    "scheme": "SampleApp",
+    "bundleId": "com.maestro.sampleapp",
+    "type": "xcodeproj"
+  },
+  "simulator": {
+    "default": "iPhone 15 Pro",
+    "udid": ""
+  },
+  "xcuitest": {
+    "enabled": true,
+    "targetName": "SampleAppUITests"
+  },
+  "bridge": {
+    "enabled": true,
+    "port": 9876
+  },
+  "baselines": {
+    "directory": "./ios-baselines"
+  },
+  "flows": {
+    "directory": "./maestro"
+  },
+  "created": {
+    "at": "2026-01-02T00:00:00.000Z",
+    "wizardVersion": "1.0.0"
+  }
+}

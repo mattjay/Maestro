@@ -233,7 +233,7 @@
 
 ### Starter Templates
 
-- [ ] Create sample iOS project with full integration
+- [x] Create sample iOS project with full integration
   ```
   ios-sample-app/
   ├── SampleApp/
@@ -252,18 +252,45 @@
       └── ios-config.json
   ```
 
-- [ ] Include MaestroBridge integration example
-- [ ] Include XCUITest inspector setup
-- [ ] Include common flow patterns
+  **Implementation Notes (Jan 2, 2026):**
+  - Created complete sample iOS app in `samples/ios-sample-app/` with:
+    - SwiftUI app with login, home, shop, profile, settings, cart, and checkout views
+    - All views have proper accessibility identifiers for Maestro automation
+    - Models for User, Product, CartItem, Order, ShippingAddress, PaymentInfo
+    - AppState for authentication and cart management
+  - Maestro flows in `maestro/`: login_flow.yaml, home_flow.yaml, checkout_flow.yaml
+  - Configuration in `.maestro/ios-config.json` with full project settings
+  - XCUITest target in `Tests/SampleAppUITests/` with inspector support
+  - Unit tests in `Tests/SampleAppTests/`
+  - Comprehensive README.md with usage instructions
+
+- [x] Include MaestroBridge integration example
+  - Configuration enables bridge with port 9876
+  - README documents bridge usage commands
+
+- [x] Include XCUITest inspector setup
+  - `SampleAppUITests.swift` provides XCUITest target
+  - Includes `testMaestroInspection()` and `testElementTreeSnapshot()` for debugging
+  - Full test coverage for login, navigation, and checkout flows
+
+- [x] Include common flow patterns
+  - Login flow: app launch, text input, assertions, screenshots
+  - Home flow: tab navigation, pull-to-refresh, swipe gestures
+  - Checkout flow: form filling, env variables, multi-step flows
 
 ### Demo Flows
 
-- [ ] Create `samples/flows/` directory
-  - [ ] `login_flow.yaml` - standard login flow
-  - [ ] `navigation_flow.yaml` - tab navigation
-  - [ ] `form_flow.yaml` - form filling
-  - [ ] `scroll_flow.yaml` - scrolling and lists
-  - [ ] `modal_flow.yaml` - modal handling
+- [x] Create `samples/flows/` directory
+  - [x] `login_flow.yaml` - standard login flow with detailed comments
+  - [x] `navigation_flow.yaml` - tab navigation, push navigation, modals
+  - [x] `form_flow.yaml` - text input, pickers, toggles, validation
+  - [x] `scroll_flow.yaml` - scrolling, scroll until visible, pull to refresh
+  - [x] `modal_flow.yaml` - system alerts, app alerts, bottom sheets, action sheets
+
+  **Implementation Notes (Jan 2, 2026):**
+  - All flows include comprehensive comments explaining each step
+  - Designed as templates that can be copied and adapted
+  - Demonstrate accessibility identifiers and best practices
 
 ---
 

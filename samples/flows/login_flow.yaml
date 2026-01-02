@@ -1,0 +1,81 @@
+# Login Flow Template
+#
+# A standard login flow pattern demonstrating:
+# - App launch with fresh state
+# - Text field interactions
+# - Button tapping
+# - Success verification
+# - Screenshot capture
+#
+# Usage:
+#   1. Copy this file to your project's maestro/ directory
+#   2. Update the appId to your bundle identifier
+#   3. Update accessibility identifiers to match your app
+#   4. Run with: /ios.run_flow maestro/login_flow.yaml
+
+appId: com.your.app
+name: Login Flow
+tags:
+  - login
+  - smoke
+  - authentication
+
+---
+# Launch the app with a fresh state (clears user defaults, keychain)
+- launchApp:
+    appId: com.your.app
+    clearState: true
+
+# Wait for the login screen to fully load
+# Tip: Use a unique text element that only appears on the login screen
+- assertVisible:
+    text: "Welcome"
+    timeout: 5000
+
+# Capture a baseline screenshot of the login screen
+# Useful for visual regression testing with /ios.diff
+- takeScreenshot: "login_screen"
+
+# --- Enter Credentials ---
+
+# Tap on the username/email field
+# Using id (accessibilityIdentifier) is more reliable than text
+- tapOn:
+    id: "usernameField"
+
+# Type the test email
+# For production, consider using env variables for test credentials
+- inputText: "testuser@example.com"
+
+# Tap on the password field
+- tapOn:
+    id: "passwordField"
+
+# Type the password
+- inputText: "password123"
+
+# Hide the keyboard to ensure the login button is visible
+- hideKeyboard
+
+# Screenshot before submitting (useful for debugging failures)
+- takeScreenshot: "login_filled"
+
+# --- Submit Login ---
+
+# Tap the login button
+# Can use text or id depending on your implementation
+- tapOn: "Log In"
+
+# Wait for login to complete and home screen to appear
+# Increase timeout for slow network conditions
+- assertVisible:
+    text: "Home"
+    timeout: 10000
+
+# Verify user-specific content is visible
+# This confirms the login was actually successful
+- assertVisible:
+    containsText: "Welcome back"
+
+# Capture final state
+- takeScreenshot: "login_success"

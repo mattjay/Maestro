@@ -1,0 +1,58 @@
+# Login Flow - Sample Maestro Flow
+# Demonstrates basic login interactions with assertions and screenshots.
+#
+# Usage:
+#   /ios.run_flow maestro/login_flow.yaml
+#
+# Prerequisites:
+#   - App must be installed on the simulator
+#   - Simulator must be booted
+
+appId: com.maestro.sampleapp
+name: Login Flow
+tags:
+  - login
+  - smoke
+  - authentication
+
+---
+# Launch the app with fresh state
+- launchApp:
+    appId: com.maestro.sampleapp
+    clearState: true
+
+# Wait for the login screen to appear
+- assertVisible: "Welcome to SampleApp"
+
+# Take a baseline screenshot of the login screen
+- takeScreenshot: "login_screen"
+
+# Enter username
+- tapOn:
+    id: "usernameField"
+- inputText: "testuser@example.com"
+
+# Enter password
+- tapOn:
+    id: "passwordField"
+- inputText: "password123"
+
+# Hide keyboard
+- hideKeyboard
+
+# Take screenshot before tapping login
+- takeScreenshot: "login_filled"
+
+# Tap the login button
+- tapOn: "Log In"
+
+# Wait for the home screen to appear
+- assertVisible:
+    text: "Dashboard"
+    timeout: 5000
+
+# Verify successful login
+- assertVisible: "Welcome back, testuser"
+
+# Take screenshot of successful login state
+- takeScreenshot: "login_success"

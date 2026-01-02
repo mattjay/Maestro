@@ -1,0 +1,15 @@
+# Baseline screenshots for visual regression testing
+#
+# This directory stores baseline PNG images captured with /ios.snapshot.
+# These are used by /ios.diff to detect visual regressions.
+#
+# To create a baseline:
+#   /ios.snapshot --save-baseline login
+#
+# To compare against baseline:
+#   /ios.diff login
+#
+# Naming convention:
+#   {screen_name}.png           - Default device
+#   {screen_name}@iPhone15.png  - Device-specific baseline
+#   {screen_name}@dark.png      - Dark mode variant
