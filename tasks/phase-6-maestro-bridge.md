@@ -513,7 +513,15 @@
   > - **IPC handler** (ios.ts:2617-2632): `ios:bridge:getState` handler exposed via preload.ts
   > - **Tests:** StateEndpointTests (4 tests), integration tests testGetFullState/testGetSpecificStateKey/testGetNonExistentStateKey, 69 slash command tests, all passing
   > - **Test counts:** 117 Swift tests, 132 TypeScript tests all pass
-- [ ] `/ios.bridge.route` returns navigation state
+- [x] `/ios.bridge.route` returns navigation state
+  > **Verified:** Complete implementation across all layers:
+  > - **Swift RouteEndpoint** (RouteEndpoint.swift): Handles GET /route (current route), GET /route/stack (full navigation stack), GET /route/history (navigation history). Returns RouteInfo with currentRoute, stack (array of route/title pairs), canGoBack, and presentedModally
+  > - **BridgeServer routing** (BridgeServer.swift:316-322): Routes /route, /route/stack, and /route/history requests to RouteEndpoint handlers
+  > - **TypeScript client** (bridge-client.ts:356-372): `getRoute()`, `getRouteStack()`, and `getRouteHistory()` methods properly call HTTP endpoints
+  > - **Slash command** (ios-bridge.ts:559-596): `executeBridgeRouteCommand()` with `--stack` flag support, formats output showing current route, can go back status, modal status, and optionally the full navigation stack
+  > - **IPC handler** (ios.ts:2636-2650): `ios:bridge:getRoute` handler exposed via preload.ts with stack/history options
+  > - **Tests:** RouteEndpointTests (5 tests: testGetRoute, testGetStack, testGetHistory, testNavigationTypes, testRecordNavigationAndClear), MaestroBridgeIntegrationTests (testGetRoute, testGetRouteStack, testGetRouteHistory), 69 slash command tests
+  > - **Test counts:** 117 Swift tests pass, 13 bridge-client tests pass, 69 ios-bridge slash command tests pass
 - [ ] `/ios.bridge.network` returns network log
 - [ ] `/ios.bridge.analytics` returns events
 - [ ] Agent can confirm UI AND internal state changed
