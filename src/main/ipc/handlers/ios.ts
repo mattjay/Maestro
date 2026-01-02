@@ -2597,6 +2597,204 @@ export function registerIOSHandlers(): void {
     )
   );
 
+  // ==========================================================================
+  // MaestroBridge Introspection
+  // ==========================================================================
+
+  // Ping the bridge to check if it's alive
+  ipcMain.handle(
+    'ios:bridge:ping',
+    withIpcErrorLogging(
+      handlerOpts('bridgePing'),
+      async (options?: { host?: string; port?: number; token?: string }) => {
+        const client = new iosTools.BridgeClient(options);
+        const isAlive = await client.ping();
+        return { success: true, data: isAlive };
+      }
+    )
+  );
+
+  // Get full app state from the bridge
+  ipcMain.handle(
+    'ios:bridge:getState',
+    withIpcErrorLogging(
+      handlerOpts('bridgeGetState'),
+      async (options?: { host?: string; port?: number; token?: string; key?: string }) => {
+        const { key, ...clientConfig } = options || {};
+        const client = new iosTools.BridgeClient(clientConfig);
+
+        if (key) {
+          return await client.getStateKey(key);
+        }
+        return await client.getState();
+      }
+    )
+  );
+
+  // Get route/navigation state from the bridge
+  ipcMain.handle(
+    'ios:bridge:getRoute',
+    withIpcErrorLogging(
+      handlerOpts('bridgeGetRoute'),
+      async (options?: { host?: string; port?: number; token?: string; stack?: boolean; history?: boolean }) => {
+        const { stack, history, ...clientConfig } = options || {};
+        const client = new iosTools.BridgeClient(clientConfig);
+
+        if (history) {
+          return await client.getRouteHistory();
+        }
+        if (stack) {
+          return await client.getRouteStack();
+        }
+        return await client.getRoute();
+      }
+    )
+  );
+
+  // Get network request log from the bridge
+  ipcMain.handle(
+    'ios:bridge:getNetwork',
+    withIpcErrorLogging(
+      handlerOpts('bridgeGetNetwork'),
+      async (options?: {
+        host?: string;
+        port?: number;
+        token?: string;
+        limit?: number;
+        errorsOnly?: boolean;
+        id?: string;
+      }) => {
+        const { limit, errorsOnly, id, ...clientConfig } = options || {};
+        const client = new iosTools.BridgeClient(clientConfig);
+
+        if (id) {
+          return await client.getNetworkDetail(id);
+        }
+        return await client.getNetwork({ limit, errorsOnly });
+      }
+    )
+  );
+
+  // Get analytics events from the bridge
+  ipcMain.handle(
+    'ios:bridge:getAnalytics',
+    withIpcErrorLogging(
+      handlerOpts('bridgeGetAnalytics'),
+      async (options?: { host?: string; port?: number; token?: string; filter?: string; limit?: number }) => {
+        const { filter, limit, ...clientConfig } = options || {};
+        const client = new iosTools.BridgeClient(clientConfig);
+
+        return await client.getAnalytics({ filter, limit });
+      }
+    )
+  );
+
+  // Get feature flags from the bridge
+  ipcMain.handle(
+    'ios:bridge:getFlags',
+    withIpcErrorLogging(
+      handlerOpts('bridgeGetFlags'),
+      async (options?: { host?: string; port?: number; token?: string; name?: string }) => {
+        const { name, ...clientConfig } = options || {};
+        const client = new iosTools.BridgeClient(clientConfig);
+
+        if (name) {
+          return await client.getFlag(name);
+        }
+        return await client.getFlags();
+      }
+    )
+  );
+
+  // Set test state via the bridge (dangerous - requires confirmation)
+  ipcMain.handle(
+    'ios:bridge:setState',
+    withIpcErrorLogging(
+      handlerOpts('bridgeSetState'),
+      async (options: {
+        host?: string;
+        port?: number;
+        token?: string;
+        key: string;
+        value: unknown;
+        additionalToken?: string;
+      }) => {
+        const { key, value, additionalToken, ...clientConfig } = options;
+
+        if (!key) {
+          return {
+            success: false,
+            error: 'State key is required',
+            errorCode: 'INVALID_ARGUMENT' as const,
+          };
+        }
+
+        const client = new iosTools.BridgeClient(clientConfig);
+        return await client.setState(key, value, additionalToken);
+      }
+    )
+  );
+
+  // Discover bridge (auto-find port and token)
+  ipcMain.handle(
+    'ios:bridge:discover',
+    withIpcErrorLogging(
+      handlerOpts('bridgeDiscover'),
+      async (options?: { udid?: string; host?: string }) => {
+        const { udid, host } = options || {};
+        return await iosTools.discoverBridge(udid, host);
+      }
+    )
+  );
+
+  // Wait for bridge to become available
+  ipcMain.handle(
+    'ios:bridge:waitFor',
+    withIpcErrorLogging(
+      handlerOpts('bridgeWaitFor'),
+      async (options?: { host?: string; port?: number; timeout?: number; interval?: number }) => {
+        const { host, port, timeout, interval } = options || {};
+        return await iosTools.waitForBridge(host, port, timeout, interval);
+      }
+    )
+  );
+
+  // Clear network logs via the bridge
+  ipcMain.handle(
+    'ios:bridge:clearNetwork',
+    withIpcErrorLogging(
+      handlerOpts('bridgeClearNetwork'),
+      async (options?: { host?: string; port?: number; token?: string }) => {
+        const client = new iosTools.BridgeClient(options);
+        return await client.clearNetwork();
+      }
+    )
+  );
+
+  // Clear analytics events via the bridge
+  ipcMain.handle(
+    'ios:bridge:clearAnalytics',
+    withIpcErrorLogging(
+      handlerOpts('bridgeClearAnalytics'),
+      async (options?: { host?: string; port?: number; token?: string }) => {
+        const client = new iosTools.BridgeClient(options);
+        return await client.clearAnalytics();
+      }
+    )
+  );
+
+  // Get analytics sources from the bridge
+  ipcMain.handle(
+    'ios:bridge:getAnalyticsSources',
+    withIpcErrorLogging(
+      handlerOpts('bridgeGetAnalyticsSources'),
+      async (options?: { host?: string; port?: number; token?: string }) => {
+        const client = new iosTools.BridgeClient(options);
+        return await client.getAnalyticsSources();
+      }
+    )
+  );
+
   logger.debug(`${LOG_CONTEXT} iOS IPC handlers registered`);
 }
 

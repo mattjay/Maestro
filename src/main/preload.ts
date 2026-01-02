@@ -1421,6 +1421,57 @@ contextBridge.exposeInMainWorld('maestro', {
       list: (projectPath: string, scheme: string) =>
         ipcRenderer.invoke('ios:test:list', projectPath, scheme),
     },
+    // MaestroBridge Introspection
+    bridge: {
+      /** Check if bridge is alive */
+      ping: (options?: { host?: string; port?: number; token?: string }) =>
+        ipcRenderer.invoke('ios:bridge:ping', options),
+      /** Get app state snapshot */
+      getState: (options?: { host?: string; port?: number; token?: string; key?: string }) =>
+        ipcRenderer.invoke('ios:bridge:getState', options),
+      /** Get navigation/route state */
+      getRoute: (options?: { host?: string; port?: number; token?: string; stack?: boolean; history?: boolean }) =>
+        ipcRenderer.invoke('ios:bridge:getRoute', options),
+      /** Get network request log */
+      getNetwork: (options?: {
+        host?: string;
+        port?: number;
+        token?: string;
+        limit?: number;
+        errorsOnly?: boolean;
+        id?: string;
+      }) => ipcRenderer.invoke('ios:bridge:getNetwork', options),
+      /** Get analytics events */
+      getAnalytics: (options?: { host?: string; port?: number; token?: string; filter?: string; limit?: number }) =>
+        ipcRenderer.invoke('ios:bridge:getAnalytics', options),
+      /** Get analytics sources */
+      getAnalyticsSources: (options?: { host?: string; port?: number; token?: string }) =>
+        ipcRenderer.invoke('ios:bridge:getAnalyticsSources', options),
+      /** Get feature flags */
+      getFlags: (options?: { host?: string; port?: number; token?: string; name?: string }) =>
+        ipcRenderer.invoke('ios:bridge:getFlags', options),
+      /** Set test state (dangerous - requires confirmation) */
+      setState: (options: {
+        host?: string;
+        port?: number;
+        token?: string;
+        key: string;
+        value: unknown;
+        additionalToken?: string;
+      }) => ipcRenderer.invoke('ios:bridge:setState', options),
+      /** Auto-discover bridge (find port and token) */
+      discover: (options?: { udid?: string; host?: string }) =>
+        ipcRenderer.invoke('ios:bridge:discover', options),
+      /** Wait for bridge to become available */
+      waitFor: (options?: { host?: string; port?: number; timeout?: number; interval?: number }) =>
+        ipcRenderer.invoke('ios:bridge:waitFor', options),
+      /** Clear network request log */
+      clearNetwork: (options?: { host?: string; port?: number; token?: string }) =>
+        ipcRenderer.invoke('ios:bridge:clearNetwork', options),
+      /** Clear analytics events */
+      clearAnalytics: (options?: { host?: string; port?: number; token?: string }) =>
+        ipcRenderer.invoke('ios:bridge:clearAnalytics', options),
+    },
   },
 
   // Notification API
