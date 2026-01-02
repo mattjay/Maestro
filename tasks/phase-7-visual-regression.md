@@ -440,20 +440,77 @@
 
 ### CI Integration
 
-- [ ] Create `src/main/ios-tools/ci-export.ts`
-  - [ ] Export results in JUnit XML format
-  - [ ] Export results in JSON format
-  - [ ] Generate artifact bundle for CI systems
-  - [ ] Support GitHub Actions, CircleCI, etc.
+- [x] Create `src/main/ios-tools/ci-export.ts`
+  - [x] Export results in JUnit XML format
+  - [x] Export results in JSON format
+  - [x] Generate artifact bundle for CI systems
+  - [x] Support GitHub Actions, CircleCI, etc.
+  **Completed**: Created comprehensive `ci-export.ts` module with:
+  - `exportToJUnitXML(entries, options)` - Export to JUnit XML format compatible with Jenkins, CircleCI, GitHub Actions, GitLab CI, Azure Pipelines, etc.
+    - Includes test counts (total, passed, failed, errors)
+    - Properties section with project metadata
+    - Failure/error elements with detailed messages
+    - System output with similarity percentages and changed regions
+    - XML character escaping for security
+  - `exportToJSON(entries, options)` - Export to structured JSON format
+    - Meta section with version, generator, timestamp, CI environment
+    - Summary statistics (total, passed, failed, errors, updated, pass rate)
+    - Per-test results with status, similarity, diff percent, changed regions
+    - Optional analysis details and metadata
+    - Pretty or compact output modes
+  - `generateArtifactBundle(entries, options)` - Generate complete artifact package
+    - Directory or zip format output
+    - Includes baseline, current, and diff images
+    - HTML report, JUnit XML, and JSON results
+    - SUMMARY.md with statistics and file listing
+  - `detectCIEnvironment()` - Auto-detect CI system from environment variables
+    - Supports 8+ CI systems: GitHub Actions, CircleCI, Jenkins, GitLab CI, Travis CI, Azure Pipelines, Bitbucket Pipelines, Buildkite
+    - Extracts build number, URL, branch, commit SHA, PR number, job name
+  - `getCIConfigSnippet(ciSystem)` - Generate CI-specific configuration snippets
+  - `exportAll(entries, outputDir)` - Convenience function to export all formats
+  - Constants: `EXPORT_FORMAT_VERSION`, `GENERATOR_NAME`, `DEFAULT_SUITE_NAME`, `DEFAULT_PACKAGE_NAME`
+  - Types exported: `CIExportOptions`, `JUnitExportOptions`, `JSONExportOptions`, `ArtifactBundleOptions`, `ExportResult`, `ExportSummary`, `CIEnvironment`, `JSONExportData`, `JSONTestResult`
+  - Added 57 passing unit tests in `__tests__/ci-export.test.ts`
+  - Exported from `ios-tools/index.ts`
 
 ---
 
 ## Performance Optimization
 
-- [ ] Implement comparison caching
-  - [ ] Hash-based quick rejection (identical images)
-  - [ ] Progressive comparison (coarse first, then detailed)
-  - [ ] Parallel comparison for multiple baselines
+- [x] Implement comparison caching
+  - [x] Hash-based quick rejection (identical images)
+  - [x] Progressive comparison (coarse first, then detailed)
+  - [x] Parallel comparison for multiple baselines
+  **Completed**: Created comprehensive `cache.ts` module in `src/main/ios-tools/image-diff/` with:
+
+  **Hash-Based Quick Rejection**:
+  - `calculateFileHash(imagePath)` - MD5 hash of file contents
+  - `calculateContentHash(imagePath)` - MD5 hash of pixel data (ignores metadata)
+  - `areImagesIdenticalCached(path1, path2)` - Fast cache-based identity check
+  - `ImageHashCache` class with TTL expiration and LRU eviction
+
+  **Progressive Comparison**:
+  - `downsampleImage(image, factor)` - Point-sample downsample for speed
+  - `progressiveCompare(baseline, current, options)` - Two-phase comparison:
+    1. Coarse comparison on downsampled images (1/4 resolution)
+    2. Skip detailed if coarse >= 99% similar (configurable)
+    3. Fail fast if coarse < 50% similar (configurable)
+    4. Full detailed comparison for intermediate cases
+  - Returns `ProgressiveCompareResult` with timing breakdown
+
+  **Parallel Batch Comparison**:
+  - `compareInParallel(items, options)` - Concurrent comparison of multiple baselines
+  - Configurable concurrency (default: 4)
+  - Fail-fast option for early termination on failure
+  - Combines hash rejection + progressive comparison for max speed
+  - Returns `BatchCompareResult` with pass/fail/error counts
+
+  **Cache Management**:
+  - `clearCaches()`, `clearHashCache()`, `clearComparisonCache()`
+  - `getCacheStats()` - Get current cache sizes
+  - `compareImagesCached()` - Comparison with result caching
+
+  All exports added to `image-diff/index.ts`. Added 45 passing unit tests in `__tests__/cache.test.ts`.
 
 ---
 

@@ -113,6 +113,44 @@ export {
 } from './analyzer';
 
 // =============================================================================
+// Caching Functions
+// =============================================================================
+
+export type {
+  ImageHashCacheEntry,
+  ComparisonCacheEntry,
+  ProgressiveCompareOptions,
+  ParallelCompareOptions,
+  ProgressiveCompareResult,
+} from './cache';
+
+export {
+  // Constants
+  DEFAULT_CONCURRENCY,
+  DEFAULT_CACHE_TTL_MS,
+  DEFAULT_MAX_CACHE_ENTRIES,
+  COARSE_DOWNSAMPLE_FACTOR,
+  COARSE_SKIP_THRESHOLD,
+  COARSE_FAIL_THRESHOLD,
+  // Hash-based quick rejection
+  calculateFileHash,
+  calculateContentHash,
+  areImagesIdenticalCached,
+  // Progressive comparison
+  downsampleImage,
+  progressiveCompare,
+  // Parallel batch comparison
+  compareInParallel,
+  // Cache management
+  clearCaches,
+  clearHashCache,
+  clearComparisonCache,
+  getCacheStats,
+  // Cached comparison
+  compareImagesCached,
+} from './cache';
+
+// =============================================================================
 // Convenience Functions
 // =============================================================================
 
