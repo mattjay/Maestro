@@ -2733,3 +2733,799 @@ If you see "MaestroBridge in Release Build" error:
 1. Remove MaestroBridge from release target
 2. Wrap all usage in `#if DEBUG`
 3. Use SPM configuration condition
+
+## Visual Regression Testing
+
+Maestro's visual regression tools detect and report visual changes between app versions. This enables automated detection of unintended UI changes and provides evidence that fixes actually resolve visual issues.
+
+### Overview
+
+The visual regression system provides:
+
+- **Baseline Management** - Save, update, list, and delete reference screenshots
+- **Image Comparison** - Pixel-level comparison with configurable thresholds
+- **Change Detection** - Identify and categorize visual differences
+- **Ignore Regions** - Exclude dynamic content from comparison
+- **Multi-Device Support** - Device-family specific baselines
+- **CI Integration** - JUnit XML, JSON, and HTML report generation
+
+### Baseline Workflow
+
+The core workflow for visual regression testing follows these steps:
+
+#### 1. Capture Initial Baselines
+
+First, navigate to each screen and save baselines:
+
+```
+/ios.baseline save login_screen --app com.example.myapp
+/ios.baseline save home_screen --app com.example.myapp
+/ios.baseline save settings_screen --app com.example.myapp
+```
+
+Baselines are stored in `~/.maestro/ios-baselines/{project}/screens/`.
+
+#### 2. Compare Against Baselines
+
+After making code changes, compare current screens to baselines:
+
+```
+/ios.diff login_screen
+```
+
+Example output:
+
+```markdown
+## Visual Comparison: login_screen
+
+**Status**: DIFFERENCES DETECTED
+**Similarity**: 94.2%
+**Changed Pixels**: 1,234 (5.8%)
+
+### Changed Regions
+
+1. **Button Area** (100, 450) - (200, 500)
+   - Color changed: #007AFF → #34C759
+   - Severity: Medium
+
+2. **Header Text** (20, 80) - (300, 120)
+   - Text content likely changed
+   - Severity: Low
+
+### Files
+- Baseline: ~/.maestro/ios-baselines/myproject/screens/login_screen/baseline.png
+- Current: /tmp/ios-diff-current.png
+- Diff: /tmp/ios-diff-result.png
+
+### Recommendation
+Review the changes above. If intentional:
+`/ios.baseline update login_screen`
+```
+
+#### 3. Update Baselines When Intended
+
+If the visual changes are intentional (new design, bug fix, etc.):
+
+```
+/ios.baseline update login_screen
+```
+
+#### 4. Run Full Regression
+
+Before releases or after significant changes, run a full regression check:
+
+```
+/ios.regression --project myproject
+```
+
+This compares all baselines and generates a comprehensive report.
+
+### The `/ios.baseline` Command
+
+Manage visual regression baselines.
+
+#### Subcommands
+
+| Subcommand | Description | Example |
+|------------|-------------|---------|
+| `save <name>` | Capture current screen as baseline | `/ios.baseline save login_screen` |
+| `update <name>` | Update existing baseline | `/ios.baseline update login_screen` |
+| `list` | List all baselines | `/ios.baseline list` |
+| `show <name>` | Display baseline info | `/ios.baseline show login_screen` |
+| `delete <name>` | Remove baseline | `/ios.baseline delete login_screen` |
+| `ignore <name> <region>` | Add ignore region | `/ios.baseline ignore login_screen status_bar` |
+
+#### Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--project <name>` | `-p` | Project name (default: current directory name) |
+| `--simulator <name\|udid>` | `-s` | Target simulator |
+| `--app <bundleId>` | `-a` | App bundle ID for metadata |
+| `--device-family <family>` | `-f` | Device family (iPhone-SE, iPhone, iPhone-Pro-Max, iPad) |
+| `--auto-device-family` | | Auto-detect device family from screen size |
+| `--description <text>` | `-d` | Description for baseline |
+| `--tags <tag1,tag2>` | `-t` | Tags for organization |
+
+#### Examples
+
+**Save baseline with metadata**:
+```
+/ios.baseline save checkout_flow --app com.example.store --description "Checkout page with cart items" --tags "checkout,critical"
+```
+
+**Save with auto device family detection**:
+```
+/ios.baseline save home_screen --auto-device-family
+```
+
+**List baselines for a project**:
+```
+/ios.baseline list --project myproject
+```
+
+**Add ignore region**:
+```
+/ios.baseline ignore login_screen status_bar --reason "Dynamic time display"
+```
+
+### The `/ios.diff` Command
+
+Compare current screen against baselines.
+
+#### Modes
+
+| Mode | Description | Example |
+|------|-------------|---------|
+| Single baseline | Compare to one baseline | `/ios.diff login_screen` |
+| Flow | Compare all steps in a flow | `/ios.diff --flow checkout` |
+| All | Compare all baselines | `/ios.diff --all` |
+
+#### Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--project <name>` | `-p` | Project name |
+| `--simulator <name\|udid>` | `-s` | Target simulator |
+| `--threshold <0-1>` | `-t` | Pixel difference threshold (default: 0.1) |
+| `--output <path>` | `-o` | Save diff image to path |
+| `--update` | `-u` | Update baseline if different |
+| `--device-family <family>` | `-f` | Use device-specific baseline |
+
+#### Examples
+
+**Basic comparison**:
+```
+/ios.diff login_screen
+```
+
+**Comparison with custom threshold**:
+```
+/ios.diff login_screen --threshold 0.05
+```
+
+**Save diff image**:
+```
+/ios.diff login_screen --output ./diffs/login-diff.png
+```
+
+**Compare all baselines**:
+```
+/ios.diff --all --project myproject
+```
+
+### The `/ios.regression` Command
+
+Run comprehensive visual regression tests.
+
+```
+/ios.regression [--mode <mode>] [--project <name>]
+```
+
+#### Modes
+
+| Mode | Description |
+|------|-------------|
+| `full` (default) | All screens and flows |
+| `quick` | Screens only, higher threshold |
+| `flows-only` | Only flow baselines |
+
+#### Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--project <name>` | `-p` | Project name |
+| `--simulator <name\|udid>` | `-s` | Target simulator |
+| `--threshold <0-1>` | `-t` | Pixel difference threshold |
+| `--output <path>` | `-o` | Output directory for reports |
+| `--device-family <family>` | `-f` | Filter to device family |
+| `--fail-fast` | | Stop on first failure |
+| `--update` | `-u` | Update failed baselines |
+| `--verbose` | `-v` | Show detailed output |
+
+#### Example Output
+
+```markdown
+## Visual Regression Report
+
+**Project**: myproject
+**Device**: iPhone 15 Pro (iOS 17.5)
+**Timestamp**: 2024-01-15T10:30:00Z
+
+### Summary
+
+| Metric | Value |
+|--------|-------|
+| Total Baselines | 15 |
+| Passed | 13 |
+| Failed | 2 |
+| Skipped | 0 |
+| Pass Rate | 86.7% |
+
+### Failed Baselines
+
+#### login_screen
+- **Similarity**: 94.2%
+- **Changed Regions**: 2
+- **Diff**: ~/.maestro/ios-baselines/myproject/diffs/login_screen-diff.png
+
+#### checkout_screen
+- **Similarity**: 89.1%
+- **Changed Regions**: 3
+- **Diff**: ~/.maestro/ios-baselines/myproject/diffs/checkout_screen-diff.png
+
+### Files
+- HTML Report: ./visual-regression-report.html
+- JUnit XML: ./visual-regression.xml
+- JSON: ./visual-regression.json
+```
+
+### Threshold Configuration
+
+The comparison threshold controls how strict pixel matching is. Lower values are more strict.
+
+#### Threshold Values
+
+| Threshold | Sensitivity | Use Case |
+|-----------|-------------|----------|
+| `0.01` | Very strict | Pixel-perfect designs, exact matching |
+| `0.05` | Strict | High-fidelity UI, minimal tolerance |
+| `0.1` | Default | General visual regression |
+| `0.2` | Moderate | Allow minor antialiasing differences |
+| `0.3` | Relaxed | Focus on major layout changes |
+| `0.5` | Very relaxed | Only catch significant regressions |
+
+#### Setting Thresholds
+
+**Per-comparison threshold**:
+```
+/ios.diff login_screen --threshold 0.05
+```
+
+**Per-regression threshold**:
+```
+/ios.regression --threshold 0.15
+```
+
+**Auto Run threshold**:
+```yaml
+- ios.diff:
+    baseline: "login_screen"
+    threshold: 0.05
+```
+
+#### Antialiasing Handling
+
+By default, antialiasing differences are detected and can be ignored. Antialiasing pixels are typically on shape boundaries and change based on rendering. To include antialiasing in comparison:
+
+```typescript
+// In programmatic API
+const result = await compareImages(baseline, current, {
+  antialiasing: false  // Include antialiasing differences
+});
+```
+
+### Ignore Region Setup
+
+Ignore regions exclude dynamic content from comparison, reducing false positives.
+
+#### Built-in Ignore Regions
+
+Common iOS regions that change between runs:
+
+| Region | Description | Rectangle |
+|--------|-------------|-----------|
+| `status_bar` | Time, battery, signal | Top 47-59px (varies by device) |
+| `home_indicator` | Home button area | Bottom 34px |
+
+**Add status bar ignore region**:
+```
+/ios.baseline ignore login_screen status_bar
+```
+
+#### Custom Static Regions
+
+Define fixed-coordinate regions:
+
+```
+/ios.baseline ignore login_screen custom --rect "100,200,80,40" --reason "Dynamic avatar"
+```
+
+The `--rect` format is `x,y,width,height`.
+
+#### Element-Based Regions
+
+Ignore regions based on accessibility identifiers:
+
+```
+/ios.baseline ignore login_screen element --id "timestamp_label" --reason "Dynamic timestamp"
+```
+
+These regions update automatically when element positions change.
+
+#### Pattern-Based Regions
+
+Auto-detect common dynamic patterns:
+
+| Pattern | Description |
+|---------|-------------|
+| `clock` | System clock display |
+| `date` | Date displays |
+| `timestamp` | Relative timestamps ("2 hours ago") |
+| `battery` | Battery indicator |
+| `signal` | Cell signal indicator |
+| `user_avatar` | Profile pictures |
+| `loading` | Loading spinners |
+| `carousel` | Image carousels |
+
+**Suggest ignore regions**:
+```
+/ios.baseline suggest-ignore login_screen
+```
+
+This analyzes the baseline and suggests regions likely to cause false positives.
+
+#### Device-Specific Ignore Regions
+
+Different devices have different status bar heights:
+
+| Device Type | Status Bar Height |
+|-------------|-------------------|
+| Dynamic Island (14 Pro+) | 59px |
+| Notch (X-13) | 47px |
+| Home Button (SE, 8) | 20px |
+| iPad | 24px |
+
+The system auto-detects device type when using `--auto-device-family`.
+
+### Multi-Device Baseline Support
+
+Store and manage baselines for different device families.
+
+#### Device Families
+
+| Family | Examples |
+|--------|----------|
+| `iPhone-SE` | iPhone SE (2nd/3rd gen) |
+| `iPhone` | iPhone 12, 13, 14, 15 |
+| `iPhone-Plus` | iPhone Plus variants |
+| `iPhone-Pro-Max` | iPhone Pro Max variants |
+| `iPad` | Standard iPads |
+| `iPad-Pro` | iPad Pro variants |
+
+#### Creating Device-Specific Baselines
+
+```
+# Save for current device family (auto-detected)
+/ios.baseline save home_screen --auto-device-family
+
+# Save for specific family
+/ios.baseline save home_screen --device-family iPhone-Pro-Max
+```
+
+#### Baseline Storage Structure
+
+```
+~/.maestro/ios-baselines/myproject/
+├── metadata.json
+├── screens/
+│   ├── login_screen/
+│   │   ├── baseline.png          # Generic baseline
+│   │   └── metadata.json
+│   ├── login_screen@iPhone-SE/
+│   │   ├── baseline.png          # iPhone SE specific
+│   │   └── metadata.json
+│   └── login_screen@iPhone-Pro-Max/
+│       ├── baseline.png          # Pro Max specific
+│       └── metadata.json
+└── flows/
+    └── checkout/
+        ├── step_1.png
+        ├── step_2.png
+        └── metadata.json
+```
+
+#### Fallback Chain
+
+When comparing, the system looks for baselines in this order:
+
+1. Exact device family match (`login_screen@iPhone-Pro-Max`)
+2. Generic baseline (`login_screen`)
+3. Closest family baseline
+4. Any available baseline (with warning)
+
+#### Coverage Report
+
+Check which device families have baselines:
+
+```
+/ios.baseline coverage --project myproject
+```
+
+Example output:
+
+```
+Device Baseline Coverage: myproject
+
+| Baseline | iPhone-SE | iPhone | iPhone-Pro-Max | iPad |
+|----------|-----------|--------|----------------|------|
+| login    | ✓         | ✓      | ✓              | -    |
+| home     | -         | ✓      | -              | -    |
+| settings | -         | ✓      | ✓              | ✓    |
+
+Coverage: 50% (6/12 slots)
+
+Recommendations:
+- Add iPhone-SE baselines for: home, settings
+- Add iPhone-Pro-Max baselines for: home
+- Add iPad baselines for: login, home
+```
+
+### CI Integration
+
+Export visual regression results for CI systems.
+
+#### JUnit XML Format
+
+Compatible with Jenkins, CircleCI, GitHub Actions, GitLab CI, and Azure Pipelines:
+
+```
+/ios.regression --output ./test-results --format junit
+```
+
+Output: `./test-results/visual-regression.xml`
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Visual Regression" tests="15" failures="2" errors="0" time="12.5">
+  <testsuite name="myproject" tests="15" failures="2" errors="0" time="12.5">
+    <testcase name="login_screen" classname="visual-regression" time="0.45">
+      <failure message="Visual differences detected">
+        Similarity: 94.2%
+        Changed regions: 2
+        Diff: /path/to/diff.png
+      </failure>
+    </testcase>
+    <testcase name="home_screen" classname="visual-regression" time="0.38" />
+    <!-- ... -->
+  </testsuite>
+</testsuites>
+```
+
+#### JSON Format
+
+For programmatic consumption:
+
+```
+/ios.regression --output ./test-results --format json
+```
+
+Output: `./test-results/visual-regression.json`
+
+```json
+{
+  "meta": {
+    "version": "1.0",
+    "generator": "maestro-visual-regression",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "ci": {
+      "system": "github-actions",
+      "buildNumber": "123",
+      "branch": "main",
+      "commit": "abc1234"
+    }
+  },
+  "summary": {
+    "total": 15,
+    "passed": 13,
+    "failed": 2,
+    "errors": 0,
+    "passRate": 0.867
+  },
+  "results": [
+    {
+      "name": "login_screen",
+      "status": "failed",
+      "similarity": 0.942,
+      "diffPercent": 5.8,
+      "changedRegions": 2,
+      "paths": {
+        "baseline": "/path/to/baseline.png",
+        "current": "/path/to/current.png",
+        "diff": "/path/to/diff.png"
+      }
+    }
+  ]
+}
+```
+
+#### HTML Report
+
+Interactive report with image viewer:
+
+```
+/ios.regression --output ./test-results --format html
+```
+
+Features:
+- Thumbnail grid of all comparisons
+- Side-by-side comparison viewer
+- Diff overlay toggle
+- Filter by status (passed/failed)
+- Zoom and pan controls
+- Dark mode support
+
+#### Artifact Bundle
+
+Generate a zip file with all images and reports:
+
+```
+/ios.regression --output ./artifacts --format bundle
+```
+
+Contents:
+```
+visual-regression-bundle.zip
+├── baselines/
+│   ├── login_screen.png
+│   └── home_screen.png
+├── current/
+│   ├── login_screen.png
+│   └── home_screen.png
+├── diffs/
+│   ├── login_screen-diff.png
+│   └── home_screen-diff.png
+├── report.html
+├── results.xml
+├── results.json
+└── SUMMARY.md
+```
+
+#### CI Configuration Examples
+
+**GitHub Actions**:
+
+```yaml
+- name: Run Visual Regression
+  run: |
+    /ios.regression --project myapp --output ./test-results --format junit
+
+- name: Upload Results
+  uses: actions/upload-artifact@v3
+  with:
+    name: visual-regression-results
+    path: ./test-results/
+
+- name: Publish Test Results
+  uses: EnricoMi/publish-unit-test-result-action@v2
+  if: always()
+  with:
+    files: ./test-results/*.xml
+```
+
+**CircleCI**:
+
+```yaml
+- run:
+    name: Visual Regression Tests
+    command: /ios.regression --project myapp --output ./test-results --format junit
+
+- store_test_results:
+    path: ./test-results
+
+- store_artifacts:
+    path: ./test-results
+    destination: visual-regression
+```
+
+**GitLab CI**:
+
+```yaml
+visual_regression:
+  script:
+    - /ios.regression --project myapp --output ./test-results --format junit
+  artifacts:
+    when: always
+    reports:
+      junit: ./test-results/*.xml
+    paths:
+      - ./test-results/
+```
+
+### Auto Run Integration
+
+Use visual regression in Auto Run task documents.
+
+#### Baseline Step Types
+
+```markdown
+## Visual Regression Tasks
+
+- [ ] Capture login flow baselines
+  - ios.baseline: { save: "login_step_1", app: "com.example.myapp" }
+  - ios.tap: "#continue_button"
+  - ios.baseline: { save: "login_step_2", app: "com.example.myapp" }
+  - ios.tap: "#submit_button"
+  - ios.baseline: { save: "login_complete", app: "com.example.myapp" }
+```
+
+#### Diff Step Types
+
+```markdown
+- [ ] Verify no visual regressions in login
+  - ios.diff: { baseline: "login_step_1", threshold: 0.05 }
+  - ios.diff: { baseline: "login_step_2", threshold: 0.05 }
+  - ios.diff: { baseline: "login_complete", threshold: 0.05 }
+```
+
+#### Regression Step Types
+
+```markdown
+- [ ] Full regression check
+  - ios.regression: { project: "myapp", mode: "full", threshold: 0.1 }
+```
+
+#### Conditional Updates
+
+```markdown
+- [ ] Update baseline if review approved
+  - ios.baseline: { update: "home_screen", if_approved: true }
+```
+
+### Example Visual Regression Flow
+
+A complete example demonstrating the visual regression workflow:
+
+#### Initial Setup
+
+```markdown
+# Visual Regression Setup
+
+## Create Baselines
+
+- [ ] Launch app and capture initial baselines
+  - ios.tap: { target: "#launch_app" }
+  - ios.wait_for: "#home_screen"
+  - ios.baseline: { save: "home_screen", app: "com.example.myapp", auto_device_family: true }
+
+- [ ] Navigate to login and capture
+  - ios.tap: { target: "#login_button" }
+  - ios.wait_for: "#login_form"
+  - ios.baseline: { save: "login_screen", app: "com.example.myapp" }
+  - ios.baseline: { ignore: "login_screen", region: "status_bar" }
+
+- [ ] Navigate to settings and capture
+  - ios.tap: { target: "#settings_button" }
+  - ios.wait_for: "#settings_screen"
+  - ios.baseline: { save: "settings_screen", app: "com.example.myapp" }
+```
+
+#### Regular Regression Check
+
+```markdown
+# Pre-Release Visual Regression
+
+## Full Regression
+
+- [ ] Run comprehensive visual regression
+  - ios.regression: { project: "myapp", mode: "full", output: "./reports", verbose: true }
+
+## Review Failures
+
+- [ ] Review any failed comparisons
+  - If changes are intentional, update baselines
+  - If changes are bugs, file issues
+
+## Update Approved Baselines
+
+- [ ] Update login_screen baseline (new button design approved)
+  - ios.baseline: { update: "login_screen" }
+```
+
+#### CI Integration Example
+
+```markdown
+# CI Visual Regression Pipeline
+
+## Setup
+
+- [ ] Boot simulator and install app
+  - shell: xcrun simctl boot "iPhone 15 Pro"
+  - shell: xcrun simctl install booted ./MyApp.app
+
+## Run Tests
+
+- [ ] Execute visual regression suite
+  - ios.regression:
+      project: "myapp"
+      mode: "full"
+      threshold: 0.1
+      output: "./test-results"
+      fail_fast: false
+
+## Export Results
+
+- [ ] Generate CI reports
+  - Export JUnit XML for CI system
+  - Export HTML report for manual review
+  - Archive diff images as artifacts
+
+## Cleanup
+
+- [ ] Shutdown simulator
+  - shell: xcrun simctl shutdown all
+```
+
+### Troubleshooting
+
+#### Baseline Not Found
+
+```
+Error: Baseline 'login_screen' not found
+```
+
+Solutions:
+1. Check baseline exists: `/ios.baseline list`
+2. Verify project name: `/ios.baseline list --project myproject`
+3. Create baseline if missing: `/ios.baseline save login_screen`
+
+#### Device Family Mismatch
+
+```
+Warning: No baseline for iPhone-Pro-Max, using generic baseline
+```
+
+Solutions:
+1. Create device-specific baseline: `/ios.baseline save login_screen --device-family iPhone-Pro-Max`
+2. Use auto-detection: `/ios.baseline save login_screen --auto-device-family`
+3. Run coverage report: `/ios.baseline coverage`
+
+#### High False Positive Rate
+
+Solutions:
+1. Add ignore regions for dynamic content
+2. Increase threshold: `--threshold 0.15`
+3. Enable antialiasing tolerance
+4. Use element-based ignore regions for moving elements
+
+#### Comparison Timeout
+
+```
+Error: Comparison timed out after 30000ms
+```
+
+Solutions:
+1. Reduce image size if screenshots are very large
+2. Use progressive comparison for faster feedback
+3. Check for system resource constraints
+
+#### Images Have Different Dimensions
+
+```
+Warning: Image dimensions differ (375x812 vs 393x852)
+```
+
+This occurs when comparing baselines from different device families. Solutions:
+1. Use device-specific baselines
+2. Enable `--auto-device-family` when saving
+3. Comparison uses overlapping area with dimension mismatch warning

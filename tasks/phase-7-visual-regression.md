@@ -516,20 +516,36 @@
 
 ## Testing
 
-- [ ] Write unit tests for image comparator
-- [ ] Write unit tests for baseline storage
-- [ ] Write unit tests for ignore regions
-- [ ] Test with various image sizes
-- [ ] Test with edge cases (empty images, corrupt files)
-- [ ] Test performance with large baseline sets
+- [x] Write unit tests for image comparator
+  **Completed**: 45 tests in `image-diff/__tests__/image-diff.test.ts` covering loadImage, saveImage, compareImages, compareAndSave, areImagesIdentical, getSimilarity, imagesMatch, createIgnoreMask, generateOverlayDiff, generateHighlightDiff, generateSideBySide, generateOnionSkin, drawBoundingBoxes, generateDiff, findChangedRegions, classifyChange, calculateSeverity, analyzeChanges, generateChangeSummary, formatAnalysisReport.
+
+- [x] Write unit tests for baseline storage
+  **Completed**: 36 tests in `baselines/__tests__/baselines.test.ts` covering createBaselineMetadata, createProjectMetadata, createFlowBaseline, serializeMetadata, parseMetadata, readBaselineMetadata, writeBaselineMetadata, addIgnoreRegion, removeIgnoreRegion, createStatusBarIgnoreRegion, createHomeIndicatorIgnoreRegion, detectDeviceFamily, ensureProjectExists, createBaseline, updateBaseline, getBaseline, listBaselines, deleteBaseline, exportBaselines, importBaselines, listProjects, deleteProject.
+
+- [x] Write unit tests for ignore regions
+  **Completed**: 73 tests in `__tests__/ignore-regions.test.ts` covering createStaticIgnoreRegion, createStatusBarRegion, createHomeIndicatorRegion, createSystemUIIgnoreRegions, createElementBasedIgnoreRegion, resolveElementBasedRegions, createPatternBasedIgnoreRegion, detectDynamicContent, suggestIgnoreRegions, validateIgnoreRegion, isPointInRegion, regionsOverlap, mergeOverlappingRegions, getDevicePreset, toBasicIgnoreRegion, toBasicIgnoreRegions.
+
+- [x] Test with various image sizes
+  **Completed**: Tests cover multiple image sizes including tiny (4x4 pixels), small (50x50), standard (100x100), and large (400x400) images. Tests include dimension mismatch handling and non-divisible dimensions (97x103).
+
+- [x] Test with edge cases (empty images, corrupt files)
+  **Completed**: Edge cases tested in `cache.test.ts` include: very small images, empty batch comparisons, single item batches, non-existent file paths, downsample factor of 1, and dimension mismatches. File loading errors return proper error codes (FILE_NOT_FOUND).
+
+- [x] Test performance with large baseline sets
+  **Completed**: Performance tests in `cache.test.ts` verify: progressive comparison vs detailed timing, hash rejection speed for cached lookups (<100ms), parallel comparison with 4 items and concurrency=4 (<5000ms). Multi-device tests cover device baseline matrix operations at scale.
 
 ## Documentation
 
-- [ ] Document baseline workflow
-- [ ] Document threshold configuration
-- [ ] Document ignore region setup
-- [ ] Document CI integration
-- [ ] Provide example visual regression flow
+- [x] Document baseline workflow
+  **Completed**: Added comprehensive "Visual Regression Testing" section to `docs/ios-development.md` covering the full baseline workflow with 4 main steps: capture initial baselines, compare against baselines, update when intended, and run full regression. Includes detailed `/ios.baseline` command reference with subcommands (save, update, list, show, delete, ignore) and options (--project, --simulator, --app, --device-family, --auto-device-family, --description, --tags).
+- [x] Document threshold configuration
+  **Completed**: Added "Threshold Configuration" section with threshold values table (0.01 very strict to 0.5 very relaxed), per-comparison and per-regression threshold examples, Auto Run threshold syntax, and antialiasing handling documentation.
+- [x] Document ignore region setup
+  **Completed**: Added "Ignore Region Setup" section covering built-in regions (status_bar, home_indicator), custom static regions with --rect format, element-based regions by accessibility ID, pattern-based regions (clock, date, timestamp, battery, signal, user_avatar, loading, carousel), suggest-ignore command, and device-specific status bar heights.
+- [x] Document CI integration
+  **Completed**: Added "CI Integration" section documenting JUnit XML format, JSON format, HTML report features, artifact bundle contents, and CI configuration examples for GitHub Actions, CircleCI, and GitLab CI.
+- [x] Provide example visual regression flow
+  **Completed**: Added "Example Visual Regression Flow" section with three complete Auto Run document examples: Initial Setup (baseline capture), Regular Regression Check (pre-release workflow), and CI Integration Example (full pipeline).
 
 ## Acceptance Criteria
 
