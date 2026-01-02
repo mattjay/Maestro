@@ -569,4 +569,26 @@
   > - **Preload API**: `window.maestro.ios.bridge.discover()` and `window.maestro.ios.bridge.waitFor()` exposed in `src/main/preload.ts` (lines 1464-1473)
   > - **Test coverage**: 20 new auto-discovery tests added covering all functions + edge cases (401 handling, cache invalidation, timeout behavior)
   > - **All 493 iOS tools tests pass** including 33 bridge-client tests
-- [ ] Clear documentation for app integration
+- [x] Clear documentation for app integration
+  > **Verified:** Documentation is comprehensive and clear across multiple locations:
+  > - **README.md** (src/main/ios-tools/MaestroBridge/README.md): 613-line comprehensive guide with:
+  >   - Quick Start for AppDelegate and SwiftUI
+  >   - Installation via SPM with debug-only configuration
+  >   - Custom state registration with setter support
+  >   - Analytics SDK integration (Firebase, Amplitude, Mixpanel, Segment)
+  >   - Feature flags (static and dynamic providers)
+  >   - Test state injection with security warnings
+  >   - 6-layer security model fully documented
+  >   - Complete API reference tables (MaestroBridge, NetworkInterceptor, AnalyticsInterceptor)
+  >   - All Maestro slash commands with examples
+  >   - Troubleshooting section with 6 common issues
+  >   - Full AppDelegate example integration (60+ lines)
+  > - **docs/ios-development.md**: 400+ line MaestroBridge section documenting:
+  >   - Overview and Quick Start
+  >   - Installation requirements
+  >   - All 6 bridge slash commands with output examples
+  >   - HTTP endpoints reference table (15 endpoints)
+  >   - Security model with best practices
+  >   - Auto Run integration examples
+  >   - Troubleshooting guide
+  > - **Swift Package builds** (117 tests pass) and documentation is accurate to implementation
