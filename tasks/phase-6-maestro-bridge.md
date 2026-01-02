@@ -496,7 +496,14 @@
   > - `DebugOnlyGuard.assertDebugBuild()` called at startup - triggers `fatalError` if reached in release
   > - SwiftUI/UIKit extensions also use `#if DEBUG` guards
   > - `DebugGuardTests` test class validates all guard mechanisms (5 tests)
-- [ ] Token authentication works
+- [x] Token authentication works
+  > **Verified:** Comprehensive authentication at all layers:
+  > - **Swift BridgeToken class** (BridgeToken.swift): Implements cryptographically secure 64-char hex token generation, constant-time comparison to prevent timing attacks, Bearer token parsing, and thread-safe token management with NSLock
+  > - **BridgeServer auth** (BridgeServer.swift:261-270): Validates Authorization header on all requests, returns 401 with appropriate message for missing token vs invalid token
+  > - **Unit tests** (BridgeTokenTests): 5 tests covering set/clear, unique generation, constant-time comparison, auth header parsing, and no-token scenarios
+  > - **Integration tests** (MaestroBridgeIntegrationTests): `testUnauthorizedWithoutToken` verifies 401 when missing header, `testUnauthorizedWithWrongToken` verifies 401 for wrong credentials
+  > - **TypeScript client** (bridge-client.ts:239-245): Properly sends `Authorization: Bearer <token>` header on all requests
+  > - All 137 Swift tests pass, including comprehensive auth scenarios
 - [ ] `/ios.bridge.state` returns app state
 - [ ] `/ios.bridge.route` returns navigation state
 - [ ] `/ios.bridge.network` returns network log
