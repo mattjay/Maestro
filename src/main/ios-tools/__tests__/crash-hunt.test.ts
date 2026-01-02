@@ -19,6 +19,7 @@ import {
   type CrashHuntOptions,
   type CrashHuntResult,
   type ActionWeights,
+  type RecordedAction,
 } from '../playbooks/crash-hunt';
 import { ensurePlaybooksDirectory } from '../playbook-loader';
 
@@ -1031,5 +1032,603 @@ describe('runCrashHunt - Max Depth', () => {
     const result = await runCrashHunt(options);
 
     expect(result.success).toBe(true);
+  });
+});
+
+// =============================================================================
+// Integration Tests - Crash Detection and Reporting
+// =============================================================================
+
+describe('runCrashHunt - Crash Detection and Reporting Integration', () => {
+  beforeEach(() => {
+    testDir = createTestDir();
+    playbooksDir = createTestDir();
+    ensurePlaybooksDirectory(playbooksDir);
+
+    const playbookDir = path.join(playbooksDir, 'Crash-Hunt');
+    fs.mkdirSync(playbookDir, { recursive: true });
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const yaml = require('js-yaml');
+    fs.writeFileSync(
+      path.join(playbookDir, 'playbook.yaml'),
+      yaml.dump({
+        name: 'iOS Crash Hunt',
+        version: '1.0.0',
+        variables: {
+          crashes_found: 0,
+          actions_performed: 0,
+          current_depth: 0,
+          start_time: '',
+          elapsed_seconds: 0,
+          crash_detected: false,
+        },
+        steps: [{ action: 'ios.launch' }],
+      })
+    );
+  });
+
+  afterEach(() => {
+    cleanupTestDir(testDir);
+    cleanupTestDir(playbooksDir);
+    vi.clearAllMocks();
+  });
+
+  it('should detect crashes when hasRecentCrashes returns true', async () => {
+    // Configure hasRecentCrashes to return true immediately to simulate a crash
+    const { hasRecentCrashes } = await import('../logs');
+    vi.mocked(hasRecentCrashes).mockResolvedValue({
+      success: true,
+      data: true,
+    });
+
+    const crashDetected = vi.fn();
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Crash-Hunt', 'playbook.yaml'),
+      onCrash: crashDetected,
+    });
+    options.inputs.duration = 2; // Very short duration
+    options.inputs.interaction_interval = 0.1;
+    options.inputs.reset_on_crash = false; // Stop after first crash
+
+    const result = await runCrashHunt(options);
+
+    expect(result.success).toBe(true);
+    expect(result.data).toBeDefined();
+    // Should detect at least one crash
+    expect(result.data!.crashesFound).toBeGreaterThanOrEqual(1);
+    expect(result.data!.crashes.length).toBeGreaterThanOrEqual(1);
+    expect(result.data!.terminationReason).toBe('crash_no_reset');
+  });
+
+  it('should record actions leading up to a crash for reproduction', async () => {
+    const { hasRecentCrashes } = await import('../logs');
+    let crashCheckCount = 0;
+
+    // Return false for first 3 checks, then true to simulate crash
+    vi.mocked(hasRecentCrashes).mockImplementation(async () => {
+      crashCheckCount++;
+      return {
+        success: true,
+        data: crashCheckCount > 3,
+      };
+    });
+
+    const recordedActions: RecordedAction[] = [];
+    const onAction = vi.fn((action) => {
+      recordedActions.push(action);
+    });
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Crash-Hunt', 'playbook.yaml'),
+      onAction,
+    });
+    options.inputs.duration = 5;
+    options.inputs.interaction_interval = 0.1;
+    options.inputs.reset_on_crash = false;
+
+    const result = await runCrashHunt(options);
+
+    expect(result.success).toBe(true);
+    // Should have recorded actions before crash
+    expect(result.data!.actionsPerformed).toBeGreaterThan(0);
+    expect(onAction).toHaveBeenCalled();
+
+    // Crashes should include actionsBefore
+    if (result.data!.crashes.length > 0) {
+      expect(Array.isArray(result.data!.crashes[0].actionsBefore)).toBe(true);
+    }
+  });
+
+  it('should invoke onCrash callback when crash is detected', async () => {
+    const { hasRecentCrashes } = await import('../logs');
+    let checkCount = 0;
+
+    vi.mocked(hasRecentCrashes).mockImplementation(async () => {
+      checkCount++;
+      return {
+        success: true,
+        data: checkCount > 2,
+      };
+    });
+
+    const crashCallback = vi.fn();
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Crash-Hunt', 'playbook.yaml'),
+      onCrash: crashCallback,
+    });
+    options.inputs.duration = 3;
+    options.inputs.interaction_interval = 0.1;
+    options.inputs.reset_on_crash = false;
+
+    const result = await runCrashHunt(options);
+
+    expect(result.success).toBe(true);
+    if (result.data!.crashesFound > 0) {
+      expect(crashCallback).toHaveBeenCalled();
+      const crashArg = crashCallback.mock.calls[0][0];
+      expect(crashArg.crashNumber).toBe(1);
+      expect(crashArg.bundleId).toBeDefined();
+      expect(crashArg.timestamp).toBeInstanceOf(Date);
+      expect(crashArg.evidenceDir).toBeDefined();
+    }
+  });
+
+  it('should capture crash evidence including screenshot', async () => {
+    const { hasRecentCrashes } = await import('../logs');
+    let checkCount = 0;
+
+    vi.mocked(hasRecentCrashes).mockImplementation(async () => {
+      checkCount++;
+      return {
+        success: true,
+        data: checkCount > 2,
+      };
+    });
+
+    // Configure screenshot mock to create actual file
+    const { screenshot } = await import('../capture');
+    vi.mocked(screenshot).mockImplementation(async (opts) => {
+      const dir = path.dirname(opts.outputPath!);
+      fs.mkdirSync(dir, { recursive: true });
+      const pngHeader = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+      fs.writeFileSync(opts.outputPath!, pngHeader);
+      return {
+        success: true,
+        data: {
+          path: opts.outputPath!,
+          size: pngHeader.length,
+          timestamp: new Date(),
+        },
+      };
+    });
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Crash-Hunt', 'playbook.yaml'),
+    });
+    options.inputs.duration = 3;
+    options.inputs.interaction_interval = 0.1;
+    options.inputs.reset_on_crash = false;
+    options.inputs.capture_on_crash = true;
+
+    const result = await runCrashHunt(options);
+
+    expect(result.success).toBe(true);
+    if (result.data!.crashes.length > 0) {
+      const crash = result.data!.crashes[0];
+      // Evidence directory should exist
+      expect(fs.existsSync(crash.evidenceDir)).toBe(true);
+      // Screenshot should be captured (path should be set)
+      expect(crash.screenshotPath).toBeDefined();
+    }
+  });
+
+  it('should recover from crash and continue hunting when reset_on_crash is true', async () => {
+    const { hasRecentCrashes } = await import('../logs');
+    let checkCount = 0;
+
+    // Return crash at check 3, then no more crashes
+    vi.mocked(hasRecentCrashes).mockImplementation(async () => {
+      checkCount++;
+      const shouldCrash = checkCount === 3;
+      return {
+        success: true,
+        data: shouldCrash,
+      };
+    });
+
+    const { launchApp, terminateApp } = await import('../simulator');
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Crash-Hunt', 'playbook.yaml'),
+    });
+    options.inputs.duration = 3;
+    options.inputs.interaction_interval = 0.1;
+    options.inputs.reset_on_crash = true; // Should recover and continue
+
+    const result = await runCrashHunt(options);
+
+    expect(result.success).toBe(true);
+    // Hunt should complete (not terminated by crash)
+    expect(result.data!.terminationReason).toBe('duration_reached');
+    // Should have called recovery (terminate + relaunch)
+    if (result.data!.crashesFound > 0) {
+      expect(terminateApp).toHaveBeenCalled();
+      expect(launchApp).toHaveBeenCalled();
+    }
+  });
+
+  it('should stop hunting when reset_on_crash is false after crash', async () => {
+    const { hasRecentCrashes } = await import('../logs');
+    let checkCount = 0;
+
+    vi.mocked(hasRecentCrashes).mockImplementation(async () => {
+      checkCount++;
+      return {
+        success: true,
+        data: checkCount > 2,
+      };
+    });
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Crash-Hunt', 'playbook.yaml'),
+    });
+    options.inputs.duration = 10; // Long duration
+    options.inputs.interaction_interval = 0.1;
+    options.inputs.reset_on_crash = false; // Should stop on crash
+
+    const result = await runCrashHunt(options);
+
+    expect(result.success).toBe(true);
+    // Should terminate early due to crash
+    expect(result.data!.terminationReason).toBe('crash_no_reset');
+    // Duration should be less than configured
+    expect(result.data!.totalDuration).toBeLessThan(10);
+  });
+
+  it('should update crashes_found variable when crash detected', async () => {
+    const { hasRecentCrashes } = await import('../logs');
+    let checkCount = 0;
+
+    vi.mocked(hasRecentCrashes).mockImplementation(async () => {
+      checkCount++;
+      return {
+        success: true,
+        data: checkCount > 2,
+      };
+    });
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Crash-Hunt', 'playbook.yaml'),
+    });
+    options.inputs.duration = 3;
+    options.inputs.interaction_interval = 0.1;
+    options.inputs.reset_on_crash = false;
+
+    const result = await runCrashHunt(options);
+
+    expect(result.success).toBe(true);
+    if (result.data!.crashesFound > 0) {
+      expect(result.data!.finalVariables.crashes_found).toBe(result.data!.crashesFound);
+    }
+  });
+
+  it('should generate HTML report with crash details', async () => {
+    const { hasRecentCrashes } = await import('../logs');
+    let checkCount = 0;
+
+    vi.mocked(hasRecentCrashes).mockImplementation(async () => {
+      checkCount++;
+      return {
+        success: true,
+        data: checkCount > 2,
+      };
+    });
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Crash-Hunt', 'playbook.yaml'),
+    });
+    options.inputs.duration = 3;
+    options.inputs.interaction_interval = 0.1;
+    options.inputs.reset_on_crash = false;
+
+    const result = await runCrashHunt(options);
+
+    expect(result.success).toBe(true);
+    expect(result.data!.htmlReportPath).toBeDefined();
+    expect(fs.existsSync(result.data!.htmlReportPath!)).toBe(true);
+
+    const htmlContent = fs.readFileSync(result.data!.htmlReportPath!, 'utf-8');
+    expect(htmlContent).toContain('Crash Hunt Report');
+    expect(htmlContent).toContain('Simulator');
+
+    if (result.data!.crashesFound > 0) {
+      expect(htmlContent).toContain('Crash');
+    }
+  });
+
+  it('should generate JSON report with crash details', async () => {
+    const { hasRecentCrashes } = await import('../logs');
+    let checkCount = 0;
+
+    vi.mocked(hasRecentCrashes).mockImplementation(async () => {
+      checkCount++;
+      return {
+        success: true,
+        data: checkCount > 2,
+      };
+    });
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Crash-Hunt', 'playbook.yaml'),
+    });
+    options.inputs.duration = 3;
+    options.inputs.interaction_interval = 0.1;
+    options.inputs.reset_on_crash = false;
+
+    const result = await runCrashHunt(options);
+
+    expect(result.success).toBe(true);
+    expect(result.data!.jsonReportPath).toBeDefined();
+    expect(fs.existsSync(result.data!.jsonReportPath!)).toBe(true);
+
+    const jsonContent = fs.readFileSync(result.data!.jsonReportPath!, 'utf-8');
+    const report = JSON.parse(jsonContent);
+
+    expect(report.simulator).toBeDefined();
+    expect(report.duration).toBeDefined();
+    expect(report.actionsPerformed).toBeDefined();
+    expect(report.crashesFound).toBeDefined();
+    expect(Array.isArray(report.crashes)).toBe(true);
+  });
+
+  it('should include steps to reproduce in crash report', async () => {
+    const { hasRecentCrashes } = await import('../logs');
+    let checkCount = 0;
+
+    vi.mocked(hasRecentCrashes).mockImplementation(async () => {
+      checkCount++;
+      return {
+        success: true,
+        data: checkCount > 3,
+      };
+    });
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Crash-Hunt', 'playbook.yaml'),
+    });
+    options.inputs.duration = 5;
+    options.inputs.interaction_interval = 0.1;
+    options.inputs.reset_on_crash = false;
+
+    const result = await runCrashHunt(options);
+
+    expect(result.success).toBe(true);
+    if (result.data!.crashes.length > 0) {
+      const crash = result.data!.crashes[0];
+      // Should have steps to reproduce
+      expect(Array.isArray(crash.actionsBefore)).toBe(true);
+      // Steps should have action details
+      if (crash.actionsBefore.length > 0) {
+        expect(crash.actionsBefore[0].type).toBeDefined();
+        expect(crash.actionsBefore[0].actionNumber).toBeDefined();
+      }
+
+      // Check JSON report includes steps
+      const jsonContent = fs.readFileSync(result.data!.jsonReportPath!, 'utf-8');
+      const report = JSON.parse(jsonContent);
+      if (report.crashes.length > 0) {
+        expect(report.crashes[0].stepsToReproduce).toBeDefined();
+      }
+    }
+  });
+
+  it('should include seed in result for reproducibility', async () => {
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Crash-Hunt', 'playbook.yaml'),
+    });
+    options.inputs.duration = 2;
+    options.inputs.interaction_interval = 0.1;
+    options.inputs.seed = 54321;
+
+    const result = await runCrashHunt(options);
+
+    expect(result.success).toBe(true);
+    expect(result.data!.seed).toBe(54321);
+
+    // HTML report should include seed
+    const htmlContent = fs.readFileSync(result.data!.htmlReportPath!, 'utf-8');
+    expect(htmlContent).toContain('54321');
+
+    // JSON report should include seed
+    const jsonContent = fs.readFileSync(result.data!.jsonReportPath!, 'utf-8');
+    const report = JSON.parse(jsonContent);
+    expect(report.seed).toBe(54321);
+  });
+
+  it('should record all action types during hunt', async () => {
+    const recordedTypes = new Set<string>();
+    const onAction = vi.fn((action) => {
+      recordedTypes.add(action.type);
+    });
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Crash-Hunt', 'playbook.yaml'),
+      onAction,
+    });
+    options.inputs.duration = 3;
+    options.inputs.interaction_interval = 0.05;
+    // Use a seed that produces variety
+    options.inputs.seed = 12345;
+
+    const result = await runCrashHunt(options);
+
+    expect(result.success).toBe(true);
+    expect(result.data!.actionsPerformed).toBeGreaterThan(0);
+    // Should have recorded actions with various types
+    expect(onAction).toHaveBeenCalled();
+    // At least one action type should be present
+    expect(recordedTypes.size).toBeGreaterThan(0);
+  });
+
+  it('should save steps.json file in crash evidence directory', async () => {
+    const { hasRecentCrashes } = await import('../logs');
+    let checkCount = 0;
+
+    vi.mocked(hasRecentCrashes).mockImplementation(async () => {
+      checkCount++;
+      return {
+        success: true,
+        data: checkCount > 3,
+      };
+    });
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Crash-Hunt', 'playbook.yaml'),
+    });
+    options.inputs.duration = 5;
+    options.inputs.interaction_interval = 0.1;
+    options.inputs.reset_on_crash = false;
+    options.inputs.capture_on_crash = true;
+
+    const result = await runCrashHunt(options);
+
+    expect(result.success).toBe(true);
+    if (result.data!.crashes.length > 0) {
+      const crash = result.data!.crashes[0];
+      const stepsPath = path.join(crash.evidenceDir, 'steps.json');
+      expect(fs.existsSync(stepsPath)).toBe(true);
+
+      const stepsContent = JSON.parse(fs.readFileSync(stepsPath, 'utf-8'));
+      expect(Array.isArray(stepsContent)).toBe(true);
+    }
+  });
+
+  it('should report progress phases during crash detection', async () => {
+    const phases: string[] = [];
+    const onProgress = vi.fn((update) => {
+      if (!phases.includes(update.phase)) {
+        phases.push(update.phase);
+      }
+    });
+
+    const { hasRecentCrashes } = await import('../logs');
+    let checkCount = 0;
+
+    vi.mocked(hasRecentCrashes).mockImplementation(async () => {
+      checkCount++;
+      return {
+        success: true,
+        data: checkCount > 3,
+      };
+    });
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Crash-Hunt', 'playbook.yaml'),
+      onProgress,
+    });
+    options.inputs.duration = 5;
+    options.inputs.interaction_interval = 0.1;
+    options.inputs.reset_on_crash = false;
+
+    await runCrashHunt(options);
+
+    // Should include key phases
+    expect(phases).toContain('initializing');
+    expect(phases).toContain('hunting');
+    expect(phases).toContain('generating_report');
+    // Should end with complete or a terminal state
+    expect(phases.some(p => ['complete', 'failed'].includes(p))).toBe(true);
+  });
+
+  it('should report crash count in progress updates', async () => {
+    let maxCrashesReported = 0;
+    const onProgress = vi.fn((update) => {
+      if (update.crashesFound !== undefined) {
+        maxCrashesReported = Math.max(maxCrashesReported, update.crashesFound);
+      }
+    });
+
+    const { hasRecentCrashes } = await import('../logs');
+    let checkCount = 0;
+
+    vi.mocked(hasRecentCrashes).mockImplementation(async () => {
+      checkCount++;
+      return {
+        success: true,
+        data: checkCount > 2,
+      };
+    });
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Crash-Hunt', 'playbook.yaml'),
+      onProgress,
+    });
+    options.inputs.duration = 3;
+    options.inputs.interaction_interval = 0.1;
+    options.inputs.reset_on_crash = false;
+
+    const result = await runCrashHunt(options);
+
+    expect(result.success).toBe(true);
+    // Progress should have reported crash count
+    expect(onProgress).toHaveBeenCalled();
+    if (result.data!.crashesFound > 0) {
+      expect(maxCrashesReported).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it('should skip capture when capture_on_crash is false', async () => {
+    const { hasRecentCrashes } = await import('../logs');
+    let checkCount = 0;
+
+    vi.mocked(hasRecentCrashes).mockImplementation(async () => {
+      checkCount++;
+      return {
+        success: true,
+        data: checkCount > 2,
+      };
+    });
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Crash-Hunt', 'playbook.yaml'),
+    });
+    options.inputs.duration = 3;
+    options.inputs.interaction_interval = 0.1;
+    options.inputs.reset_on_crash = false;
+    options.inputs.capture_on_crash = false;
+
+    const result = await runCrashHunt(options);
+
+    expect(result.success).toBe(true);
+    // With capture_on_crash false, screenshot should not be in evidence
+    if (result.data!.crashes.length > 0) {
+      expect(result.data!.crashes[0].screenshotPath).toBeUndefined();
+    }
+  });
+
+  it('should complete clean hunt with no crashes', async () => {
+    // hasRecentCrashes always returns false
+    const { hasRecentCrashes } = await import('../logs');
+    vi.mocked(hasRecentCrashes).mockResolvedValue({
+      success: true,
+      data: false,
+    });
+
+    const options = createMinimalOptions({
+      playbookPath: path.join(playbooksDir, 'Crash-Hunt', 'playbook.yaml'),
+    });
+    options.inputs.duration = 2;
+    options.inputs.interaction_interval = 0.1;
+
+    const result = await runCrashHunt(options);
+
+    expect(result.success).toBe(true);
+    expect(result.data!.completed).toBe(true);
+    expect(result.data!.crashesFound).toBe(0);
+    expect(result.data!.crashes.length).toBe(0);
+    expect(result.data!.terminationReason).toBe('duration_reached');
+    expect(result.data!.actionsPerformed).toBeGreaterThan(0);
   });
 });

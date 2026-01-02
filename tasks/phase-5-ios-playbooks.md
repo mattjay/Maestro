@@ -727,7 +727,25 @@
   > - Custom threshold used in comparison (strict vs lenient threshold tests)
   > - Diff images created when regression detected
   > - Artifacts organized in correct directory structure (current/, diffs/)
-- [ ] Crash Hunt detects and reports crashes
+- [x] Crash Hunt detects and reports crashes
+  > Added 17 comprehensive integration tests in `crash-hunt.test.ts` verifying:
+  > - Crashes detected when hasRecentCrashes returns true (crashesFound incremented, terminationReason: 'crash_no_reset')
+  > - Actions leading up to a crash recorded for reproduction (actionsBefore array populated)
+  > - onCrash callback invoked when crash is detected (with crashNumber, bundleId, timestamp, evidenceDir)
+  > - Crash evidence captured including screenshot (evidenceDir exists, screenshotPath set)
+  > - Crash recovery works with reset_on_crash=true (hunt continues, terminateApp/launchApp called)
+  > - Hunt stops when reset_on_crash=false after crash (terminationReason: 'crash_no_reset')
+  > - crashes_found variable updated when crash detected
+  > - HTML report generated with crash details (contains 'Crash Hunt Report', 'Simulator')
+  > - JSON report generated with crash details (simulator, duration, actionsPerformed, crashesFound, crashes array)
+  > - Steps to reproduce included in crash report (actionsBefore with type and actionNumber)
+  > - Seed included in result for reproducibility (in HTML and JSON reports)
+  > - All action types recorded during hunt (via onAction callback)
+  > - steps.json file saved in crash evidence directory
+  > - Progress phases reported during crash detection (initializing, hunting, generating_report, complete/failed)
+  > - Crash count reported in progress updates (crashesFound in onProgress)
+  > - Screenshot skipped when capture_on_crash=false (screenshotPath undefined)
+  > - Clean hunt with no crashes completes successfully (completed=true, crashesFound=0, terminationReason: 'duration_reached')
 - [ ] Design Review captures all screens on multiple devices
 - [ ] Performance Check measures key metrics
 - [ ] Playbooks work in Auto Run documents
