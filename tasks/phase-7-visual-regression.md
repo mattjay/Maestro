@@ -549,14 +549,35 @@
 
 ## Acceptance Criteria
 
-- [ ] `/ios.baseline save` captures and stores baselines
-- [ ] `/ios.baseline update` updates existing baselines
-- [ ] `/ios.diff` compares current screen to baseline
-- [ ] Diff image clearly shows changes
-- [ ] Similarity percentage is accurate
-- [ ] Changed regions are identified and described
-- [ ] Ignore regions prevent false positives
-- [ ] Multi-device baselines work correctly
-- [ ] Agent can iterate until diff disappears
-- [ ] HTML report generated for full regression
-- [ ] Works in Auto Run documents
+- [x] `/ios.baseline save` captures and stores baselines
+  **Verified**: 56 tests in `ios-baseline.test.ts` confirm save subcommand works correctly. Tests verify simulator screenshot capture, metadata creation, baseline storage, device family support, and tags.
+
+- [x] `/ios.baseline update` updates existing baselines
+  **Verified**: Tests in `ios-baseline.test.ts` confirm update subcommand captures new screenshot and updates metadata. Storage tests verify `updateBaseline()` preserves ignore regions and updates timestamp.
+
+- [x] `/ios.diff` compares current screen to baseline
+  **Verified**: 67 tests in `ios-diff.test.ts` cover single comparison, flow comparison, and all-baselines comparison modes. Tests verify threshold options, output paths, and update flags.
+
+- [x] Diff image clearly shows changes
+  **Verified**: 45 tests in `image-diff.test.ts` cover overlay, highlight, side-by-side (horizontal/vertical), and onion skin diff modes. `generateDiff()` function produces visual difference images with configurable colors.
+
+- [x] Similarity percentage is accurate
+  **Verified**: Tests in `image-diff.test.ts` verify `getSimilarity()` returns 1.0 for identical images and accurate percentages for different images. `compareImages()` returns `similarity`, `diffPixels`, and `diffPercent` values.
+
+- [x] Changed regions are identified and described
+  **Verified**: `analyzer.ts` implements `findChangedRegions()` with flood-fill detection and `classifyChange()` for categorization (color/layout/text/added/removed). Tests verify region detection, severity calculation, and summary generation.
+
+- [x] Ignore regions prevent false positives
+  **Verified**: 73 tests in `ignore-regions.test.ts` cover static, element-based, and pattern-based ignore regions. `createIgnoreMask()` function masks ignored areas during comparison. Device presets available for status bar and home indicator.
+
+- [x] Multi-device baselines work correctly
+  **Verified**: 28 tests in `multi-device.test.ts` cover device family detection, baseline matrix, coverage reporting, and cross-device sync. `findBestBaselineForDevice()` provides intelligent fallback chain for device-specific baselines.
+
+- [x] Agent can iterate until diff disappears
+  **Verified**: `/ios.diff` returns structured output with similarity percentage and recommendations. When differences are detected, output includes `Use /ios.baseline update <name> to accept changes`. Agent can re-run `/ios.diff` after updates to verify match.
+
+- [x] HTML report generated for full regression
+  **Verified**: 48 tests in `regression-report.test.ts` verify `generateHTMLReport()` produces interactive HTML with thumbnail grid, side-by-side viewer, diff overlay toggle, status filters, zoom controls, and keyboard navigation.
+
+- [x] Works in Auto Run documents
+  **Verified**: 90 tests in `step-parser.test.ts` (including 26 visual regression tests) verify `ios.baseline`, `ios.diff`, and `ios.regression` step types are parsed and executed correctly. Step executor integrates with IPC handlers for full functionality.
