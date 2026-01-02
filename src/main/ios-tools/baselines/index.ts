@@ -123,3 +123,36 @@ export {
   exportBaselines,
   importBaselines,
 } from './storage';
+
+// =============================================================================
+// Multi-Device Support
+// =============================================================================
+
+export {
+  // Constants
+  DEVICE_FAMILIES,
+  DEVICE_FAMILY_RANGES,
+  // Device family detection
+  detectDeviceFamilyFromScreen,
+  detectDeviceFamilyFromDevice,
+  // Device-specific baseline operations
+  findBestBaselineForDevice,
+  createBaselineWithAutoDetect,
+  // Device baseline matrix
+  getDeviceBaselineMatrix,
+  hasBaselineForDevice,
+  getMissingDeviceFamilies,
+  // Coverage reporting
+  getBaselineCoverage,
+  formatCoverageReport,
+  // Sync operations
+  syncBaselinesAcrossDevices,
+} from './multi-device';
+
+export type {
+  DeviceBaselineMatch,
+  DeviceMatrixEntry,
+  BaselineCoverage,
+  SyncOptions,
+  SyncResult,
+} from './multi-device';

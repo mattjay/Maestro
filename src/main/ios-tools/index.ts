@@ -1046,6 +1046,19 @@ export {
   // Export/Import
   exportBaselines,
   importBaselines,
+  // Multi-device support
+  DEVICE_FAMILIES,
+  DEVICE_FAMILY_RANGES,
+  detectDeviceFamilyFromScreen,
+  detectDeviceFamilyFromDevice,
+  findBestBaselineForDevice,
+  createBaselineWithAutoDetect,
+  getDeviceBaselineMatrix,
+  hasBaselineForDevice,
+  getMissingDeviceFamilies,
+  getBaselineCoverage,
+  formatCoverageReport,
+  syncBaselinesAcrossDevices,
 } from './baselines';
 export type {
   // Baseline metadata types
@@ -1078,6 +1091,12 @@ export type {
   // Report types
   RegressionReport,
   RegressionSummary,
+  // Multi-device types
+  DeviceBaselineMatch,
+  DeviceMatrixEntry,
+  BaselineCoverage,
+  SyncOptions as BaselineSyncOptions,
+  SyncResult as BaselineSyncResult,
 } from './baselines';
 
 // =============================================================================

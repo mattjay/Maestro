@@ -300,12 +300,45 @@
 
 ## Multi-Device Support
 
-- [ ] Implement device-specific baselines
-  - [ ] Store baselines per device/resolution
-  - [ ] Auto-detect device when comparing
-  - [ ] Support device families (iPhone SE, iPhone, iPhone Pro Max, iPad)
+- [x] Implement device-specific baselines
+  - [x] Store baselines per device/resolution
+  - [x] Auto-detect device when comparing
+  - [x] Support device families (iPhone SE, iPhone, iPhone Pro Max, iPad)
 
-- [ ] Create device baseline matrix
+  **Completed**: Created comprehensive `multi-device.ts` module in `baselines/` with:
+
+  **Constants & Types**:
+  - `DEVICE_FAMILIES` array: iPhone-SE, iPhone, iPhone-Plus, iPhone-Pro-Max, iPad, iPad-Pro
+  - `DEVICE_FAMILY_RANGES` with screen size ranges for auto-detection
+  - `DeviceBaselineMatch`, `DeviceMatrixEntry`, `BaselineCoverage`, `SyncOptions`, `SyncResult` types
+
+  **Device Detection Functions**:
+  - `detectDeviceFamilyFromScreen(screenSize)` - detect family from screen dimensions
+  - `detectDeviceFamilyFromDevice(device)` - detect from device info (name + screen size)
+
+  **Device-Specific Baseline Operations**:
+  - `findBestBaselineForDevice(project, name, device)` - intelligent baseline lookup with fallback chain:
+    1. Exact device family match
+    2. Generic baseline (no device family)
+    3. Closest device family baseline
+    4. Any available device family baseline
+  - `createBaselineWithAutoDetect(project, name, imagePath, device, bundleId, options)` - create baseline with auto-detected device family
+
+  **Device Baseline Matrix**:
+  - `getDeviceBaselineMatrix(project)` - returns matrix of baselines and their device families
+  - `hasBaselineForDevice(project, name, deviceFamily)` - check if baseline exists for specific family
+  - `getMissingDeviceFamilies(project, name, targetFamilies)` - list missing device families
+
+  **Coverage Reporting**:
+  - `getBaselineCoverage(project)` - comprehensive coverage statistics
+  - `formatCoverageReport(coverage)` - markdown report with progress bars and recommendations
+
+  **Sync Operations**:
+  - `syncBaselinesAcrossDevices(project, options)` - copy baselines from source to target families
+
+  All exports added to `baselines/index.ts` and `ios-tools/index.ts`. Added 28 passing unit tests.
+
+- [x] Create device baseline matrix
   ```
   baselines/
   ├── iPhone-SE/
@@ -318,6 +351,7 @@
       ├── login.png
       └── home.png
   ```
+  **Completed**: Storage structure already supports device-family directories via `getBaselinePath(project, name, deviceFamily)`. The new `getDeviceBaselineMatrix()` function provides a view of which baselines exist for which device families.
 
 ---
 
