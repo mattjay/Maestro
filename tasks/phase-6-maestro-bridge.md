@@ -532,7 +532,16 @@
   > - **IPC handler** (ios.ts:2654-2676): `ios:bridge:getNetwork` handler exposed via preload.ts with limit, errorsOnly, and id options
   > - **Tests:** NetworkEndpointTests (5 tests: testGetNetwork, testGetNetworkWithLimit, testGetNetworkErrorsOnly, testGetNetworkDetailNotFound, testClearNetwork), NetworkInterceptorAdvancedTests (5 tests), MaestroBridgeIntegrationTests (testGetNetworkEmpty, testNetworkInterceptorIntegration, testNetworkWithLimitAndErrorsFilter, testClearNetwork), MaestroBridgePerformanceTests (testHighVolumeNetworkLogging)
   > - **Test counts:** 18 Swift network-related tests pass, 13 bridge-client tests pass, 69 ios-bridge slash command tests pass
-- [ ] `/ios.bridge.analytics` returns events
+- [x] `/ios.bridge.analytics` returns events
+  > **Verified:** Complete implementation across all layers:
+  > - **Swift AnalyticsEndpoint** (AnalyticsEndpoint.swift:14-36): Handles GET /analytics (with optional filter and limit), GET /analytics/sources (list registered sources), and DELETE /analytics (clear events). Returns AnalyticsLog with events array and count
+  > - **AnalyticsInterceptor** (AnalyticsInterceptor.swift:10-224): Records events with name, properties, source, and userId. Provides SDK helpers for Firebase, Amplitude, Mixpanel, and Segment. Supports filtering by name pattern, source, and time. Includes SwiftUI view modifier for automatic screen view tracking. Keeps last N events in memory (default 500)
+  > - **BridgeServer routing** (BridgeServer.swift:339-348): Routes /analytics, /analytics/sources, and DELETE /analytics requests to AnalyticsEndpoint handlers, parses query params for filter and limit
+  > - **TypeScript client** (bridge-client.ts:409-440): `getAnalytics()` with filter/limit options, `getAnalyticsSources()`, and `clearAnalytics()` methods properly call HTTP endpoints
+  > - **Slash command** (ios-bridge.ts:807-844): `executeBridgeAnalyticsCommand()` with `--filter` to search events and `--last` to limit results. Formats event name, properties as JSON, and timestamp
+  > - **IPC handlers** (ios.ts:2678-2796): `ios:bridge:getAnalytics`, `ios:bridge:getAnalyticsSources`, and `ios:bridge:clearAnalytics` handlers exposed via preload.ts (lines 1444-1473)
+  > - **Tests:** AnalyticsEndpointTests (5 tests: testGetAnalytics, testGetAnalyticsWithFilter, testGetAnalyticsWithLimit, testGetSources, testClearAnalytics), AnalyticsInterceptorAdvancedTests (5 tests: testMaxEventsLimit, testSDKIntegrationHelpers, testFilterBySource, testFilterByTime, testTypedPropertiesRecording), MaestroBridgeTests (testAnalyticsEventRecording, testAnalyticsFiltering), MaestroBridgeIntegrationTests (testAnalyticsIntegration, testAnalyticsWithFilter, testAnalyticsSources, testClearAnalytics)
+  > - **Test counts:** 117 Swift tests pass (includes 16+ analytics-specific tests), 13 bridge-client tests pass, 69 ios-bridge slash command tests pass
 - [ ] Agent can confirm UI AND internal state changed
 - [ ] Bridge auto-discovery works
 - [ ] Clear documentation for app integration
