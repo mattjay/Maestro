@@ -557,5 +557,16 @@
   > - **formatStateChanges()**, **formatVerificationResult()**: Agent-friendly markdown output with emojis and clear sections
   > - **47 unit tests** covering all comparison, verification, and formatting scenarios pass
   > - Exported via `src/main/ios-tools/index.ts`
-- [ ] Bridge auto-discovery works
+- [x] Bridge auto-discovery works
+  > **Verified:** Complete auto-discovery implementation with comprehensive test coverage (33 tests):
+  > - **Port discovery** (`discoverBridgePort()`): Scans default ports [9876, 9877, 9878, 9879, 9880] sequentially, treating both 200 and 401 as "bridge active" responses
+  > - **Token extraction** (`extractTokenFromLogs()`): Parses simulator logs using multiple regex patterns (`MaestroBridge.*Token:`, `bridge.*token:`, `Token:`) to extract 32+ char hex tokens
+  > - **Combined discovery** (`discoverBridge()`): Orchestrates port scanning + token extraction, gracefully handles token extraction failures
+  > - **Client factory** (`createBridgeClient()`): Creates connected client via auto-discovery or explicit config, verifies connection with ping
+  > - **Caching** (`getCachedBridgeClient()`): Caches clients by UDID with 5-minute TTL, validates cached clients on retrieval, clears stale entries
+  > - **Wait utility** (`waitForBridge()`): Polls for bridge availability with configurable timeout/interval, returns TIMEOUT error code on expiry
+  > - **IPC handlers**: `ios:bridge:discover` and `ios:bridge:waitFor` exposed in `src/main/ipc/handlers/ios.ts` (lines 2738-2760)
+  > - **Preload API**: `window.maestro.ios.bridge.discover()` and `window.maestro.ios.bridge.waitFor()` exposed in `src/main/preload.ts` (lines 1464-1473)
+  > - **Test coverage**: 20 new auto-discovery tests added covering all functions + edge cases (401 handling, cache invalidation, timeout behavior)
+  > - **All 493 iOS tools tests pass** including 33 bridge-client tests
 - [ ] Clear documentation for app integration
