@@ -178,15 +178,17 @@
 
 ### /ios.diff
 
-- [ ] Create `src/main/slash-commands/ios-diff.ts`
-  - [ ] `/ios.diff <baseline>` - compare current screen to baseline
-  - [ ] `/ios.diff --flow <flowName>` - compare all steps in flow
-  - [ ] `/ios.diff --all` - compare all baselines
+- [x] Create `src/main/slash-commands/ios-diff.ts`
+  - [x] `/ios.diff <baseline>` - compare current screen to baseline
+  - [x] `/ios.diff --flow <flowName>` - compare all steps in flow
+  - [x] `/ios.diff --all` - compare all baselines
 
   Arguments:
   - `--threshold <0-1>` - pixel difference threshold
   - `--output <path>` - save diff image
   - `--update` - update baseline if different
+
+  **Completed**: Created full /ios.diff slash command with three comparison modes (single, flow, all). Supports --project, --simulator, --threshold, --output, --update, --device-family options. Integrates with image-diff module for fullComparison. Generates rich markdown output with similarity percentages, changed regions, severity indicators, file paths, and recommendations. Added 67 passing unit tests.
 
 ### /ios.regression
 

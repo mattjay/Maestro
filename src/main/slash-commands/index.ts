@@ -139,6 +139,18 @@ export {
   type BaselineCommandResult,
 } from './ios-baseline';
 
+// iOS Diff Command
+export {
+  executeDiffCommand,
+  parseDiffArgs,
+  diffCommandMetadata,
+  type DiffMode,
+  type DiffCommandArgs,
+  type DiffCommandResult,
+  type SingleDiffResult,
+  type FlowDiffResult,
+} from './ios-diff';
+
 // Command registry for all slash commands
 export interface SlashCommandMetadata {
   command: string;
@@ -170,6 +182,7 @@ import {
   bridgeSetCommandMetadata,
 } from './ios-bridge';
 import { baselineCommandMetadata } from './ios-baseline';
+import { diffCommandMetadata } from './ios-diff';
 
 export const iosSlashCommandMetadata: SlashCommandMetadata[] = [
   snapshotCommandMetadata,
@@ -187,4 +200,5 @@ export const iosSlashCommandMetadata: SlashCommandMetadata[] = [
   bridgeFlagsCommandMetadata,
   bridgeSetCommandMetadata,
   baselineCommandMetadata,
+  diffCommandMetadata,
 ];
