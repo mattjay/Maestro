@@ -685,10 +685,14 @@
 
 ## Documentation
 
-- [ ] Document each playbook with examples
-- [ ] Document playbook YAML syntax
-- [ ] Document how to create custom playbooks
-- [ ] Document common components usage
+- [x] Document each playbook with examples
+  > Created comprehensive master documentation at `~/.maestro/playbooks/iOS/README.md` covering all 5 playbooks (Feature Ship Loop, Regression Check, Crash Hunt, Design Review, Performance Check) with quick examples for both CLI and Auto Run usage, input tables, and links to individual playbook READMEs.
+- [x] Document playbook YAML syntax
+  > Added full "Playbook YAML Syntax" section to README.md covering: basic structure, input definitions (types, required, defaults), variable resolution with `{{ }}` template syntax (inputs, variables, outputs, filters), step definitions (conditional steps, store_as, on_failure, continue_on_error), loop constructs (array iteration, range()), control flow actions (complete_loop, exit_loop, increment_iteration, wait), available iOS actions table, and a full playbook example.
+- [x] Document how to create custom playbooks
+  > Added "Creating Custom Playbooks" section to README.md with step-by-step guide: create directory structure, create playbook.yaml with example, add README.md with usage examples, add optional supporting files (templates, flows, baselines), test with dry-run, and best practices checklist (naming, input validation, error handling, artifacts, progress reporting, modularity, documentation).
+- [x] Document common components usage
+  > Added "Common Components" section to README.md documenting: Common Flows (login, logout, navigate-to-settings, clear-data) with environment variable configuration, Standard Screen Definitions (15 screens) with wait_for and elements structure, Standard Assertions (25+ assertions plus composite assertions) with usage examples, and how to reference common components in playbooks.
 
 ## Acceptance Criteria
 
