@@ -1469,3 +1469,32 @@ export type {
   CompletionOptions,
   CommandArgDefinition,
 } from './autocomplete';
+
+// =============================================================================
+// Command Suggestions
+// =============================================================================
+
+export {
+  // Main functions
+  getCommandSuggestions,
+  getSuggestionsByCategory,
+  getTopSuggestions,
+  // Formatting functions
+  formatSuggestionsAsMarkdown,
+  formatSuggestionsCompact,
+  formatSuggestionsAsJson,
+  // Utility functions
+  hasDefinedSuggestions,
+  getAllCategories,
+  // Extensibility
+  registerCommandSuggestions,
+  registerErrorSuggestions,
+  // Constants
+  CATEGORY_LABELS,
+  CATEGORY_ICONS,
+} from './command-suggestions';
+export type {
+  CommandSuggestion,
+  SuggestionContext,
+  CommandSuggestionResult,
+} from './command-suggestions';

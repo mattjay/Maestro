@@ -435,13 +435,26 @@
 
 ### Command Suggestions
 
-- [ ] Suggest related commands
+- [x] Suggest related commands
   ```
   After /ios.snapshot, you might want:
   • /ios.inspect - Analyze UI elements
   • /ios.diff login_screen - Compare to baseline
   • /ios.assert_visible #element - Verify element
   ```
+
+  **Implementation Notes (Jan 2, 2026):**
+  - Created comprehensive command suggestions module at `src/main/ios-tools/command-suggestions.ts`
+  - Core types: `CommandSuggestion`, `SuggestionContext`, `CommandSuggestionResult`
+  - Suggestion categories: `verify`, `interact`, `capture`, `automate`, `debug` with labels and icons
+  - Context-aware suggestions for all iOS commands: snapshot, inspect, tap, type, scroll, swipe, run_flow, baseline, diff, regression, setup, bridge.*
+  - Error-specific suggestions for: ELEMENT_NOT_FOUND, SIMULATOR_NOT_BOOTED, MAESTRO_NOT_INSTALLED, FLOW_TIMEOUT, APP_NOT_RUNNING
+  - Dynamic context support: suggestions adapt based on available elements, baselines, flows, diff results
+  - Main functions: `getCommandSuggestions()`, `getSuggestionsByCategory()`, `getTopSuggestions()`
+  - Formatting: `formatSuggestionsAsMarkdown()`, `formatSuggestionsCompact()`, `formatSuggestionsAsJson()`
+  - Extensibility: `registerCommandSuggestions()`, `registerErrorSuggestions()` for custom suggestions
+  - Exported from `src/main/ios-tools/index.ts`
+  - 67 unit tests covering all commands, error cases, formatting, and edge cases
 
 ---
 
