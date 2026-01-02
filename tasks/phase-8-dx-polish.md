@@ -462,11 +462,34 @@
 
 ### iOS Session Indicator
 
-- [ ] Add iOS status indicators to session UI
-  - [ ] Simulator status (booted/shutdown)
-  - [ ] App status (running/stopped)
-  - [ ] Bridge status (connected/disconnected)
-  - [ ] Last action result
+- [x] Add iOS status indicators to session UI
+  - [x] Simulator status (booted/shutdown)
+  - [x] App status (running/stopped)
+  - [x] Bridge status (connected/disconnected)
+  - [x] Last action result
+
+  **Implementation Notes (Jan 2, 2026):**
+  - Created iOS status types in `src/renderer/types/index.ts`:
+    - `IOSSimulatorStatus`: booted | shutdown | booting | shutting_down | unknown
+    - `IOSAppStatus`: running | stopped | launching | terminating | unknown
+    - `IOSLastActionResult`: action result with success, timestamp, action type, message, errorCode
+    - `IOSStatus`: comprehensive status data with simulator, app, bridge status + last action
+  - Added iOS color helper functions in `src/renderer/utils/theme.tsx`:
+    - `getIOSSimulatorColor()`: Green=booted, Gray=shutdown, Yellow=booting/stopping, Red=unknown
+    - `getIOSAppColor()`: Green=running, Gray=stopped, Yellow=launching/terminating, Red=unknown
+    - `getIOSBridgeColor()`: Green=connected, Red=disconnected
+  - Created `IOSStatusContext` at `src/renderer/contexts/IOSStatusContext.tsx`:
+    - Centralized iOS status polling similar to GitStatusContext
+    - Functions: `getStatus()`, `recordAction()`, `isIOSEnabled()`, `enableIOSForSession()`, `disableIOSForSession()`
+    - Polls simulator status via `window.maestro.ios.simulator.booted()`
+    - Checks MaestroBridge connection via `window.maestro.ios.bridge.ping()`
+  - Created `IOSStatusWidget` component at `src/renderer/components/IOSStatusWidget.tsx`:
+    - Displays compact mode (icon only) or full mode (icon + "iOS"/"iOS OFF" label)
+    - Hover tooltip shows detailed breakdown: simulator, app, bridge status, last action
+    - Color-coded status with pulsing animation for transitioning states
+    - Bridge indicator dot in compact mode
+    - Setup hint footer with "/ios.setup to configure"
+  - 48 tests for IOSStatusWidget component + 22 tests for iOS color helpers in theme.test.tsx
 
 ### Quick Actions
 

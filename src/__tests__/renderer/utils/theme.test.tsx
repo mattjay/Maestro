@@ -15,8 +15,11 @@ import {
   getStatusColor,
   formatActiveTime,
   getFileIcon,
+  getIOSSimulatorColor,
+  getIOSAppColor,
+  getIOSBridgeColor,
 } from '../../../renderer/utils/theme';
-import type { Theme, SessionState, FileChangeType } from '../../../renderer/types';
+import type { Theme, SessionState, FileChangeType, IOSSimulatorStatus, IOSAppStatus } from '../../../renderer/types';
 
 // Mock theme with known colors for testing
 const mockTheme: Theme = {
@@ -440,6 +443,139 @@ describe('theme utilities', () => {
         const { container } = render(icon);
         const svg = container.querySelector('svg');
         expect(svg).toHaveStyle({ color: mockTheme.colors.textDim });
+      });
+    });
+  });
+
+  // ============================================================================
+  // iOS Status Color Functions tests (Phase 8 DX Polish)
+  // ============================================================================
+  describe('getIOSSimulatorColor', () => {
+    describe('booted state', () => {
+      it('returns success color when simulator is booted', () => {
+        expect(getIOSSimulatorColor('booted', mockTheme)).toBe(mockTheme.colors.success);
+      });
+
+      it('uses alternative theme success color', () => {
+        expect(getIOSSimulatorColor('booted', alternativeTheme)).toBe(alternativeTheme.colors.success);
+      });
+    });
+
+    describe('shutdown state', () => {
+      it('returns textDim color when simulator is shutdown', () => {
+        expect(getIOSSimulatorColor('shutdown', mockTheme)).toBe(mockTheme.colors.textDim);
+      });
+
+      it('uses alternative theme textDim color', () => {
+        expect(getIOSSimulatorColor('shutdown', alternativeTheme)).toBe(alternativeTheme.colors.textDim);
+      });
+    });
+
+    describe('transitioning states', () => {
+      it('returns warning color when simulator is booting', () => {
+        expect(getIOSSimulatorColor('booting', mockTheme)).toBe(mockTheme.colors.warning);
+      });
+
+      it('returns warning color when simulator is shutting_down', () => {
+        expect(getIOSSimulatorColor('shutting_down', mockTheme)).toBe(mockTheme.colors.warning);
+      });
+
+      it('uses alternative theme warning color for booting', () => {
+        expect(getIOSSimulatorColor('booting', alternativeTheme)).toBe(alternativeTheme.colors.warning);
+      });
+    });
+
+    describe('unknown state', () => {
+      it('returns error color when simulator status is unknown', () => {
+        expect(getIOSSimulatorColor('unknown', mockTheme)).toBe(mockTheme.colors.error);
+      });
+
+      it('uses alternative theme error color', () => {
+        expect(getIOSSimulatorColor('unknown', alternativeTheme)).toBe(alternativeTheme.colors.error);
+      });
+    });
+
+    describe('default case', () => {
+      it('returns error color for any unrecognized status', () => {
+        // Cast to test the default branch
+        const unknownStatus = 'invalid' as IOSSimulatorStatus;
+        expect(getIOSSimulatorColor(unknownStatus, mockTheme)).toBe(mockTheme.colors.error);
+      });
+    });
+  });
+
+  describe('getIOSAppColor', () => {
+    describe('running state', () => {
+      it('returns success color when app is running', () => {
+        expect(getIOSAppColor('running', mockTheme)).toBe(mockTheme.colors.success);
+      });
+
+      it('uses alternative theme success color', () => {
+        expect(getIOSAppColor('running', alternativeTheme)).toBe(alternativeTheme.colors.success);
+      });
+    });
+
+    describe('stopped state', () => {
+      it('returns textDim color when app is stopped', () => {
+        expect(getIOSAppColor('stopped', mockTheme)).toBe(mockTheme.colors.textDim);
+      });
+
+      it('uses alternative theme textDim color', () => {
+        expect(getIOSAppColor('stopped', alternativeTheme)).toBe(alternativeTheme.colors.textDim);
+      });
+    });
+
+    describe('transitioning states', () => {
+      it('returns warning color when app is launching', () => {
+        expect(getIOSAppColor('launching', mockTheme)).toBe(mockTheme.colors.warning);
+      });
+
+      it('returns warning color when app is terminating', () => {
+        expect(getIOSAppColor('terminating', mockTheme)).toBe(mockTheme.colors.warning);
+      });
+
+      it('uses alternative theme warning color for launching', () => {
+        expect(getIOSAppColor('launching', alternativeTheme)).toBe(alternativeTheme.colors.warning);
+      });
+    });
+
+    describe('unknown state', () => {
+      it('returns error color when app status is unknown', () => {
+        expect(getIOSAppColor('unknown', mockTheme)).toBe(mockTheme.colors.error);
+      });
+
+      it('uses alternative theme error color', () => {
+        expect(getIOSAppColor('unknown', alternativeTheme)).toBe(alternativeTheme.colors.error);
+      });
+    });
+
+    describe('default case', () => {
+      it('returns error color for any unrecognized status', () => {
+        // Cast to test the default branch
+        const unknownStatus = 'invalid' as IOSAppStatus;
+        expect(getIOSAppColor(unknownStatus, mockTheme)).toBe(mockTheme.colors.error);
+      });
+    });
+  });
+
+  describe('getIOSBridgeColor', () => {
+    describe('connected state', () => {
+      it('returns success color when bridge is connected', () => {
+        expect(getIOSBridgeColor(true, mockTheme)).toBe(mockTheme.colors.success);
+      });
+
+      it('uses alternative theme success color', () => {
+        expect(getIOSBridgeColor(true, alternativeTheme)).toBe(alternativeTheme.colors.success);
+      });
+    });
+
+    describe('disconnected state', () => {
+      it('returns error color when bridge is disconnected', () => {
+        expect(getIOSBridgeColor(false, mockTheme)).toBe(mockTheme.colors.error);
+      });
+
+      it('uses alternative theme error color', () => {
+        expect(getIOSBridgeColor(false, alternativeTheme)).toBe(alternativeTheme.colors.error);
       });
     });
   });

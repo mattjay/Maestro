@@ -702,3 +702,60 @@ export interface ContextManagementSettings {
   contextWarningYellowThreshold: number;   // Yellow warning threshold percentage (default: 60)
   contextWarningRedThreshold: number;      // Red warning threshold percentage (default: 80)
 }
+
+// =============================================================================
+// iOS Status Types (Phase 8 DX Polish)
+// =============================================================================
+
+/**
+ * iOS simulator status for status bar indicator
+ */
+export type IOSSimulatorStatus = 'booted' | 'shutdown' | 'booting' | 'shutting_down' | 'unknown';
+
+/**
+ * iOS app status for status bar indicator
+ */
+export type IOSAppStatus = 'running' | 'stopped' | 'launching' | 'terminating' | 'unknown';
+
+/**
+ * Last iOS action result for status bar indicator
+ */
+export interface IOSLastActionResult {
+  /** Whether the action succeeded */
+  success: boolean;
+  /** Timestamp of the action */
+  timestamp: number;
+  /** Action type (e.g., 'snapshot', 'tap', 'type') */
+  action: string;
+  /** Short message describing the result */
+  message?: string;
+  /** Error code if failed */
+  errorCode?: string;
+}
+
+/**
+ * iOS status data for session status bar indicators.
+ * Tracks simulator, app, and bridge status along with last action result.
+ */
+export interface IOSStatus {
+  /** Simulator state */
+  simulatorStatus: IOSSimulatorStatus;
+  /** Simulator name (e.g., "iPhone 15 Pro") */
+  simulatorName?: string;
+  /** Simulator UDID */
+  simulatorUdid?: string;
+  /** App running state */
+  appStatus: IOSAppStatus;
+  /** App bundle ID if known */
+  appBundleId?: string;
+  /** MaestroBridge connection state */
+  bridgeConnected: boolean;
+  /** Bridge port if connected */
+  bridgePort?: number;
+  /** Last iOS action result */
+  lastActionResult?: IOSLastActionResult;
+  /** Timestamp of last status update */
+  lastUpdate: number;
+  /** Whether iOS features are enabled for this session */
+  enabled: boolean;
+}
