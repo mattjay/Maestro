@@ -151,6 +151,19 @@ export {
   type FlowDiffResult,
 } from './ios-diff';
 
+// iOS Regression Command
+export {
+  executeRegressionCommand,
+  parseRegressionArgs,
+  regressionCommandMetadata,
+  type RegressionMode,
+  type RegressionCommandArgs,
+  type RegressionCommandResult,
+  type BaselineTestResult,
+  type FlowTestResult,
+  type RegressionTestResult,
+} from './ios-regression';
+
 // Command registry for all slash commands
 export interface SlashCommandMetadata {
   command: string;
@@ -183,6 +196,7 @@ import {
 } from './ios-bridge';
 import { baselineCommandMetadata } from './ios-baseline';
 import { diffCommandMetadata } from './ios-diff';
+import { regressionCommandMetadata } from './ios-regression';
 
 export const iosSlashCommandMetadata: SlashCommandMetadata[] = [
   snapshotCommandMetadata,
@@ -201,4 +215,5 @@ export const iosSlashCommandMetadata: SlashCommandMetadata[] = [
   bridgeSetCommandMetadata,
   baselineCommandMetadata,
   diffCommandMetadata,
+  regressionCommandMetadata,
 ];

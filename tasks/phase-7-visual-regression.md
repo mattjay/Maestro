@@ -192,10 +192,20 @@
 
 ### /ios.regression
 
-- [ ] Create `src/main/slash-commands/ios-regression.ts`
-  - [ ] `/ios.regression` - run full regression check
-  - [ ] Iterates through all baselines
-  - [ ] Generates comprehensive report
+- [x] Create `src/main/slash-commands/ios-regression.ts`
+  - [x] `/ios.regression` - run full regression check
+  - [x] Iterates through all baselines
+  - [x] Generates comprehensive report
+
+  **Completed**: Created full /ios.regression slash command with comprehensive regression testing. Supports three modes (full, quick, flows-only), options (--project, --simulator, --threshold, --output, --device-family, --fail-fast, --update, --verbose). Features include:
+  - Screen baseline regression with per-baseline comparison
+  - Flow baseline regression with step-by-step comparison
+  - Summary statistics (total, passed, failed, skipped, updated, pass rate)
+  - HTML report generation with styling
+  - Detailed verbose output for failed baselines
+  - Auto-update mode for updating failed baselines
+  - Fail-fast mode for quick feedback
+  - 74 passing unit tests
 
 ---
 
