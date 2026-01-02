@@ -298,11 +298,11 @@
 
 ### In-App Help
 
-- [ ] Create `/ios.help` command
-  - [ ] `/ios.help` - show all iOS commands
-  - [ ] `/ios.help <command>` - detailed help for specific command
-  - [ ] Examples for each command
-  - [ ] Common troubleshooting
+- [x] Create `/ios.help` command *(Completed: Created comprehensive help command at `src/main/slash-commands/ios-help.ts` with 89 passing tests)*
+  - [x] `/ios.help` - show all iOS commands *(Displays categorized command overview: Setup & Configuration, Screen Capture & Inspection, UI Interactions, Flow Automation, Visual Regression, Debug Introspection)*
+  - [x] `/ios.help <command>` - detailed help for specific command *(Shows overview, usage, options table, examples, troubleshooting, and related commands)*
+  - [x] Examples for each command *(Extended examples available with `--examples` or `-e` flag)*
+  - [x] Common troubleshooting *(Full troubleshooting guide with `--troubleshoot` or `-t` flag covering: Xcode setup, simulators, Maestro CLI, element interactions, flow automation, visual regression, and MaestroBridge)*
 
 - [ ] Create contextual tips
   - [ ] Show tips when errors occur

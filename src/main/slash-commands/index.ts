@@ -175,6 +175,16 @@ export {
   type SetupCommandResult,
 } from './ios-setup';
 
+// iOS Help Command
+export {
+  executeHelpCommand,
+  parseHelpArgs,
+  helpCommandMetadata,
+  type HelpMode,
+  type HelpCommandArgs,
+  type HelpCommandResult,
+} from './ios-help';
+
 // Command registry for all slash commands
 export interface SlashCommandMetadata {
   command: string;
@@ -209,6 +219,7 @@ import { baselineCommandMetadata } from './ios-baseline';
 import { diffCommandMetadata } from './ios-diff';
 import { regressionCommandMetadata } from './ios-regression';
 import { setupCommandMetadata } from './ios-setup';
+import { helpCommandMetadata } from './ios-help';
 
 export const iosSlashCommandMetadata: SlashCommandMetadata[] = [
   snapshotCommandMetadata,
@@ -229,4 +240,5 @@ export const iosSlashCommandMetadata: SlashCommandMetadata[] = [
   diffCommandMetadata,
   regressionCommandMetadata,
   setupCommandMetadata,
+  helpCommandMetadata,
 ];
