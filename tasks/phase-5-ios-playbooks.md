@@ -711,7 +711,22 @@
   > - continueOnAssertionFailure controls assertion evaluation
   > - relaunchOnIteration controls app launch cycle
   > - Summary files written to artifacts directory
-- [ ] Regression Check captures and compares screenshots
+- [x] Regression Check captures and compares screenshots
+  > Added 14 comprehensive integration tests in `regression-check.test.ts` verifying:
+  > - Screenshots captured for each flow during execution (screenshotSpy call count)
+  > - Screenshots compared against baselines with comparison info (passed, diffPercentage, threshold)
+  > - Missing baselines detected and reported (baselineMissing flag)
+  > - Baselines updated when update_baselines=true (file created in baseline_dir)
+  > - Screenshots matching baseline within threshold pass (diffPercentage=0, passed=true)
+  > - Screenshots differing beyond threshold fail (passed=false, regressions_found incremented)
+  > - fail_fast=true stops after first regression
+  > - fail_fast=false continues checking all flows
+  > - screenshots_compared variable tracked correctly
+  > - HTML and JSON reports generated with expected content
+  > - Progress phases reported (initializing, installing, running_flow, capturing, comparing, generating_report, complete)
+  > - Custom threshold used in comparison (strict vs lenient threshold tests)
+  > - Diff images created when regression detected
+  > - Artifacts organized in correct directory structure (current/, diffs/)
 - [ ] Crash Hunt detects and reports crashes
 - [ ] Design Review captures all screens on multiple devices
 - [ ] Performance Check measures key metrics

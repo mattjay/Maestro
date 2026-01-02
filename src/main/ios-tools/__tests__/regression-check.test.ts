@@ -1032,3 +1032,797 @@ describe('runRegressionCheck - Variable Tracking', () => {
     expect(result.data!.finalVariables.total_flows).toBe(4);
   });
 });
+
+// =============================================================================
+// Integration Tests - Screenshot Capture and Comparison
+// =============================================================================
+
+describe('runRegressionCheck - Screenshot Capture and Comparison Integration', () => {
+  beforeEach(() => {
+    testDir = createTestDir();
+    playbooksDir = createTestDir();
+    ensurePlaybooksDirectory(playbooksDir);
+
+    const playbookDir = path.join(playbooksDir, 'Regression-Check');
+    fs.mkdirSync(playbookDir, { recursive: true });
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const yaml = require('js-yaml');
+    fs.writeFileSync(
+      path.join(playbookDir, 'playbook.yaml'),
+      yaml.dump({
+        name: 'iOS Regression Check',
+        version: '1.0.0',
+        variables: {
+          total_flows: 0,
+          flows_run: 0,
+          regressions_found: 0,
+          screenshots_compared: 0,
+          baseline_updates: 0,
+        },
+        steps: [{ action: 'ios.boot_simulator' }],
+      })
+    );
+  });
+
+  afterEach(() => {
+    cleanupTestDir(testDir);
+    cleanupTestDir(playbooksDir);
+    vi.clearAllMocks();
+  });
+
+  it('should capture screenshots for each flow during execution', async () => {
+    const { screenshot } = await import('../capture');
+    const screenshotSpy = vi.mocked(screenshot);
+
+    // Create test flows with YAML files
+    const flowDir = path.join(testDir, 'flows');
+    fs.mkdirSync(flowDir, { recursive: true });
+    const loginFlowPath = createTestFlow(flowDir, 'login');
+    const checkoutFlowPath = createTestFlow(flowDir, 'checkout');
+
+    const flows: RegressionFlow[] = [
+      { name: 'login', path: loginFlowPath },
+      { name: 'checkout', path: checkoutFlowPath },
+    ];
+
+    const baselineDir = path.join(testDir, 'baselines');
+    fs.mkdirSync(baselineDir, { recursive: true });
+    // Create baselines so comparison happens
+    createTestBaseline(baselineDir, 'login');
+    createTestBaseline(baselineDir, 'checkout');
+
+    const options: RegressionCheckOptions = {
+      inputs: {
+        app_path: '/tmp/test.app',
+        flows,
+        baseline_dir: baselineDir,
+        threshold: 0.01,
+      },
+      sessionId: `screenshot-capture-test-${Date.now()}`,
+      playbookPath: path.join(playbooksDir, 'Regression-Check', 'playbook.yaml'),
+    };
+
+    await runRegressionCheck(options);
+
+    // Should capture screenshot for each flow
+    expect(screenshotSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('should compare screenshots against baselines and detect regressions', async () => {
+    // Create test flows
+    const flowDir = path.join(testDir, 'flows');
+    fs.mkdirSync(flowDir, { recursive: true });
+    const loginFlowPath = createTestFlow(flowDir, 'login');
+
+    const flows: RegressionFlow[] = [{ name: 'login', path: loginFlowPath }];
+
+    const baselineDir = path.join(testDir, 'baselines');
+    createTestBaseline(baselineDir, 'login');
+
+    const options: RegressionCheckOptions = {
+      inputs: {
+        app_path: '/tmp/test.app',
+        flows,
+        baseline_dir: baselineDir,
+        threshold: 0.01,
+      },
+      sessionId: `compare-test-${Date.now()}`,
+      playbookPath: path.join(playbooksDir, 'Regression-Check', 'playbook.yaml'),
+    };
+
+    const result = await runRegressionCheck(options);
+
+    expect(result.success).toBe(true);
+    expect(result.data).toBeDefined();
+    // Flow results should include comparison info
+    expect(result.data!.flowResults.length).toBe(1);
+    expect(result.data!.flowResults[0].comparison).toBeDefined();
+    expect(typeof result.data!.flowResults[0].comparison!.passed).toBe('boolean');
+    expect(typeof result.data!.flowResults[0].comparison!.diffPercentage).toBe('number');
+    expect(result.data!.flowResults[0].comparison!.threshold).toBe(0.01);
+  });
+
+  it('should detect missing baselines and report them', async () => {
+    const flowDir = path.join(testDir, 'flows');
+    fs.mkdirSync(flowDir, { recursive: true });
+    const newFlowPath = createTestFlow(flowDir, 'newfeature');
+
+    const flows: RegressionFlow[] = [{ name: 'newfeature', path: newFlowPath }];
+
+    // Don't create baseline - it should be missing
+    const baselineDir = path.join(testDir, 'baselines');
+    fs.mkdirSync(baselineDir, { recursive: true });
+
+    // Mock screenshot to create an actual file so comparison runs
+    const { screenshot } = await import('../capture');
+    vi.mocked(screenshot).mockImplementation(async (opts) => {
+      const dir = path.dirname(opts.outputPath!);
+      fs.mkdirSync(dir, { recursive: true });
+      const pngContent = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+      fs.writeFileSync(opts.outputPath!, pngContent);
+      return {
+        success: true,
+        data: {
+          path: opts.outputPath!,
+          size: pngContent.length,
+          timestamp: new Date(),
+        },
+      };
+    });
+
+    const options: RegressionCheckOptions = {
+      inputs: {
+        app_path: '/tmp/test.app',
+        flows,
+        baseline_dir: baselineDir,
+        threshold: 0.01,
+      },
+      sessionId: `missing-baseline-test-${Date.now()}`,
+      playbookPath: path.join(playbooksDir, 'Regression-Check', 'playbook.yaml'),
+    };
+
+    const result = await runRegressionCheck(options);
+
+    expect(result.success).toBe(true);
+    expect(result.data!.flowResults[0].comparison!.baselineMissing).toBe(true);
+    expect(result.data!.flowResults[0].comparison!.passed).toBe(false);
+  });
+
+  it('should update baselines when update_baselines is true', async () => {
+    const flowDir = path.join(testDir, 'flows');
+    fs.mkdirSync(flowDir, { recursive: true });
+    const loginFlowPath = createTestFlow(flowDir, 'login');
+
+    const flows: RegressionFlow[] = [{ name: 'login', path: loginFlowPath }];
+
+    const baselineDir = path.join(testDir, 'baselines');
+    fs.mkdirSync(baselineDir, { recursive: true });
+
+    // Mock screenshot to create an actual file
+    const { screenshot } = await import('../capture');
+    vi.mocked(screenshot).mockImplementation(async (opts) => {
+      const dir = path.dirname(opts.outputPath!);
+      fs.mkdirSync(dir, { recursive: true });
+      // Create a mock PNG file
+      const pngHeader = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+      fs.writeFileSync(opts.outputPath!, Buffer.concat([pngHeader, Buffer.alloc(50, 1)]));
+      return {
+        success: true,
+        data: {
+          path: opts.outputPath!,
+          size: 58,
+          timestamp: new Date(),
+        },
+      };
+    });
+
+    const options: RegressionCheckOptions = {
+      inputs: {
+        app_path: '/tmp/test.app',
+        flows,
+        baseline_dir: baselineDir,
+        threshold: 0.01,
+        update_baselines: true,
+      },
+      sessionId: `update-baseline-test-${Date.now()}`,
+      playbookPath: path.join(playbooksDir, 'Regression-Check', 'playbook.yaml'),
+    };
+
+    const result = await runRegressionCheck(options);
+
+    expect(result.success).toBe(true);
+    expect(result.data!.baselinesUpdated).toBe(1);
+    expect(result.data!.flowResults[0].baselineUpdated).toBe(true);
+    // Baseline should now exist
+    expect(fs.existsSync(path.join(baselineDir, 'login', 'final.png'))).toBe(true);
+  });
+
+  it('should pass when screenshots match baseline within threshold', async () => {
+    const flowDir = path.join(testDir, 'flows');
+    fs.mkdirSync(flowDir, { recursive: true });
+    const loginFlowPath = createTestFlow(flowDir, 'login');
+
+    const flows: RegressionFlow[] = [{ name: 'login', path: loginFlowPath }];
+
+    const baselineDir = path.join(testDir, 'baselines');
+    const baselineContent = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0]);
+
+    // Create baseline
+    const flowBaselineDir = path.join(baselineDir, 'login');
+    fs.mkdirSync(flowBaselineDir, { recursive: true });
+    fs.writeFileSync(path.join(flowBaselineDir, 'final.png'), baselineContent);
+
+    // Mock screenshot to create identical content (0% diff)
+    const { screenshot } = await import('../capture');
+    vi.mocked(screenshot).mockImplementation(async (opts) => {
+      const dir = path.dirname(opts.outputPath!);
+      fs.mkdirSync(dir, { recursive: true });
+      // Same content as baseline
+      fs.writeFileSync(opts.outputPath!, baselineContent);
+      return {
+        success: true,
+        data: {
+          path: opts.outputPath!,
+          size: baselineContent.length,
+          timestamp: new Date(),
+        },
+      };
+    });
+
+    const options: RegressionCheckOptions = {
+      inputs: {
+        app_path: '/tmp/test.app',
+        flows,
+        baseline_dir: baselineDir,
+        threshold: 0.01,
+      },
+      sessionId: `match-test-${Date.now()}`,
+      playbookPath: path.join(playbooksDir, 'Regression-Check', 'playbook.yaml'),
+    };
+
+    const result = await runRegressionCheck(options);
+
+    expect(result.success).toBe(true);
+    expect(result.data!.passed).toBe(true);
+    expect(result.data!.flowResults[0].comparison!.passed).toBe(true);
+    expect(result.data!.flowResults[0].comparison!.diffPercentage).toBe(0);
+    expect(result.data!.failedFlows).toBe(0);
+    expect(result.data!.passedFlows).toBe(1);
+  });
+
+  it('should fail when screenshots differ beyond threshold', async () => {
+    const flowDir = path.join(testDir, 'flows');
+    fs.mkdirSync(flowDir, { recursive: true });
+    const loginFlowPath = createTestFlow(flowDir, 'login');
+
+    const flows: RegressionFlow[] = [{ name: 'login', path: loginFlowPath }];
+
+    const baselineDir = path.join(testDir, 'baselines');
+    const baselineContent = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0]);
+
+    // Create baseline
+    const flowBaselineDir = path.join(baselineDir, 'login');
+    fs.mkdirSync(flowBaselineDir, { recursive: true });
+    fs.writeFileSync(path.join(flowBaselineDir, 'final.png'), baselineContent);
+
+    // Mock screenshot to create different content (100% diff due to different size)
+    const { screenshot } = await import('../capture');
+    vi.mocked(screenshot).mockImplementation(async (opts) => {
+      const dir = path.dirname(opts.outputPath!);
+      fs.mkdirSync(dir, { recursive: true });
+      // Different content - different size triggers 100% diff
+      const differentContent = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 255, 255, 255, 255, 255, 255]);
+      fs.writeFileSync(opts.outputPath!, differentContent);
+      return {
+        success: true,
+        data: {
+          path: opts.outputPath!,
+          size: differentContent.length,
+          timestamp: new Date(),
+        },
+      };
+    });
+
+    const options: RegressionCheckOptions = {
+      inputs: {
+        app_path: '/tmp/test.app',
+        flows,
+        baseline_dir: baselineDir,
+        threshold: 0.01,
+      },
+      sessionId: `diff-test-${Date.now()}`,
+      playbookPath: path.join(playbooksDir, 'Regression-Check', 'playbook.yaml'),
+    };
+
+    const result = await runRegressionCheck(options);
+
+    expect(result.success).toBe(true);
+    expect(result.data!.passed).toBe(false);
+    expect(result.data!.flowResults[0].comparison!.passed).toBe(false);
+    expect(result.data!.flowResults[0].comparison!.diffPercentage).toBeGreaterThan(0.01);
+    expect(result.data!.failedFlows).toBe(1);
+    expect(result.data!.finalVariables.regressions_found).toBe(1);
+  });
+
+  it('should stop on first regression when fail_fast is true', async () => {
+    const flowDir = path.join(testDir, 'flows');
+    fs.mkdirSync(flowDir, { recursive: true });
+    const flow1Path = createTestFlow(flowDir, 'flow1');
+    const flow2Path = createTestFlow(flowDir, 'flow2');
+    const flow3Path = createTestFlow(flowDir, 'flow3');
+
+    const flows: RegressionFlow[] = [
+      { name: 'flow1', path: flow1Path },
+      { name: 'flow2', path: flow2Path },
+      { name: 'flow3', path: flow3Path },
+    ];
+
+    const baselineDir = path.join(testDir, 'baselines');
+    const baselineContent = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0]);
+
+    // Create all baselines
+    for (const flow of flows) {
+      const flowBaselineDir = path.join(baselineDir, flow.name);
+      fs.mkdirSync(flowBaselineDir, { recursive: true });
+      fs.writeFileSync(path.join(flowBaselineDir, 'final.png'), baselineContent);
+    }
+
+    // Mock screenshot to create different content
+    const { screenshot } = await import('../capture');
+    vi.mocked(screenshot).mockImplementation(async (opts) => {
+      const dir = path.dirname(opts.outputPath!);
+      fs.mkdirSync(dir, { recursive: true });
+      // Different size triggers regression
+      const differentContent = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 255, 255, 255]);
+      fs.writeFileSync(opts.outputPath!, differentContent);
+      return {
+        success: true,
+        data: {
+          path: opts.outputPath!,
+          size: differentContent.length,
+          timestamp: new Date(),
+        },
+      };
+    });
+
+    const options: RegressionCheckOptions = {
+      inputs: {
+        app_path: '/tmp/test.app',
+        flows,
+        baseline_dir: baselineDir,
+        threshold: 0.01,
+        fail_fast: true,
+      },
+      sessionId: `fail-fast-test-${Date.now()}`,
+      playbookPath: path.join(playbooksDir, 'Regression-Check', 'playbook.yaml'),
+    };
+
+    const result = await runRegressionCheck(options);
+
+    expect(result.success).toBe(true);
+    expect(result.data!.passed).toBe(false);
+    // Should stop after first regression
+    expect(result.data!.flowResults.length).toBe(1);
+    expect(result.data!.finalVariables.flows_run).toBe(1);
+  });
+
+  it('should continue checking all flows when fail_fast is false', async () => {
+    const flowDir = path.join(testDir, 'flows');
+    fs.mkdirSync(flowDir, { recursive: true });
+    const flow1Path = createTestFlow(flowDir, 'flow1');
+    const flow2Path = createTestFlow(flowDir, 'flow2');
+
+    const flows: RegressionFlow[] = [
+      { name: 'flow1', path: flow1Path },
+      { name: 'flow2', path: flow2Path },
+    ];
+
+    const baselineDir = path.join(testDir, 'baselines');
+    const baselineContent = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0]);
+
+    // Create all baselines
+    for (const flow of flows) {
+      const flowBaselineDir = path.join(baselineDir, flow.name);
+      fs.mkdirSync(flowBaselineDir, { recursive: true });
+      fs.writeFileSync(path.join(flowBaselineDir, 'final.png'), baselineContent);
+    }
+
+    // Mock screenshot to create different content (regression for both)
+    const { screenshot } = await import('../capture');
+    vi.mocked(screenshot).mockImplementation(async (opts) => {
+      const dir = path.dirname(opts.outputPath!);
+      fs.mkdirSync(dir, { recursive: true });
+      const differentContent = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 255, 255, 255]);
+      fs.writeFileSync(opts.outputPath!, differentContent);
+      return {
+        success: true,
+        data: {
+          path: opts.outputPath!,
+          size: differentContent.length,
+          timestamp: new Date(),
+        },
+      };
+    });
+
+    const options: RegressionCheckOptions = {
+      inputs: {
+        app_path: '/tmp/test.app',
+        flows,
+        baseline_dir: baselineDir,
+        threshold: 0.01,
+        fail_fast: false,
+      },
+      sessionId: `no-fail-fast-test-${Date.now()}`,
+      playbookPath: path.join(playbooksDir, 'Regression-Check', 'playbook.yaml'),
+    };
+
+    const result = await runRegressionCheck(options);
+
+    expect(result.success).toBe(true);
+    expect(result.data!.passed).toBe(false);
+    // Should check all flows
+    expect(result.data!.flowResults.length).toBe(2);
+    expect(result.data!.finalVariables.flows_run).toBe(2);
+    expect(result.data!.failedFlows).toBe(2);
+  });
+
+  it('should track screenshots_compared variable', async () => {
+    const flowDir = path.join(testDir, 'flows');
+    fs.mkdirSync(flowDir, { recursive: true });
+    const flow1Path = createTestFlow(flowDir, 'flow1');
+    const flow2Path = createTestFlow(flowDir, 'flow2');
+
+    const flows: RegressionFlow[] = [
+      { name: 'flow1', path: flow1Path },
+      { name: 'flow2', path: flow2Path },
+    ];
+
+    const baselineDir = path.join(testDir, 'baselines');
+    const baselineContent = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0]);
+
+    // Create baselines
+    for (const flow of flows) {
+      const flowBaselineDir = path.join(baselineDir, flow.name);
+      fs.mkdirSync(flowBaselineDir, { recursive: true });
+      fs.writeFileSync(path.join(flowBaselineDir, 'final.png'), baselineContent);
+    }
+
+    // Mock screenshot to match baseline
+    const { screenshot } = await import('../capture');
+    vi.mocked(screenshot).mockImplementation(async (opts) => {
+      const dir = path.dirname(opts.outputPath!);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(opts.outputPath!, baselineContent);
+      return {
+        success: true,
+        data: {
+          path: opts.outputPath!,
+          size: baselineContent.length,
+          timestamp: new Date(),
+        },
+      };
+    });
+
+    const options: RegressionCheckOptions = {
+      inputs: {
+        app_path: '/tmp/test.app',
+        flows,
+        baseline_dir: baselineDir,
+        threshold: 0.01,
+      },
+      sessionId: `screenshots-compared-test-${Date.now()}`,
+      playbookPath: path.join(playbooksDir, 'Regression-Check', 'playbook.yaml'),
+    };
+
+    const result = await runRegressionCheck(options);
+
+    expect(result.success).toBe(true);
+    expect(result.data!.finalVariables.screenshots_compared).toBe(2);
+  });
+
+  it('should generate HTML and JSON reports after comparison', async () => {
+    const flowDir = path.join(testDir, 'flows');
+    fs.mkdirSync(flowDir, { recursive: true });
+    const loginFlowPath = createTestFlow(flowDir, 'login');
+
+    const flows: RegressionFlow[] = [{ name: 'login', path: loginFlowPath }];
+
+    const baselineDir = path.join(testDir, 'baselines');
+    const baselineContent = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0]);
+
+    // Create baseline
+    const flowBaselineDir = path.join(baselineDir, 'login');
+    fs.mkdirSync(flowBaselineDir, { recursive: true });
+    fs.writeFileSync(path.join(flowBaselineDir, 'final.png'), baselineContent);
+
+    // Mock screenshot
+    const { screenshot } = await import('../capture');
+    vi.mocked(screenshot).mockImplementation(async (opts) => {
+      const dir = path.dirname(opts.outputPath!);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(opts.outputPath!, baselineContent);
+      return {
+        success: true,
+        data: {
+          path: opts.outputPath!,
+          size: baselineContent.length,
+          timestamp: new Date(),
+        },
+      };
+    });
+
+    const options: RegressionCheckOptions = {
+      inputs: {
+        app_path: '/tmp/test.app',
+        flows,
+        baseline_dir: baselineDir,
+        threshold: 0.01,
+      },
+      sessionId: `report-gen-test-${Date.now()}`,
+      playbookPath: path.join(playbooksDir, 'Regression-Check', 'playbook.yaml'),
+    };
+
+    const result = await runRegressionCheck(options);
+
+    expect(result.success).toBe(true);
+    expect(result.data!.htmlReportPath).toBeDefined();
+    expect(result.data!.jsonReportPath).toBeDefined();
+    expect(fs.existsSync(result.data!.htmlReportPath!)).toBe(true);
+    expect(fs.existsSync(result.data!.jsonReportPath!)).toBe(true);
+
+    // Verify HTML report contains expected content
+    const htmlContent = fs.readFileSync(result.data!.htmlReportPath!, 'utf-8');
+    expect(htmlContent).toContain('Regression Check Report');
+    expect(htmlContent).toContain('login');
+
+    // Verify JSON report is valid
+    const jsonContent = fs.readFileSync(result.data!.jsonReportPath!, 'utf-8');
+    const jsonReport = JSON.parse(jsonContent);
+    expect(jsonReport.totalFlows).toBe(1);
+    expect(jsonReport.results).toHaveLength(1);
+  });
+
+  it('should report progress through all phases during screenshot comparison', async () => {
+    const progressPhases: string[] = [];
+    const onProgress = vi.fn((update) => {
+      progressPhases.push(update.phase);
+    });
+
+    const flowDir = path.join(testDir, 'flows');
+    fs.mkdirSync(flowDir, { recursive: true });
+    const loginFlowPath = createTestFlow(flowDir, 'login');
+
+    const flows: RegressionFlow[] = [{ name: 'login', path: loginFlowPath }];
+
+    const baselineDir = path.join(testDir, 'baselines');
+    const baselineContent = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+
+    // Create baseline
+    const flowBaselineDir = path.join(baselineDir, 'login');
+    fs.mkdirSync(flowBaselineDir, { recursive: true });
+    fs.writeFileSync(path.join(flowBaselineDir, 'final.png'), baselineContent);
+
+    // Mock screenshot
+    const { screenshot } = await import('../capture');
+    vi.mocked(screenshot).mockImplementation(async (opts) => {
+      const dir = path.dirname(opts.outputPath!);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(opts.outputPath!, baselineContent);
+      return {
+        success: true,
+        data: {
+          path: opts.outputPath!,
+          size: baselineContent.length,
+          timestamp: new Date(),
+        },
+      };
+    });
+
+    const options: RegressionCheckOptions = {
+      inputs: {
+        app_path: '/tmp/test.app',
+        flows,
+        baseline_dir: baselineDir,
+        threshold: 0.01,
+      },
+      sessionId: `progress-test-${Date.now()}`,
+      playbookPath: path.join(playbooksDir, 'Regression-Check', 'playbook.yaml'),
+      onProgress,
+    };
+
+    await runRegressionCheck(options);
+
+    // Should see all major phases
+    expect(progressPhases).toContain('initializing');
+    expect(progressPhases).toContain('installing');
+    expect(progressPhases).toContain('running_flow');
+    expect(progressPhases).toContain('capturing');
+    expect(progressPhases).toContain('comparing');
+    expect(progressPhases).toContain('generating_report');
+    expect(progressPhases).toContain('complete');
+  });
+
+  it('should use custom threshold when comparing screenshots', async () => {
+    const flowDir = path.join(testDir, 'flows');
+    fs.mkdirSync(flowDir, { recursive: true });
+    const loginFlowPath = createTestFlow(flowDir, 'login');
+
+    const flows: RegressionFlow[] = [{ name: 'login', path: loginFlowPath }];
+
+    const baselineDir = path.join(testDir, 'baselines');
+    // Create baseline with specific content
+    const baselineContent = Buffer.alloc(100);
+    baselineContent[0] = 137; // PNG signature start
+    baselineContent[1] = 80;
+    baselineContent[2] = 78;
+    baselineContent[3] = 71;
+
+    const flowBaselineDir = path.join(baselineDir, 'login');
+    fs.mkdirSync(flowBaselineDir, { recursive: true });
+    fs.writeFileSync(path.join(flowBaselineDir, 'final.png'), baselineContent);
+
+    // Mock screenshot with small difference (5% diff - 5 bytes different out of 100)
+    const { screenshot } = await import('../capture');
+    vi.mocked(screenshot).mockImplementation(async (opts) => {
+      const dir = path.dirname(opts.outputPath!);
+      fs.mkdirSync(dir, { recursive: true });
+      const currentContent = Buffer.alloc(100);
+      currentContent[0] = 137;
+      currentContent[1] = 80;
+      currentContent[2] = 78;
+      currentContent[3] = 71;
+      // Change 5 bytes (5% diff)
+      currentContent[10] = 255;
+      currentContent[11] = 255;
+      currentContent[12] = 255;
+      currentContent[13] = 255;
+      currentContent[14] = 255;
+      fs.writeFileSync(opts.outputPath!, currentContent);
+      return {
+        success: true,
+        data: {
+          path: opts.outputPath!,
+          size: currentContent.length,
+          timestamp: new Date(),
+        },
+      };
+    });
+
+    // Test with strict threshold (1%) - should fail
+    const strictOptions: RegressionCheckOptions = {
+      inputs: {
+        app_path: '/tmp/test.app',
+        flows,
+        baseline_dir: baselineDir,
+        threshold: 0.01,
+      },
+      sessionId: `strict-threshold-test-${Date.now()}`,
+      playbookPath: path.join(playbooksDir, 'Regression-Check', 'playbook.yaml'),
+    };
+
+    const strictResult = await runRegressionCheck(strictOptions);
+    expect(strictResult.data!.passed).toBe(false);
+    expect(strictResult.data!.flowResults[0].comparison!.threshold).toBe(0.01);
+
+    // Test with lenient threshold (10%) - should pass
+    const lenientOptions: RegressionCheckOptions = {
+      inputs: {
+        app_path: '/tmp/test.app',
+        flows,
+        baseline_dir: baselineDir,
+        threshold: 0.10,
+      },
+      sessionId: `lenient-threshold-test-${Date.now()}`,
+      playbookPath: path.join(playbooksDir, 'Regression-Check', 'playbook.yaml'),
+    };
+
+    const lenientResult = await runRegressionCheck(lenientOptions);
+    expect(lenientResult.data!.passed).toBe(true);
+    expect(lenientResult.data!.flowResults[0].comparison!.threshold).toBe(0.10);
+  });
+
+  it('should create diff images when regression is detected', async () => {
+    const flowDir = path.join(testDir, 'flows');
+    fs.mkdirSync(flowDir, { recursive: true });
+    const loginFlowPath = createTestFlow(flowDir, 'login');
+
+    const flows: RegressionFlow[] = [{ name: 'login', path: loginFlowPath }];
+
+    const baselineDir = path.join(testDir, 'baselines');
+    const baselineContent = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0]);
+
+    const flowBaselineDir = path.join(baselineDir, 'login');
+    fs.mkdirSync(flowBaselineDir, { recursive: true });
+    fs.writeFileSync(path.join(flowBaselineDir, 'final.png'), baselineContent);
+
+    // Mock screenshot with different content
+    const { screenshot } = await import('../capture');
+    vi.mocked(screenshot).mockImplementation(async (opts) => {
+      const dir = path.dirname(opts.outputPath!);
+      fs.mkdirSync(dir, { recursive: true });
+      const differentContent = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 255, 255, 255]);
+      fs.writeFileSync(opts.outputPath!, differentContent);
+      return {
+        success: true,
+        data: {
+          path: opts.outputPath!,
+          size: differentContent.length,
+          timestamp: new Date(),
+        },
+      };
+    });
+
+    const options: RegressionCheckOptions = {
+      inputs: {
+        app_path: '/tmp/test.app',
+        flows,
+        baseline_dir: baselineDir,
+        threshold: 0.01,
+      },
+      sessionId: `diff-image-test-${Date.now()}`,
+      playbookPath: path.join(playbooksDir, 'Regression-Check', 'playbook.yaml'),
+    };
+
+    const result = await runRegressionCheck(options);
+
+    expect(result.success).toBe(true);
+    expect(result.data!.passed).toBe(false);
+    // Should have diff path set
+    expect(result.data!.flowResults[0].comparison!.diffPath).toBeDefined();
+    // Diff image should exist
+    expect(fs.existsSync(result.data!.flowResults[0].comparison!.diffPath!)).toBe(true);
+  });
+
+  it('should organize artifacts in correct directory structure', async () => {
+    const flowDir = path.join(testDir, 'flows');
+    fs.mkdirSync(flowDir, { recursive: true });
+    const loginFlowPath = createTestFlow(flowDir, 'login');
+
+    const flows: RegressionFlow[] = [{ name: 'login', path: loginFlowPath }];
+
+    const baselineDir = path.join(testDir, 'baselines');
+    const baselineContent = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+
+    const flowBaselineDir = path.join(baselineDir, 'login');
+    fs.mkdirSync(flowBaselineDir, { recursive: true });
+    fs.writeFileSync(path.join(flowBaselineDir, 'final.png'), baselineContent);
+
+    // Mock screenshot
+    const { screenshot } = await import('../capture');
+    vi.mocked(screenshot).mockImplementation(async (opts) => {
+      const dir = path.dirname(opts.outputPath!);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(opts.outputPath!, baselineContent);
+      return {
+        success: true,
+        data: {
+          path: opts.outputPath!,
+          size: baselineContent.length,
+          timestamp: new Date(),
+        },
+      };
+    });
+
+    const options: RegressionCheckOptions = {
+      inputs: {
+        app_path: '/tmp/test.app',
+        flows,
+        baseline_dir: baselineDir,
+        threshold: 0.01,
+      },
+      sessionId: `artifacts-structure-test-${Date.now()}`,
+      playbookPath: path.join(playbooksDir, 'Regression-Check', 'playbook.yaml'),
+    };
+
+    const result = await runRegressionCheck(options);
+
+    expect(result.success).toBe(true);
+    const artifactsDir = result.data!.artifactsDir;
+
+    // Check expected directory structure
+    expect(fs.existsSync(artifactsDir)).toBe(true);
+    expect(fs.existsSync(path.join(artifactsDir, 'current'))).toBe(true);
+    expect(fs.existsSync(path.join(artifactsDir, 'current', 'login'))).toBe(true);
+    expect(fs.existsSync(path.join(artifactsDir, 'diffs'))).toBe(true);
+  });
+});
