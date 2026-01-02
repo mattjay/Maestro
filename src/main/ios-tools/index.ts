@@ -973,3 +973,109 @@ export type {
   StateVerificationResult,
   StateVerificationOptions,
 } from './state-verification';
+
+// =============================================================================
+// Visual Regression Baselines
+// =============================================================================
+
+export {
+  // Metadata constants
+  METADATA_FILENAME,
+  PROJECT_METADATA_FILENAME,
+  MASK_FILENAME,
+  // Storage constants
+  BASELINE_IMAGE_FILENAME,
+  MASK_IMAGE_FILENAME,
+  SCREENS_DIR,
+  FLOWS_DIR,
+  // Metadata creation
+  createBaselineMetadata,
+  createProjectMetadata,
+  createFlowBaseline,
+  // Metadata serialization
+  serializeMetadata,
+  parseMetadata,
+  // Metadata file operations
+  readBaselineMetadata,
+  writeBaselineMetadata,
+  readProjectMetadata,
+  writeProjectMetadata,
+  readFlowBaseline,
+  writeFlowBaseline,
+  // Metadata updates
+  updateBaselineMetadata,
+  updateProjectCounts,
+  // Ignore region management
+  addIgnoreRegion,
+  removeIgnoreRegion,
+  updateIgnoreRegion,
+  // Common ignore regions
+  createStatusBarIgnoreRegion,
+  createHomeIndicatorIgnoreRegion,
+  createTimestampIgnoreRegion,
+  // Flow step operations
+  addFlowStep,
+  updateFlowStep,
+  removeFlowStep,
+  // Device family detection
+  detectDeviceFamily,
+  getDeviceFamilyScreenSize,
+  // Path functions
+  getBaselinesBaseDirectory,
+  getProjectPath,
+  getProjectScreensPath,
+  getProjectFlowsPath,
+  getBaselinePath,
+  getFlowPath,
+  // Project management
+  ensureProjectExists,
+  listProjects,
+  deleteProject,
+  // Screen baseline operations
+  createBaseline,
+  updateBaseline,
+  getBaseline,
+  listBaselines,
+  deleteBaseline,
+  // Flow baseline operations
+  createFlowBaselineStorage,
+  getFlowBaselineStorage,
+  addFlowStepImage,
+  listFlows,
+  deleteFlow,
+  // Export/Import
+  exportBaselines,
+  importBaselines,
+} from './baselines';
+export type {
+  // Baseline metadata types
+  BaselineMetadata,
+  BaselineDeviceInfo,
+  ScreenSize as BaselineScreenSize,  // Renamed to avoid potential conflicts
+  // Ignore region types
+  IgnoreRegion,
+  Rectangle,
+  IgnoreReason,
+  // Comparison types
+  BaselineComparison,
+  ChangedRegion,
+  ChangeType,
+  // Storage types
+  ProjectMetadata,
+  BaselineEntry,
+  DeviceFamily,
+  // Flow types
+  FlowBaseline,
+  FlowBaselineStep,
+  // Comparison options
+  CompareOptions,
+  CompareResult,
+  // Export/Import types
+  ExportOptions as BaselineExportOptions,  // Renamed to avoid conflicts
+  ExportResult as BaselineExportResult,
+  ImportOptions as BaselineImportOptions,
+  ImportResult as BaselineImportResult,
+  // Report types
+  RegressionReport,
+  RegressionSummary,
+} from './baselines';
