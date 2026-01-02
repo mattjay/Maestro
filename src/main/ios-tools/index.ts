@@ -924,3 +924,52 @@ export type {
   FeatureFlags,
   BridgeDiscoveryResult,
 } from './bridge-client';
+
+// =============================================================================
+// MaestroBridge Formatter
+// =============================================================================
+
+export {
+  formatBridgeStateForAgent,
+  formatNavigation,
+  formatViewControllerHierarchy,
+  formatUserState,
+  formatFeatureFlagsSection,
+  formatRecentNetwork,
+  formatRecentAnalytics,
+  formatNetworkRequest,
+  formatAnalyticsEvent,
+  formatFeatureFlagsSummary,
+  formatFeatureFlag,
+  formatRouteStack,
+  formatBridgeStateAsJson,
+  formatBridgeStateCompact,
+} from './bridge-formatter';
+export type {
+  BridgeFormatOptions,
+  FormattedBridgeState,
+  CombinedBridgeData,
+} from './bridge-formatter';
+
+// =============================================================================
+// State Verification
+// =============================================================================
+
+export {
+  // Snapshot capture
+  captureStateSnapshot,
+  // State comparison
+  compareStateSnapshots,
+  // State verification
+  verifyStateChanges,
+  verifyActionChangesState,
+  // Formatting
+  formatStateChanges,
+  formatVerificationResult as formatStateVerificationResult,  // Renamed to avoid conflict
+} from './state-verification';
+export type {
+  AppStateSnapshot,
+  StateChanges,
+  StateVerificationResult,
+  StateVerificationOptions,
+} from './state-verification';

@@ -542,6 +542,20 @@
   > - **IPC handlers** (ios.ts:2678-2796): `ios:bridge:getAnalytics`, `ios:bridge:getAnalyticsSources`, and `ios:bridge:clearAnalytics` handlers exposed via preload.ts (lines 1444-1473)
   > - **Tests:** AnalyticsEndpointTests (5 tests: testGetAnalytics, testGetAnalyticsWithFilter, testGetAnalyticsWithLimit, testGetSources, testClearAnalytics), AnalyticsInterceptorAdvancedTests (5 tests: testMaxEventsLimit, testSDKIntegrationHelpers, testFilterBySource, testFilterByTime, testTypedPropertiesRecording), MaestroBridgeTests (testAnalyticsEventRecording, testAnalyticsFiltering), MaestroBridgeIntegrationTests (testAnalyticsIntegration, testAnalyticsWithFilter, testAnalyticsSources, testClearAnalytics)
   > - **Test counts:** 117 Swift tests pass (includes 16+ analytics-specific tests), 13 bridge-client tests pass, 69 ios-bridge slash command tests pass
-- [ ] Agent can confirm UI AND internal state changed
+- [x] Agent can confirm UI AND internal state changed
+  > **Verified:** Created comprehensive state verification system in `src/main/ios-tools/state-verification.ts`:
+  > - **AppStateSnapshot interface**: Captures timestamp, currentScreen, navigationStack, currentRoute, routeStack, customState, featureFlags, recentEventNames, and analyticsEventCount in a single point-in-time snapshot
+  > - **captureStateSnapshot()**: Fetches state, route, and analytics from bridge in parallel and creates a unified snapshot
+  > - **compareStateSnapshots()**: Compares two snapshots and returns detailed StateChanges object with:
+  >   - UI changes: screenChanged, navigationChanged, routeChanged with before/after values
+  >   - Internal changes: changedKeys, addedKeys, removedKeys, changedFlags, keyChanges array with type (added/removed/modified) and old/new values
+  >   - Analytics changes: newEvents array, eventCountDelta
+  > - **verifyStateChanges()**: Verifies expected changes occurred, supports expectations:
+  >   - expectScreenChange, expectRouteChange, expectKeysChanged, expectKeyValues, expectEvents, expectFlagsChanged
+  >   - Returns StateVerificationResult with passed/failed status, matched/missing/unexpected expectations
+  > - **verifyActionChangesState()**: High-level API that captures before snapshot, executes action, captures after snapshot, and verifies changes
+  > - **formatStateChanges()**, **formatVerificationResult()**: Agent-friendly markdown output with emojis and clear sections
+  > - **47 unit tests** covering all comparison, verification, and formatting scenarios pass
+  > - Exported via `src/main/ios-tools/index.ts`
 - [ ] Bridge auto-discovery works
 - [ ] Clear documentation for app integration
