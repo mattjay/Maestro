@@ -99,6 +99,35 @@ export {
   type PlaybookCommandResult,
 } from './ios-playbook';
 
+// iOS Bridge Commands
+export {
+  executeBridgeStateCommand,
+  parseBridgeStateArgs,
+  bridgeStateCommandMetadata,
+  executeBridgeRouteCommand,
+  parseBridgeRouteArgs,
+  bridgeRouteCommandMetadata,
+  executeBridgeNetworkCommand,
+  parseBridgeNetworkArgs,
+  bridgeNetworkCommandMetadata,
+  executeBridgeAnalyticsCommand,
+  parseBridgeAnalyticsArgs,
+  bridgeAnalyticsCommandMetadata,
+  executeBridgeFlagsCommand,
+  parseBridgeFlagsArgs,
+  bridgeFlagsCommandMetadata,
+  executeBridgeSetCommand,
+  parseBridgeSetArgs,
+  bridgeSetCommandMetadata,
+  type BridgeStateCommandArgs,
+  type BridgeRouteCommandArgs,
+  type BridgeNetworkCommandArgs,
+  type BridgeAnalyticsCommandArgs,
+  type BridgeFlagsCommandArgs,
+  type BridgeSetCommandArgs,
+  type BridgeCommandResult,
+} from './ios-bridge';
+
 // Command registry for all slash commands
 export interface SlashCommandMetadata {
   command: string;
@@ -121,6 +150,14 @@ import { typeCommandMetadata } from './ios-type';
 import { scrollCommandMetadata } from './ios-scroll';
 import { swipeCommandMetadata } from './ios-swipe';
 import { playbookCommandMetadata } from './ios-playbook';
+import {
+  bridgeStateCommandMetadata,
+  bridgeRouteCommandMetadata,
+  bridgeNetworkCommandMetadata,
+  bridgeAnalyticsCommandMetadata,
+  bridgeFlagsCommandMetadata,
+  bridgeSetCommandMetadata,
+} from './ios-bridge';
 
 export const iosSlashCommandMetadata: SlashCommandMetadata[] = [
   snapshotCommandMetadata,
@@ -131,4 +168,10 @@ export const iosSlashCommandMetadata: SlashCommandMetadata[] = [
   scrollCommandMetadata,
   swipeCommandMetadata,
   playbookCommandMetadata,
+  bridgeStateCommandMetadata,
+  bridgeRouteCommandMetadata,
+  bridgeNetworkCommandMetadata,
+  bridgeAnalyticsCommandMetadata,
+  bridgeFlagsCommandMetadata,
+  bridgeSetCommandMetadata,
 ];

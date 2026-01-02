@@ -61,6 +61,36 @@ export const iosSlashCommands: SlashCommand[] = [
     description: 'Run an iOS playbook (list, run, info) for automated workflows',
     aiOnly: true,
   },
+  {
+    command: '/ios.bridge.state',
+    description: 'Get app internal state from MaestroBridge',
+    aiOnly: true,
+  },
+  {
+    command: '/ios.bridge.route',
+    description: 'Get navigation state from MaestroBridge',
+    aiOnly: true,
+  },
+  {
+    command: '/ios.bridge.network',
+    description: 'Get network request log from MaestroBridge',
+    aiOnly: true,
+  },
+  {
+    command: '/ios.bridge.analytics',
+    description: 'Get analytics events from MaestroBridge',
+    aiOnly: true,
+  },
+  {
+    command: '/ios.bridge.flags',
+    description: 'Get feature flags from MaestroBridge',
+    aiOnly: true,
+  },
+  {
+    command: '/ios.bridge.set',
+    description: 'Set app state via MaestroBridge (requires confirmation)',
+    aiOnly: true,
+  },
 ];
 
 // All slash commands (for autocomplete)
