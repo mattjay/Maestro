@@ -702,7 +702,9 @@ describe('Performance', () => {
     // Note: This is a soft check as timing can vary
     expect(progressiveResult.isCoarseOnly).toBe(true);
     // The progressive approach should typically be faster, but we just verify it works
-    expect(progressiveTime).toBeLessThanOrEqual(detailedTime * 2);
+    // Handle edge case where times are so fast they measure as 0ms
+    const maxTime = Math.max(detailedTime * 2, 10); // At least 10ms tolerance
+    expect(progressiveTime).toBeLessThanOrEqual(maxTime);
   });
 
   it('hash rejection is faster than pixel comparison for identical files', async () => {
