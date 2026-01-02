@@ -412,13 +412,26 @@
 
 ### Enhanced Autocomplete
 
-- [ ] Add iOS-aware autocomplete
-  - [ ] Simulator names from available list
-  - [ ] Bundle IDs from installed apps
-  - [ ] Scheme names from project
-  - [ ] Flow file paths
-  - [ ] Baseline names
-  - [ ] Element identifiers from last inspect
+- [x] Add iOS-aware autocomplete
+  - [x] Simulator names from available list
+  - [x] Bundle IDs from installed apps
+  - [x] Scheme names from project
+  - [x] Flow file paths
+  - [x] Baseline names
+  - [x] Element identifiers from last inspect
+
+  **Implementation Notes (Jan 2, 2026):**
+  - Created comprehensive autocomplete module at `src/main/ios-tools/autocomplete.ts`
+  - Core types: `CompletionType`, `CompletionItem`, `CompletionResult`, `CompletionOptions`
+  - Individual completion functions: `getSimulatorCompletions()`, `getBundleIdCompletions()`, `getSchemeCompletions()`, `getFlowCompletions()`, `getBaselineCompletions()`, `getElementCompletions()`
+  - Unified interface: `getCompletions(type)`, `getAllCompletions()` for batch fetching
+  - Cache management with TTL: simulators (30s), bundleIds (60s), schemes (5min), flows (60s), baselines (60s), elements (no expiration)
+  - Element caching: `cacheInspectElements()`, `extractElementsFromInspect()` to populate from /ios.inspect results
+  - Command argument definitions: `COMMAND_ARGUMENTS` maps commands to their argument specs with completion types
+  - Argument detection: `getArgumentCompletionType()` for detecting which completion to use based on current input
+  - Features: prefix filtering, result limiting, priority sorting (booted sims first, user apps before system apps, etc.)
+  - Exported from `src/main/ios-tools/index.ts`
+  - 64 unit tests covering all completion types, caching, filtering, and edge cases
 
 ### Command Suggestions
 

@@ -1436,3 +1436,36 @@ export type {
   FormatErrorOptions,
   ErrorCategory,
 } from './errors';
+
+// =============================================================================
+// Autocomplete
+// =============================================================================
+
+export {
+  // Cache management
+  clearAllCaches,
+  clearCache,
+  // Individual completion types
+  getSimulatorCompletions,
+  getBundleIdCompletions,
+  getSchemeCompletions,
+  getFlowCompletions,
+  getBaselineCompletions,
+  getElementCompletions,
+  // Unified interface
+  getCompletions,
+  getAllCompletions,
+  // Element caching
+  cacheInspectElements,
+  extractElementsFromInspect,
+  // Command argument helpers
+  getArgumentCompletionType,
+  COMMAND_ARGUMENTS,
+} from './autocomplete';
+export type {
+  CompletionType,
+  CompletionItem,
+  CompletionResult,
+  CompletionOptions,
+  CommandArgDefinition,
+} from './autocomplete';
