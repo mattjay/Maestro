@@ -522,7 +522,16 @@
   > - **IPC handler** (ios.ts:2636-2650): `ios:bridge:getRoute` handler exposed via preload.ts with stack/history options
   > - **Tests:** RouteEndpointTests (5 tests: testGetRoute, testGetStack, testGetHistory, testNavigationTypes, testRecordNavigationAndClear), MaestroBridgeIntegrationTests (testGetRoute, testGetRouteStack, testGetRouteHistory), 69 slash command tests
   > - **Test counts:** 117 Swift tests pass, 13 bridge-client tests pass, 69 ios-bridge slash command tests pass
-- [ ] `/ios.bridge.network` returns network log
+- [x] `/ios.bridge.network` returns network log
+  > **Verified:** Complete implementation across all layers:
+  > - **Swift NetworkEndpoint** (NetworkEndpoint.swift:14-62): Handles GET /network (with optional limit and errorsOnly filters), GET /network/{id} (specific request details), and DELETE /network (clear log). Returns NetworkLog with requests array, count, and errors count
+  > - **NetworkInterceptor** (NetworkInterceptor.swift): Captures request/response metadata, redacts sensitive headers (Authorization, Cookie, X-Api-Key, etc.), keeps last N requests in memory (default 100)
+  > - **BridgeServer routing** (BridgeServer.swift:325-337): Routes /network, /network/{id}, and DELETE /network requests to NetworkEndpoint handlers, parses query params for limit and errors filters
+  > - **TypeScript client** (bridge-client.ts:377-406): `getNetwork()` with limit/errorsOnly options, `getNetworkDetail()`, and `clearNetwork()` methods properly call HTTP endpoints
+  > - **Slash command** (ios-bridge.ts:681-719): `executeBridgeNetworkCommand()` with `--last` to limit results and `--errors` to filter to failed requests. Formats method, URL, status code with emoji indicators, duration, and timestamp
+  > - **IPC handler** (ios.ts:2654-2676): `ios:bridge:getNetwork` handler exposed via preload.ts with limit, errorsOnly, and id options
+  > - **Tests:** NetworkEndpointTests (5 tests: testGetNetwork, testGetNetworkWithLimit, testGetNetworkErrorsOnly, testGetNetworkDetailNotFound, testClearNetwork), NetworkInterceptorAdvancedTests (5 tests), MaestroBridgeIntegrationTests (testGetNetworkEmpty, testNetworkInterceptorIntegration, testNetworkWithLimitAndErrorsFilter, testClearNetwork), MaestroBridgePerformanceTests (testHighVolumeNetworkLogging)
+  > - **Test counts:** 18 Swift network-related tests pass, 13 bridge-client tests pass, 69 ios-bridge slash command tests pass
 - [ ] `/ios.bridge.analytics` returns events
 - [ ] Agent can confirm UI AND internal state changed
 - [ ] Bridge auto-discovery works
