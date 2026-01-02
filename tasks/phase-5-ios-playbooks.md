@@ -813,6 +813,33 @@
   >   - Context propagation (session ID, playbooks directory)
   >   - Progress callbacks forwarding
   > - Total: 100 tests passing across step-parser (63), playbook-step-executor (27), and integration (10)
-- [ ] Custom playbooks can be created
-- [ ] Progress is reported during execution
-- [ ] Artifacts are collected and organized
+- [x] Custom playbooks can be created
+  > Added comprehensive integration test suite `custom-playbook-creation.test.ts` with 24 tests verifying:
+  > - Creating custom playbooks from scratch (minimal, with inputs/variables, loops, conditionals, error handling)
+  > - Listing custom playbooks alongside built-in playbooks
+  > - Validating well-formed and malformed custom playbooks
+  > - Running custom playbooks (dry run, with inputs, with progress, with loops, with conditions)
+  > - Registering custom action handlers for custom playbooks
+  > - Custom playbook directory structure (templates, README.md)
+  > - Result formatting (markdown output)
+  > - Full workflow simulation (realistic UI test playbook scenario)
+  > - Playbook info retrieval for custom playbooks
+  > - Edge cases (nested loops, special characters, empty defaults)
+- [x] Progress is reported during execution
+  > Progress reporting is extensively tested across all playbook executors:
+  > - `playbook-runner.test.ts` - Tests progress callback during step execution
+  > - `feature-ship-loop.test.ts` - 9 tests for progress phases (initializing, building, launching, verifying, capturing, complete)
+  > - `regression-check.test.ts` - 7 tests for progress phases (initializing, installing, running_flow, capturing, comparing, generating_report)
+  > - `crash-hunt.test.ts` - 12 tests for progress phases (initializing, hunting, generating_report)
+  > - `design-review.test.ts` - 7 tests for progress phases (initializing, booting, installing, navigating, capturing, generating_sheet)
+  > - `performance-check.test.ts` - 7 tests for progress phases (initializing, warming_up, measuring_launch, measuring_flows, comparing_baseline)
+  > - `custom-playbook-creation.test.ts` - Progress callback test for custom playbooks
+- [x] Artifacts are collected and organized
+  > Artifact collection is tested across all playbook executors:
+  > - All executors write results to `artifactsDir` with structured output (result.json, summary.txt, HTML reports)
+  > - `playbook-runner.test.ts` - Tests artifactsDir context variable and file writing
+  > - `feature-ship-loop.test.ts` - 10 tests for artifacts (snapshots per iteration, summary files)
+  > - `regression-check.test.ts` - 13 tests for artifacts (screenshots, baselines, diffs, reports)
+  > - `crash-hunt.test.ts` - 7 tests for artifacts (crash evidence, screenshots, logs, steps.json)
+  > - `performance-check.test.ts` - 8 tests for artifacts (reports, baseline files)
+  > - Each executor generates organized artifact directories with proper naming conventions
