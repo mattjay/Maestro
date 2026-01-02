@@ -1,0 +1,468 @@
+# Phase 6: MaestroBridge - Introspection Bridge
+
+**Goal**: Provide debug-time "X-ray vision" into app internals - view/controller stack, feature flags, network requests, analytics events, and optionally set test state.
+
+**Deliverable**: `MaestroBridge` Swift Package for iOS apps + Maestro commands to query bridge endpoints.
+
+**Dependency**: Phase 0 (ios-tools), Phase 2 (inspect for UI context)
+
+**Important**: This is a debug-only feature that should never ship to production.
+
+---
+
+## MaestroBridge Swift Package
+
+### Package Structure
+
+- [x] Create `MaestroBridge` Swift Package
+  ```
+  MaestroBridge/
+  ├── Package.swift
+  ├── Sources/
+  │   └── MaestroBridge/
+  │       ├── MaestroBridge.swift          # Main entry point
+  │       ├── BridgeServer.swift           # HTTP server
+  │       ├── Endpoints/
+  │       │   ├── StateEndpoint.swift      # App state introspection
+  │       │   ├── RouteEndpoint.swift      # Navigation state
+  │       │   ├── NetworkEndpoint.swift    # Network request log
+  │       │   ├── AnalyticsEndpoint.swift  # Analytics events
+  │       │   ├── FeatureFlagsEndpoint.swift
+  │       │   └── SetStateEndpoint.swift   # Test state injection
+  │       ├── Models/
+  │       │   ├── AppState.swift
+  │       │   ├── RouteInfo.swift
+  │       │   ├── NetworkRequest.swift
+  │       │   └── AnalyticsEvent.swift
+  │       ├── Collectors/
+  │       │   ├── ViewHierarchyCollector.swift
+  │       │   ├── NetworkInterceptor.swift
+  │       │   └── AnalyticsInterceptor.swift
+  │       └── Security/
+  │           ├── BridgeToken.swift        # Auth token
+  │           └── DebugOnlyGuard.swift     # Ensure debug-only
+  └── Tests/
+      └── MaestroBridgeTests/
+  ```
+  > **Completed:** Created full Swift Package structure at `src/main/ios-tools/MaestroBridge/` with all 18 Swift files including Package.swift manifest. Package builds successfully with `swift build` and all 17 unit tests pass.
+
+### Core Bridge Implementation
+
+- [x] Implement `MaestroBridge.swift` - main entry point
+  ```swift
+  public class MaestroBridge {
+      public static let shared = MaestroBridge()
+
+      private var server: BridgeServer?
+      private var isEnabled = false
+
+      /// Enable bridge (debug builds only)
+      public func start(port: UInt16 = 9876, token: String? = nil) {
+          #if DEBUG
+          guard !isEnabled else { return }
+          server = BridgeServer(port: port, token: token)
+          server?.start()
+          isEnabled = true
+          #else
+          print("⚠️ MaestroBridge: Disabled in release builds")
+          #endif
+      }
+
+      /// Stop bridge
+      public func stop() {
+          server?.stop()
+          isEnabled = false
+      }
+
+      /// Register custom state provider
+      public func register<T: Encodable>(
+          _ key: String,
+          provider: @escaping () -> T
+      ) {
+          // Allow apps to expose custom state
+      }
+  }
+  ```
+
+- [x] Implement `BridgeServer.swift` - HTTP server
+  - [x] Use SwiftNIO or simple socket server
+  - [x] localhost-only binding
+  - [x] Token-based authentication
+  - [x] JSON response format
+  - [x] Endpoint routing
+  > **Completed:** Implemented using simple BSD sockets (no external dependencies). Server binds to 127.0.0.1 only, validates Bearer tokens, returns JSON responses, and routes to all endpoints.
+
+### State Endpoint
+
+- [x] Implement `StateEndpoint.swift`
+  - [x] `GET /state` - full app state snapshot
+  - [x] `GET /state/{key}` - specific state key
+  - [x] Response format:
+    ```json
+    {
+      "timestamp": "2024-01-15T10:30:00Z",
+      "viewControllerStack": [
+        "RootNavigationController",
+        "HomeViewController",
+        "SettingsViewController"
+      ],
+      "currentViewController": "SettingsViewController",
+      "customState": {
+        "user": {
+          "isLoggedIn": true,
+          "username": "testuser"
+        },
+        "cart": {
+          "itemCount": 3
+        }
+      },
+      "featureFlags": {
+        "newCheckout": true,
+        "darkMode": false
+      }
+    }
+    ```
+
+### Route Endpoint
+
+- [x] Implement `RouteEndpoint.swift`
+  - [x] `GET /route` - current navigation state
+  - [x] `GET /route/stack` - full navigation stack
+  - [x] `GET /route/history` - navigation history
+  - [x] Response format:
+    ```json
+    {
+      "currentRoute": "/settings/profile",
+      "stack": [
+        { "route": "/home", "title": "Home" },
+        { "route": "/settings", "title": "Settings" },
+        { "route": "/settings/profile", "title": "Profile" }
+      ],
+      "canGoBack": true,
+      "presentedModally": false
+    }
+    ```
+
+### Network Endpoint
+
+- [x] Implement `NetworkEndpoint.swift`
+  - [x] `GET /network` - recent network requests
+  - [x] `GET /network/{id}` - specific request details
+  - [x] Response format:
+    ```json
+    {
+      "requests": [
+        {
+          "id": "abc123",
+          "url": "https://api.example.com/user",
+          "method": "GET",
+          "status": 200,
+          "duration": 245,
+          "timestamp": "2024-01-15T10:30:00Z",
+          "requestHeaders": { "Authorization": "[REDACTED]" },
+          "responseSize": 1234
+        }
+      ],
+      "count": 15,
+      "errors": 1
+    }
+    ```
+
+- [x] Implement `NetworkInterceptor.swift`
+  - [x] Hook into URLSession
+  - [x] Capture request/response metadata
+  - [x] Redact sensitive headers
+  - [x] Keep last N requests in memory
+
+### Analytics Endpoint
+
+- [x] Implement `AnalyticsEndpoint.swift`
+  - [x] `GET /analytics` - recent analytics events
+  - [x] Response format:
+    ```json
+    {
+      "events": [
+        {
+          "name": "button_tapped",
+          "properties": {
+            "button_id": "checkout_button",
+            "screen": "cart"
+          },
+          "timestamp": "2024-01-15T10:30:00Z"
+        }
+      ],
+      "count": 50
+    }
+    ```
+
+- [x] Implement `AnalyticsInterceptor.swift`
+  - [x] Hook into common analytics SDKs
+  - [x] Provide manual event registration
+  - [x] Keep last N events in memory
+
+### Feature Flags Endpoint
+
+- [x] Implement `FeatureFlagsEndpoint.swift`
+  - [x] `GET /flags` - all feature flags
+  - [x] `GET /flags/{name}` - specific flag
+  - [x] Response format:
+    ```json
+    {
+      "flags": {
+        "newCheckout": {
+          "enabled": true,
+          "variant": "A"
+        },
+        "darkMode": {
+          "enabled": false
+        }
+      }
+    }
+    ```
+
+### Set State Endpoint (Optional, Dangerous)
+
+- [x] Implement `SetStateEndpoint.swift`
+  - [x] `POST /state/set` - inject test state
+  - [x] Require explicit opt-in from app
+  - [x] Additional token verification
+  - [x] Example:
+    ```json
+    {
+      "key": "user.isLoggedIn",
+      "value": true
+    }
+    ```
+
+### Security
+
+- [x] Implement `BridgeToken.swift`
+  - [x] Generate random token on start
+  - [x] Validate token on all requests
+  - [x] Token displayed in app/console for Maestro
+
+- [x] Implement `DebugOnlyGuard.swift`
+  - [x] Compile-time check for DEBUG flag
+  - [x] Runtime check for debug environment
+  - [x] Hard crash if used in release
+
+---
+
+## Maestro Integration
+
+### Bridge Client
+
+- [x] Create `src/main/ios-tools/bridge-client.ts`
+  - [x] Implement `BridgeClient` class
+  - [x] Auto-discover bridge port
+  - [x] Token management
+  - [x] Request/response handling
+  > **Completed:** Created full TypeScript client implementation with all methods: `ping()`, `getState()`, `getStateKey()`, `getRoute()`, `getRouteStack()`, `getRouteHistory()`, `getNetwork()`, `getNetworkDetail()`, `clearNetwork()`, `getAnalytics()`, `getAnalyticsSources()`, `clearAnalytics()`, `getFlags()`, `getFlag()`, and `setState()`. Uses native http module, follows IOSResult pattern, includes 13 passing unit tests.
+
+  ```typescript
+  class BridgeClient {
+    constructor(host: string, port: number, token: string);
+
+    async getState(): Promise<AppState>;
+    async getRoute(): Promise<RouteInfo>;
+    async getNetwork(): Promise<NetworkLog>;
+    async getAnalytics(): Promise<AnalyticsLog>;
+    async getFlags(): Promise<FeatureFlags>;
+    async setState(key: string, value: any): Promise<void>;
+
+    async ping(): Promise<boolean>;
+  }
+  ```
+
+### Bridge Discovery
+
+- [x] Implement bridge auto-discovery
+  - [x] Check known ports (9876, etc.)
+  - [x] Read token from simulator logs
+  - [x] Cache connection for session
+  > **Completed:** Implemented `discoverBridgePort()` to scan default ports [9876, 9877, 9878, 9879, 9880], `extractTokenFromLogs()` to parse token from simulator logs using regex patterns, `discoverBridge()` for combined discovery, `createBridgeClient()` factory function, and `getCachedBridgeClient()` for 5-minute caching. Also added `waitForBridge()` utility.
+
+### Slash Commands
+
+- [x] Create `/ios.bridge.state` command
+  ```
+  /ios.bridge.state
+  /ios.bridge.state user
+  /ios.bridge.state --json
+  ```
+  > **Completed:** Implemented `executeBridgeStateCommand()` with full argument parsing, app state formatting (view controller stack, custom state, feature flags), and JSON output mode. Added 69 unit tests.
+
+- [x] Create `/ios.bridge.route` command
+  ```
+  /ios.bridge.route
+  /ios.bridge.route --stack
+  ```
+  > **Completed:** Implemented `executeBridgeRouteCommand()` with `--stack` flag to show full navigation stack. Formats current route, can go back status, and modal presentation status.
+
+- [x] Create `/ios.bridge.network` command
+  ```
+  /ios.bridge.network
+  /ios.bridge.network --last 5
+  /ios.bridge.network --errors
+  ```
+  > **Completed:** Implemented `executeBridgeNetworkCommand()` with `--last` to limit results and `--errors` to filter to failed requests. Displays method, URL, status, duration, and timestamp.
+
+- [x] Create `/ios.bridge.analytics` command
+  ```
+  /ios.bridge.analytics
+  /ios.bridge.analytics --filter "checkout"
+  ```
+  > **Completed:** Implemented `executeBridgeAnalyticsCommand()` with `--filter` to search events and `--last` to limit results. Shows event name, properties, and timestamp.
+
+- [x] Create `/ios.bridge.flags` command
+  ```
+  /ios.bridge.flags
+  /ios.bridge.flags newCheckout
+  ```
+  > **Completed:** Implemented `executeBridgeFlagsCommand()` to list all flags or get specific flag. Shows enabled/disabled status and variant for A/B testing.
+
+- [x] Create `/ios.bridge.set` command (with confirmation)
+  ```
+  /ios.bridge.set user.isLoggedIn true
+  ```
+  > **Completed:** Implemented `executeBridgeSetCommand()` with mandatory `--confirm` flag for safety. Parses JSON values and provides clear error messages. Created in `src/main/slash-commands/ios-bridge.ts` with all commands registered in `src/renderer/slashCommands.ts` and `src/main/slash-commands/index.ts`.
+
+### IPC Handlers
+
+- [x] Add bridge IPC handlers
+  - [x] Register `ios:bridge:ping` handler
+  - [x] Register `ios:bridge:getState` handler
+  - [x] Register `ios:bridge:getRoute` handler
+  - [x] Register `ios:bridge:getNetwork` handler
+  - [x] Register `ios:bridge:getAnalytics` handler
+  - [x] Register `ios:bridge:getFlags` handler
+  - [x] Register `ios:bridge:setState` handler
+  > **Completed:** Added 12 IPC handlers in `src/main/ipc/handlers/ios.ts` (lines 2600-2796): `ios:bridge:ping`, `ios:bridge:getState`, `ios:bridge:getRoute`, `ios:bridge:getNetwork`, `ios:bridge:getAnalytics`, `ios:bridge:getAnalyticsSources`, `ios:bridge:getFlags`, `ios:bridge:setState`, `ios:bridge:discover`, `ios:bridge:waitFor`, `ios:bridge:clearNetwork`, `ios:bridge:clearAnalytics`. Also exposed the bridge API in `src/main/preload.ts` (lines 1424-1474) under `window.maestro.ios.bridge` namespace with all 12 methods and JSDoc comments. All 82 related tests pass (13 bridge-client + 69 ios-bridge).
+
+---
+
+## Agent-Consumable Output
+
+- [x] Create `src/main/ios-tools/bridge-formatter.ts`
+  - [x] Format state for agent understanding
+    ```
+    ## App Internal State
+
+    ### Navigation
+    Current Route: /settings/profile
+    Stack Depth: 3
+    Can Go Back: Yes
+
+    ### View Controller Hierarchy
+    1. RootNavigationController
+    2. HomeViewController
+    3. SettingsViewController (current)
+
+    ### User State
+    - isLoggedIn: true
+    - username: "testuser"
+    - cartItems: 3
+
+    ### Feature Flags
+    - newCheckout: enabled (variant A)
+    - darkMode: disabled
+
+    ### Recent Network
+    - GET /api/user → 200 (245ms)
+    - POST /api/cart → 201 (180ms)
+    - GET /api/products → 200 (320ms)
+
+    ### Recent Analytics
+    - screen_view: cart (10:29:55)
+    - button_tap: add_to_cart (10:30:00)
+    - purchase_started (10:30:05)
+    ```
+  > **Completed:** Created `src/main/ios-tools/bridge-formatter.ts` with comprehensive formatting functions for agent consumption. Includes `formatBridgeStateForAgent()` (main formatter), `formatNavigation()`, `formatViewControllerHierarchy()`, `formatUserState()`, `formatFeatureFlagsSection()`, `formatRecentNetwork()`, `formatRecentAnalytics()`, `formatNetworkRequest()`, `formatAnalyticsEvent()`, `formatFeatureFlag()`, `formatRouteStack()`, `formatBridgeStateAsJson()`, and `formatBridgeStateCompact()`. All 50 unit tests pass.
+
+---
+
+## App Integration Guide
+
+- [x] Create integration documentation
+  - [x] How to add MaestroBridge to an app
+  - [x] How to register custom state
+  - [x] Security considerations
+  - [x] Example integration
+  > **Completed:** Created comprehensive `README.md` at `src/main/ios-tools/MaestroBridge/README.md` with:
+  > - Quick start guide with AppDelegate and SwiftUI examples
+  > - Installation instructions (SPM, with debug-only configuration)
+  > - Custom state registration (basic and with setter for test injection)
+  > - Analytics integration (Firebase, Amplitude, Mixpanel, Segment)
+  > - Feature flags documentation
+  > - Test state injection with security warnings
+  > - Full security model documentation (6 security layers explained)
+  > - Complete API reference tables
+  > - Maestro slash commands reference
+  > - Troubleshooting section
+  > - Full AppDelegate example integration
+
+  ```swift
+  // AppDelegate.swift
+  #if DEBUG
+  import MaestroBridge
+
+  func application(_ application: UIApplication,
+                   didFinishLaunchingWithOptions ...) {
+      MaestroBridge.shared.start(token: "debug-token-123")
+
+      // Register custom state
+      MaestroBridge.shared.register("cart") {
+          return CartManager.shared.cartState
+      }
+  }
+  #endif
+  ```
+
+---
+
+## Testing
+
+- [x] Write unit tests for bridge server
+  > **Completed:** Added 87 comprehensive unit tests in `Tests/MaestroBridgeTests/MaestroBridgeTests.swift`:
+  > - `BridgeServerTests` (5 tests): Server initialization, token generation, response types and error codes
+  > - `BridgeTokenTests` (5 tests): Token set/clear, unique generation, constant-time comparison, auth header parsing
+  > - `MaestroBridgeCoreTests` (9 tests): Singleton, start/stop lifecycle, double start/stop, custom state, state mutation, base URL, event tracking
+- [x] Write unit tests for each endpoint
+  > **Completed:** Full endpoint test coverage:
+  > - `StateEndpointTests` (4 tests): Get state with/without bridge, get key found/not found
+  > - `RouteEndpointTests` (5 tests): Get route/stack/history, record navigation, all navigation types
+  > - `NetworkEndpointTests` (5 tests): Get network, limit, errors only, detail not found, clear
+  > - `AnalyticsEndpointTests` (5 tests): Get analytics, filter, limit, sources, clear
+  > - `FeatureFlagsEndpointTests` (4 tests): Get flags, get flag found/not found, without bridge
+  > - `SetStateEndpointTests` (5 tests): Disabled by default, invalid token, valid token, key not found, without bridge
+- [x] Write unit tests for interceptors
+  > **Completed:** Interceptor tests:
+  > - `NetworkInterceptorAdvancedTests` (5 tests): Header redaction, max requests limit, error counting, request with detail, enable/disable
+  > - `AnalyticsInterceptorAdvancedTests` (5 tests): Max events limit, SDK integration helpers, filter by source/time, typed properties
+- [ ] Write integration tests with sample app
+- [x] Test security (debug-only, token validation)
+  > **Completed:** Security tests:
+  > - `DebugGuardTests` (5 tests): Debug only function, debug only value, debug only property, bridge enabled flag, runtime check
+  > - Token validation tests across multiple test classes
+  > - All 87 tests pass with `swift test`
+
+## Documentation
+
+- [ ] Document Swift package usage
+- [ ] Document all endpoints
+- [ ] Document security model
+- [ ] Document slash commands
+- [ ] Provide sample app with bridge
+
+## Acceptance Criteria
+
+- [ ] MaestroBridge Swift Package builds and links
+- [ ] Bridge only runs in DEBUG builds
+- [ ] Token authentication works
+- [ ] `/ios.bridge.state` returns app state
+- [ ] `/ios.bridge.route` returns navigation state
+- [ ] `/ios.bridge.network` returns network log
+- [ ] `/ios.bridge.analytics` returns events
+- [ ] Agent can confirm UI AND internal state changed
+- [ ] Bridge auto-discovery works
+- [ ] Clear documentation for app integration
