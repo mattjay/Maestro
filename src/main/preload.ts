@@ -1472,6 +1472,119 @@ contextBridge.exposeInMainWorld('maestro', {
       clearAnalytics: (options?: { host?: string; port?: number; token?: string }) =>
         ipcRenderer.invoke('ios:bridge:clearAnalytics', options),
     },
+    // Visual Regression Baselines
+    baseline: {
+      /** Save a new baseline */
+      save: (options: {
+        project: string;
+        name: string;
+        imagePath: string;
+        device: {
+          name: string;
+          osVersion: string;
+          screenSize: { width: number; height: number };
+          deviceType?: string;
+          udid?: string;
+        };
+        bundleId: string;
+        appVersion?: string;
+        description?: string;
+        tags?: string[];
+        deviceFamily?: string;
+        autoDetectDeviceFamily?: boolean;
+      }) => ipcRenderer.invoke('ios:baseline:save', options),
+      /** Update an existing baseline */
+      update: (options: {
+        project: string;
+        name: string;
+        imagePath: string;
+        deviceFamily?: string;
+      }) => ipcRenderer.invoke('ios:baseline:update', options),
+      /** List baselines for a project */
+      list: (options: { project: string; deviceFamily?: string }) =>
+        ipcRenderer.invoke('ios:baseline:list', options),
+      /** Delete a baseline */
+      delete: (options: { project: string; name: string; deviceFamily?: string }) =>
+        ipcRenderer.invoke('ios:baseline:delete', options),
+      /** Get baseline details */
+      get: (options: { project: string; name: string; deviceFamily?: string }) =>
+        ipcRenderer.invoke('ios:baseline:get', options),
+      /** List all projects */
+      projects: () => ipcRenderer.invoke('ios:baseline:projects'),
+      /** Add ignore region to a baseline */
+      addIgnoreRegion: (options: {
+        project: string;
+        name: string;
+        region: {
+          name: string;
+          rect: { x: number; y: number; width: number; height: number };
+          reason: string;
+          description?: string;
+        };
+        deviceFamily?: string;
+      }) => ipcRenderer.invoke('ios:baseline:addIgnoreRegion', options),
+      /** Get device baseline coverage report */
+      coverage: (options: { project: string }) =>
+        ipcRenderer.invoke('ios:baseline:coverage', options),
+      /** Export baselines */
+      export: (options: {
+        project: string;
+        outputPath: string;
+        format?: 'zip' | 'directory';
+        names?: string[];
+        tags?: string[];
+      }) => ipcRenderer.invoke('ios:baseline:export', options),
+      /** Import baselines */
+      import: (options: {
+        project: string;
+        inputPath: string;
+        overwrite?: boolean;
+        names?: string[];
+        prefix?: string;
+      }) => ipcRenderer.invoke('ios:baseline:import', options),
+    },
+    // Visual Regression Diff/Comparison
+    diff: {
+      /** Compare current screenshot to baseline */
+      compare: (options: {
+        project: string;
+        name: string;
+        currentImagePath: string;
+        threshold?: number;
+        outputDiffPath?: string;
+        deviceFamily?: string;
+        autoDetectDevice?: boolean;
+        simulatorUdid?: string;
+      }) => ipcRenderer.invoke('ios:diff:compare', options),
+      /** Compare flow steps */
+      flow: (options: {
+        project: string;
+        flowName: string;
+        currentImages: Array<{
+          stepNumber: number;
+          imagePath: string;
+        }>;
+        threshold?: number;
+        outputDir?: string;
+        deviceFamily?: string;
+      }) => ipcRenderer.invoke('ios:diff:flow', options),
+    },
+    // Visual Regression Testing
+    regression: {
+      /** Run full regression test suite */
+      run: (options: {
+        project: string;
+        simulatorUdid?: string;
+        threshold?: number;
+        outputDir?: string;
+        deviceFamily?: string;
+        failFast?: boolean;
+        updateOnFail?: boolean;
+        verbose?: boolean;
+        mode?: 'full' | 'quick' | 'flows-only';
+        baselineNames?: string[];
+      }) => ipcRenderer.invoke('ios:regression:run', options),
+    },
   },
 
   // Notification API

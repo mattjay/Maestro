@@ -2795,6 +2795,9 @@ export function registerIOSHandlers(): void {
     )
   );
 
+  // Register visual regression handlers (baselines, diff, regression)
+  registerVisualRegressionHandlers();
+
   logger.debug(`${LOG_CONTEXT} iOS IPC handlers registered`);
 }
 
@@ -2889,3 +2892,881 @@ function convertXCUITestToInspectResult(result: iosTools.XCUITestInspectResult):
     artifactDir: result.artifactDir,
   };
 }
+
+// =============================================================================
+// Visual Regression Baseline IPC Handlers
+// =============================================================================
+
+/**
+ * Options for saving a baseline.
+ */
+interface SaveBaselineOptions {
+  project: string;
+  name: string;
+  imagePath: string;
+  device: {
+    name: string;
+    osVersion: string;
+    screenSize: { width: number; height: number };
+    deviceType?: string;
+    udid?: string;
+  };
+  bundleId: string;
+  appVersion?: string;
+  description?: string;
+  tags?: string[];
+  deviceFamily?: string;
+  autoDetectDeviceFamily?: boolean;
+}
+
+/**
+ * Options for updating a baseline.
+ */
+interface UpdateBaselineOptions {
+  project: string;
+  name: string;
+  imagePath: string;
+  deviceFamily?: string;
+}
+
+/**
+ * Options for listing baselines.
+ */
+interface ListBaselinesOptions {
+  project: string;
+  deviceFamily?: string;
+}
+
+/**
+ * Options for deleting a baseline.
+ */
+interface DeleteBaselineOptions {
+  project: string;
+  name: string;
+  deviceFamily?: string;
+}
+
+/**
+ * Options for comparing to a baseline.
+ */
+interface CompareBaselineOptions {
+  project: string;
+  name: string;
+  currentImagePath: string;
+  threshold?: number;
+  outputDiffPath?: string;
+  deviceFamily?: string;
+  autoDetectDevice?: boolean;
+  simulatorUdid?: string;
+}
+
+/**
+ * Options for flow comparison.
+ */
+interface FlowCompareOptions {
+  project: string;
+  flowName: string;
+  currentImages: Array<{
+    stepNumber: number;
+    imagePath: string;
+  }>;
+  threshold?: number;
+  outputDir?: string;
+  deviceFamily?: string;
+}
+
+/**
+ * Options for running regression tests.
+ */
+interface RegressionRunOptions {
+  project: string;
+  simulatorUdid?: string;
+  threshold?: number;
+  outputDir?: string;
+  deviceFamily?: string;
+  failFast?: boolean;
+  updateOnFail?: boolean;
+  verbose?: boolean;
+  mode?: 'full' | 'quick' | 'flows-only';
+  baselineNames?: string[];
+}
+
+/**
+ * Register visual regression IPC handlers.
+ * Called from registerIOSHandlers().
+ */
+function registerVisualRegressionHandlers(): void {
+  // ==========================================================================
+  // Baseline Management
+  // ==========================================================================
+
+  // Save a new baseline
+  ipcMain.handle(
+    'ios:baseline:save',
+    withIpcErrorLogging(
+      handlerOpts('saveBaseline'),
+      async (options: SaveBaselineOptions) => {
+        const {
+          project,
+          name,
+          imagePath,
+          device,
+          bundleId,
+          appVersion,
+          description,
+          tags,
+          deviceFamily,
+          autoDetectDeviceFamily,
+        } = options;
+
+        // Ensure project exists
+        await iosTools.ensureProjectExists(project, bundleId);
+
+        // Create baseline with or without auto device detection
+        if (autoDetectDeviceFamily) {
+          const result = await iosTools.createBaselineWithAutoDetect(
+            project,
+            name,
+            imagePath,
+            device,
+            bundleId,
+            { appVersion, description, tags }
+          );
+          const baselinePath = iosTools.getBaselinePath(project, name, result.deviceFamily);
+          return {
+            success: true,
+            data: {
+              name,
+              deviceFamily: result.deviceFamily,
+              path: baselinePath,
+            },
+          };
+        }
+
+        // Create baseline with explicit device family
+        await iosTools.createBaseline(
+          project,
+          name,
+          imagePath,
+          device,
+          bundleId,
+          { appVersion, description, tags, deviceFamily: deviceFamily as iosTools.DeviceFamily | undefined }
+        );
+        const baselinePath = iosTools.getBaselinePath(project, name, deviceFamily as iosTools.DeviceFamily | undefined);
+
+        return {
+          success: true,
+          data: {
+            name,
+            deviceFamily: deviceFamily || null,
+            path: baselinePath,
+            description,
+            tags,
+          },
+        };
+      }
+    )
+  );
+
+  // Update an existing baseline
+  ipcMain.handle(
+    'ios:baseline:update',
+    withIpcErrorLogging(
+      handlerOpts('updateBaseline'),
+      async (options: UpdateBaselineOptions) => {
+        const { project, name, imagePath, deviceFamily } = options;
+
+        await iosTools.updateBaseline(
+          project,
+          name,
+          imagePath,
+          deviceFamily as iosTools.DeviceFamily | undefined
+        );
+
+        return {
+          success: true,
+          data: {
+            name,
+            deviceFamily: deviceFamily || null,
+            updated: true,
+          },
+        };
+      }
+    )
+  );
+
+  // List baselines for a project
+  ipcMain.handle(
+    'ios:baseline:list',
+    withIpcErrorLogging(
+      handlerOpts('listBaselines'),
+      async (options: ListBaselinesOptions) => {
+        const { project, deviceFamily } = options;
+
+        const baselines = await iosTools.listBaselines(
+          project,
+          deviceFamily as iosTools.DeviceFamily | undefined
+        );
+
+        // Get project metadata
+        const projectPath = iosTools.getProjectPath(project);
+        const projectMetadata = await iosTools.readProjectMetadata(projectPath);
+
+        return {
+          success: true,
+          data: {
+            project,
+            projectMetadata,
+            baselines,
+            count: baselines.length,
+            deviceFamily: deviceFamily || null,
+          },
+        };
+      }
+    )
+  );
+
+  // Delete a baseline
+  ipcMain.handle(
+    'ios:baseline:delete',
+    withIpcErrorLogging(
+      handlerOpts('deleteBaseline'),
+      async (options: DeleteBaselineOptions) => {
+        const { project, name, deviceFamily } = options;
+
+        await iosTools.deleteBaseline(
+          project,
+          name,
+          deviceFamily as iosTools.DeviceFamily | undefined
+        );
+
+        return {
+          success: true,
+          data: {
+            name,
+            deviceFamily: deviceFamily || null,
+            deleted: true,
+          },
+        };
+      }
+    )
+  );
+
+  // Get baseline details
+  ipcMain.handle(
+    'ios:baseline:get',
+    withIpcErrorLogging(
+      handlerOpts('getBaseline'),
+      async (options: { project: string; name: string; deviceFamily?: string }) => {
+        const { project, name, deviceFamily } = options;
+
+        const result = await iosTools.getBaseline(
+          project,
+          name,
+          deviceFamily as iosTools.DeviceFamily | undefined
+        );
+
+        if (!result) {
+          return {
+            success: false,
+            error: `Baseline '${name}' not found in project '${project}'`,
+          };
+        }
+
+        return {
+          success: true,
+          data: result,
+        };
+      }
+    )
+  );
+
+  // List all projects
+  ipcMain.handle(
+    'ios:baseline:projects',
+    withIpcErrorLogging(handlerOpts('listProjects'), async () => {
+      const projects = await iosTools.listProjects();
+      return {
+        success: true,
+        data: {
+          projects,
+          count: projects.length,
+        },
+      };
+    })
+  );
+
+  // Add ignore region to a baseline
+  ipcMain.handle(
+    'ios:baseline:addIgnoreRegion',
+    withIpcErrorLogging(
+      handlerOpts('addIgnoreRegion'),
+      async (options: {
+        project: string;
+        name: string;
+        region: iosTools.IgnoreRegion;
+        deviceFamily?: string;
+      }) => {
+        const { project, name, region, deviceFamily } = options;
+
+        // Get baseline path
+        const baselinePath = iosTools.getBaselinePath(
+          project,
+          name,
+          deviceFamily as iosTools.DeviceFamily | undefined
+        );
+
+        // Add ignore region - function handles reading/writing internally
+        const updatedMetadata = await iosTools.addIgnoreRegion(baselinePath, region);
+
+        return {
+          success: true,
+          data: {
+            name,
+            ignoreRegions: updatedMetadata.ignoreRegions,
+          },
+        };
+      }
+    )
+  );
+
+  // Get device baseline coverage
+  ipcMain.handle(
+    'ios:baseline:coverage',
+    withIpcErrorLogging(
+      handlerOpts('getBaselineCoverage'),
+      async (options: { project: string }) => {
+        const { project } = options;
+
+        const coverage = await iosTools.getBaselineCoverage(project);
+        const report = iosTools.formatCoverageReport(coverage);
+
+        return {
+          success: true,
+          data: {
+            coverage,
+            report,
+          },
+        };
+      }
+    )
+  );
+
+  // ==========================================================================
+  // Diff / Comparison
+  // ==========================================================================
+
+  // Compare current screenshot to baseline
+  ipcMain.handle(
+    'ios:diff:compare',
+    withIpcErrorLogging(
+      handlerOpts('diffCompare'),
+      async (options: CompareBaselineOptions) => {
+        const {
+          project,
+          name,
+          currentImagePath,
+          threshold = 0.1,
+          outputDiffPath,
+          deviceFamily,
+          autoDetectDevice,
+          simulatorUdid,
+        } = options;
+
+        // If auto-detect, get simulator info
+        let effectiveDeviceFamily = deviceFamily;
+        if (autoDetectDevice && simulatorUdid) {
+          const simulatorResult = await iosTools.getSimulator(simulatorUdid);
+          if (simulatorResult.success && simulatorResult.data) {
+            const screenSize = await iosTools.getScreenSize(simulatorUdid);
+            if (screenSize.success && screenSize.data) {
+              effectiveDeviceFamily = iosTools.detectDeviceFamilyFromScreen(screenSize.data);
+            }
+          }
+        }
+
+        // Normalize baseline info - stores imagePath and metadata
+        let baselineImagePath: string | undefined;
+        let baselineMetadata: iosTools.BaselineMetadata | undefined;
+        let foundDeviceFamily: string | undefined;
+
+        // Find the best baseline for the device
+        if (autoDetectDevice && simulatorUdid) {
+          const simulatorResult = await iosTools.getSimulator(simulatorUdid);
+          if (simulatorResult.success && simulatorResult.data) {
+            const simulator = simulatorResult.data;
+            const screenSize = await iosTools.getScreenSize(simulatorUdid);
+            if (screenSize.success && screenSize.data) {
+              const match = await iosTools.findBestBaselineForDevice(project, name, {
+                name: simulator.name,
+                osVersion: simulator.iosVersion || simulator.runtime,
+                screenSize: screenSize.data,
+              });
+              if (match) {
+                baselineImagePath = match.baseline.imagePath;
+                baselineMetadata = match.baseline.metadata;
+                foundDeviceFamily = match.deviceFamily;
+              }
+            }
+          }
+        }
+
+        if (!baselineImagePath) {
+          // Fall back to direct lookup
+          const directBaseline = await iosTools.getBaseline(
+            project,
+            name,
+            effectiveDeviceFamily as iosTools.DeviceFamily | undefined
+          );
+          if (directBaseline) {
+            baselineImagePath = directBaseline.imagePath;
+            baselineMetadata = directBaseline.metadata;
+          }
+        }
+
+        if (!baselineImagePath) {
+          return {
+            success: false,
+            error: `Baseline '${name}' not found for project '${project}'`,
+          };
+        }
+
+        // Perform full comparison
+        const result = await iosTools.fullComparison(
+          baselineImagePath,
+          currentImagePath,
+          {
+            compare: {
+              threshold,
+            },
+            output: outputDiffPath
+              ? {
+                  diffImagePath: outputDiffPath,
+                }
+              : undefined,
+            diffMode: 'highlight',
+            ignoreRegions: baselineMetadata?.ignoreRegions,
+          }
+        );
+
+        // Format the result for the agent
+        const formatted = iosTools.formatDiffForAgent(
+          result.comparison,
+          result.analysis,
+          {
+            baseline: baselineImagePath,
+            current: currentImagePath,
+            diff: outputDiffPath,
+          },
+          { baselineName: name }
+        );
+
+        return {
+          success: true,
+          data: {
+            match: result.comparison.match,
+            similarity: result.comparison.similarity,
+            diffPixels: result.comparison.diffPixels,
+            diffPercent: result.comparison.diffPercent,
+            changes: result.analysis?.changes || [],
+            diffPath: outputDiffPath || null,
+            baselinePath: baselineImagePath,
+            currentPath: currentImagePath,
+            formatted: formatted.markdown,
+            deviceFamily: effectiveDeviceFamily || foundDeviceFamily || null,
+            baselineDeviceFamily: baselineMetadata?.device?.deviceType || null,
+          },
+        };
+      }
+    )
+  );
+
+  // Compare flow steps
+  ipcMain.handle(
+    'ios:diff:flow',
+    withIpcErrorLogging(
+      handlerOpts('diffFlow'),
+      async (options: FlowCompareOptions) => {
+        const { project, flowName, currentImages, threshold = 0.1, outputDir } = options;
+        // Note: deviceFamily is not used for getFlowBaselineStorage which takes (project, flowName)
+
+        // Get flow baseline
+        const flowBaseline = await iosTools.getFlowBaselineStorage(
+          project,
+          flowName
+        );
+
+        if (!flowBaseline) {
+          return {
+            success: false,
+            error: `Flow baseline '${flowName}' not found in project '${project}'`,
+          };
+        }
+
+        // Compare each step
+        const stepResults: Array<{
+          stepNumber: number;
+          stepName: string;
+          match: boolean;
+          similarity: number;
+          diffPixels: number;
+          diffPath?: string;
+        }> = [];
+
+        for (const step of flowBaseline.steps) {
+          const currentImage = currentImages.find((i) => i.stepNumber === step.stepNumber);
+
+          if (!currentImage) {
+            stepResults.push({
+              stepNumber: step.stepNumber,
+              stepName: step.name,
+              match: false,
+              similarity: 0,
+              diffPixels: 0,
+            });
+            continue;
+          }
+
+          const diffPath = outputDir
+            ? `${outputDir}/${flowName}_step_${step.stepNumber}_diff.png`
+            : undefined;
+
+          const result = await iosTools.fullComparison(step.screenshotPath, currentImage.imagePath, {
+            compare: {
+              threshold,
+            },
+            output: diffPath
+              ? {
+                  diffImagePath: diffPath,
+                }
+              : undefined,
+            diffMode: 'highlight',
+            ignoreRegions: step.ignoreRegions,
+          });
+
+          stepResults.push({
+            stepNumber: step.stepNumber,
+            stepName: step.name,
+            match: result.comparison.match,
+            similarity: result.comparison.similarity,
+            diffPixels: result.comparison.diffPixels,
+            diffPath,
+          });
+        }
+
+        const allMatch = stepResults.every((s) => s.match);
+        const passedCount = stepResults.filter((s) => s.match).length;
+        const failedCount = stepResults.filter((s) => !s.match).length;
+
+        return {
+          success: true,
+          data: {
+            flowName,
+            totalSteps: flowBaseline.steps.length,
+            comparedSteps: currentImages.length,
+            allMatch,
+            passedCount,
+            failedCount,
+            passRate: stepResults.length > 0 ? passedCount / stepResults.length : 0,
+            steps: stepResults,
+          },
+        };
+      }
+    )
+  );
+
+  // ==========================================================================
+  // Full Regression Testing
+  // ==========================================================================
+
+  // Run full regression test suite
+  ipcMain.handle(
+    'ios:regression:run',
+    withIpcErrorLogging(
+      handlerOpts('regressionRun'),
+      async (options: RegressionRunOptions) => {
+        const {
+          project,
+          simulatorUdid,
+          threshold = 0.1,
+          outputDir,
+          deviceFamily,
+          failFast = false,
+          updateOnFail = false,
+          // verbose - not used in current implementation
+          mode = 'full',
+          baselineNames,
+        } = options;
+
+        // Get all baselines for the project
+        let baselines = await iosTools.listBaselines(
+          project,
+          deviceFamily as iosTools.DeviceFamily | undefined
+        );
+
+        // Filter by names if specified
+        if (baselineNames && baselineNames.length > 0) {
+          baselines = baselines.filter((b) => baselineNames.includes(b.name));
+        }
+
+        // Filter for screen baselines only if not full mode
+        if (mode === 'flows-only') {
+          baselines = []; // We'll handle flows separately
+        }
+
+        const results: Array<{
+          name: string;
+          type: 'screen' | 'flow';
+          match: boolean;
+          similarity: number;
+          diffPixels: number;
+          diffPercent: number;
+          diffPath?: string;
+          error?: string;
+          updated?: boolean;
+        }> = [];
+
+        let hasFailure = false;
+
+        // Test each screen baseline
+        if (mode !== 'flows-only') {
+          for (const baseline of baselines) {
+            if (baseline.type !== 'screen') continue;
+
+            // Get baseline details
+            const baselineInfo = await iosTools.getBaseline(
+              project,
+              baseline.name,
+              baseline.deviceFamily
+            );
+
+            if (!baselineInfo) {
+              results.push({
+                name: baseline.name,
+                type: 'screen',
+                match: false,
+                similarity: 0,
+                diffPixels: 0,
+                diffPercent: 0,
+                error: 'Baseline not found',
+              });
+              hasFailure = true;
+              if (failFast) break;
+              continue;
+            }
+
+            // Capture current screenshot if simulator is specified
+            let currentImagePath: string | undefined;
+            if (simulatorUdid) {
+              const screenshotDir = outputDir || '/tmp/maestro-regression';
+              await require('fs/promises').mkdir(screenshotDir, { recursive: true });
+              currentImagePath = `${screenshotDir}/${baseline.name}_current.png`;
+
+              const screenshotResult = await iosTools.captureScreenshot(simulatorUdid, currentImagePath);
+              if (!screenshotResult.success) {
+                results.push({
+                  name: baseline.name,
+                  type: 'screen',
+                  match: false,
+                  similarity: 0,
+                  diffPixels: 0,
+                  diffPercent: 0,
+                  error: `Failed to capture screenshot: ${screenshotResult.error}`,
+                });
+                hasFailure = true;
+                if (failFast) break;
+                continue;
+              }
+            } else {
+              // Without simulator, we can't run regression tests
+              results.push({
+                name: baseline.name,
+                type: 'screen',
+                match: false,
+                similarity: 0,
+                diffPixels: 0,
+                diffPercent: 0,
+                error: 'No simulator specified for comparison',
+              });
+              hasFailure = true;
+              if (failFast) break;
+              continue;
+            }
+
+            // Compare
+            const diffPath = outputDir ? `${outputDir}/${baseline.name}_diff.png` : undefined;
+            const comparisonResult = await iosTools.fullComparison(baselineInfo.imagePath, currentImagePath, {
+              compare: {
+                threshold,
+              },
+              output: diffPath
+                ? {
+                    diffImagePath: diffPath,
+                  }
+                : undefined,
+              diffMode: 'highlight',
+              ignoreRegions: baselineInfo.metadata?.ignoreRegions,
+            });
+
+            const result: (typeof results)[0] = {
+              name: baseline.name,
+              type: 'screen',
+              match: comparisonResult.comparison.match,
+              similarity: comparisonResult.comparison.similarity,
+              diffPixels: comparisonResult.comparison.diffPixels,
+              diffPercent: comparisonResult.comparison.diffPercent,
+              diffPath: diffPath && !comparisonResult.comparison.match ? diffPath : undefined,
+            };
+
+            // Update baseline if requested and failed
+            if (!comparisonResult.comparison.match && updateOnFail && currentImagePath) {
+              await iosTools.updateBaseline(project, baseline.name, currentImagePath, baseline.deviceFamily);
+              result.updated = true;
+            }
+
+            if (!comparisonResult.comparison.match) {
+              hasFailure = true;
+            }
+
+            results.push(result);
+
+            if (failFast && hasFailure) break;
+          }
+        }
+
+        // Get flow baselines if not screen-only
+        if (mode !== 'quick' && !failFast) {
+          const flows = await iosTools.listFlows(project);
+
+          for (const flow of flows) {
+            results.push({
+              name: flow.name,
+              type: 'flow',
+              match: true, // Flows need separate capture logic
+              similarity: 1,
+              diffPixels: 0,
+              diffPercent: 0,
+              error: 'Flow comparison requires step-by-step capture (not implemented in regression run)',
+            });
+          }
+        }
+
+        // Calculate summary statistics
+        const totalBaselines = results.length;
+        const passed = results.filter((r) => r.match && !r.error).length;
+        const failed = results.filter((r) => !r.match || r.error).length;
+        const updated = results.filter((r) => r.updated).length;
+        const skipped = results.filter((r) => r.error && !r.match).length;
+
+        // Format report - build RegressionEntry[] for formatRegressionReport
+        // Note: formatRegressionReport expects RegressionEntry[] which requires comparison objects
+        // Since we don't have full comparison data here, we'll build a simple report manually
+        const reportLines: string[] = [];
+        reportLines.push(`# Visual Regression Report: ${project}`);
+        reportLines.push('');
+        reportLines.push(`## Summary`);
+        reportLines.push(`- Total: ${totalBaselines}`);
+        reportLines.push(`- Passed: ${passed}`);
+        reportLines.push(`- Failed: ${failed}`);
+        reportLines.push(`- Skipped: ${skipped}`);
+        reportLines.push(`- Updated: ${updated}`);
+        reportLines.push(`- Pass Rate: ${(totalBaselines > 0 ? (passed / totalBaselines) * 100 : 0).toFixed(1)}%`);
+        reportLines.push('');
+        if (failed > 0) {
+          reportLines.push(`## Failed Tests`);
+          for (const r of results.filter((r) => !r.match)) {
+            reportLines.push(`- ${r.name}: ${r.error || `${(r.similarity * 100).toFixed(1)}% similarity`}`);
+            if (r.diffPath) {
+              reportLines.push(`  - Diff: ${r.diffPath}`);
+            }
+          }
+          reportLines.push('');
+        }
+        const report = reportLines.join('\n');
+
+        return {
+          success: true,
+          data: {
+            project,
+            deviceFamily: deviceFamily || null,
+            mode,
+            summary: {
+              total: totalBaselines,
+              passed,
+              failed,
+              skipped,
+              updated,
+              passRate: totalBaselines > 0 ? passed / totalBaselines : 0,
+              allPassed: !hasFailure,
+            },
+            results,
+            report,
+          },
+        };
+      }
+    )
+  );
+
+  // ==========================================================================
+  // Export/Import
+  // ==========================================================================
+
+  // Export baselines
+  ipcMain.handle(
+    'ios:baseline:export',
+    withIpcErrorLogging(
+      handlerOpts('exportBaselines'),
+      async (options: {
+        project: string;
+        outputPath: string;
+        format?: 'zip' | 'directory';
+        names?: string[];
+        tags?: string[];
+      }) => {
+        const result = await iosTools.exportBaselines(options.project, {
+          outputPath: options.outputPath,
+          format: options.format,
+          names: options.names,
+          tags: options.tags,
+        });
+
+        return {
+          success: true,
+          data: result,
+        };
+      }
+    )
+  );
+
+  // Import baselines
+  ipcMain.handle(
+    'ios:baseline:import',
+    withIpcErrorLogging(
+      handlerOpts('importBaselines'),
+      async (options: {
+        project: string;
+        inputPath: string;
+        overwrite?: boolean;
+        names?: string[];
+        prefix?: string;
+      }) => {
+        const result = await iosTools.importBaselines(options.project, {
+          inputPath: options.inputPath,
+          overwrite: options.overwrite,
+          names: options.names,
+          prefix: options.prefix,
+        });
+
+        return {
+          success: true,
+          data: result,
+        };
+      }
+    )
+  );
+
+  logger.info(`${LOG_CONTEXT} Visual regression IPC handlers registered`);
+}
+
+// Add call to register visual regression handlers in main registration
+// This is called at the end of registerIOSHandlers() below
