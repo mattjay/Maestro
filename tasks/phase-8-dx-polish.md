@@ -518,11 +518,25 @@
 
 ### Telemetry (Opt-in)
 
-- [ ] Track usage patterns for improvement
-  - [ ] Most used commands
-  - [ ] Common error types
-  - [ ] Setup completion rate
-  - [ ] Playbook usage
+- [x] Track usage patterns for improvement
+  - [x] Most used commands
+  - [x] Common error types
+  - [x] Setup completion rate
+  - [x] Playbook usage
+
+  **Implementation Notes (Jan 2, 2026):**
+  - Created comprehensive telemetry module at `src/main/ios-tools/telemetry.ts`
+  - Privacy-focused design: all telemetry is opt-in via `IOSGlobalSettings.telemetry.enabled`
+  - No personal data collected - only anonymized usage patterns
+  - Core event types: `CommandEvent`, `ErrorEvent`, `SetupEvent`, `PlaybookEvent`, `FlowEvent`, `InteractionEvent`
+  - Recording functions: `recordCommand()`, `recordError()`, `recordSetup()`, `recordPlaybook()`, `recordFlow()`, `recordInteraction()`
+  - Aggregated statistics: `CommandStats`, `ErrorStats`, `SetupStats`, `PlaybookStats`
+  - Summary metrics: `TelemetrySummary` with top commands, top errors, top playbooks, success rates
+  - Data persistence: stores to `~/.maestro/ios-telemetry.json` with auto-aggregation at 1000 events
+  - State management: `isTelemetryEnabled()`, `enableTelemetry()`, `disableTelemetry()`
+  - Formatting: `formatSummaryAsMarkdown()`, `formatDataAsJson()` for user display
+  - Exported from `src/main/ios-tools/index.ts` with 35+ exports and 22 type exports
+  - 38 unit tests covering all functionality including aggregation logic
 
 ### Performance Metrics
 

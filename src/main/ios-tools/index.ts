@@ -1498,3 +1498,74 @@ export type {
   SuggestionContext,
   CommandSuggestionResult,
 } from './command-suggestions';
+
+// =============================================================================
+// Telemetry
+// =============================================================================
+
+export {
+  // Constants
+  TELEMETRY_VERSION,
+  TELEMETRY_DIRECTORY,
+  TELEMETRY_FILENAME,
+  MAX_RAW_EVENTS,
+  MAX_EVENT_AGE_DAYS,
+  // Utility functions
+  getTelemetryPath,
+  generateInstallationId,
+  createDefaultTelemetryData,
+  // State management
+  isTelemetryEnabled,
+  enableTelemetry,
+  disableTelemetry,
+  clearTelemetryCache,
+  // Data persistence
+  loadTelemetryData,
+  saveTelemetryData,
+  clearTelemetryData,
+  // Event recording
+  recordEvent,
+  recordCommand,
+  recordError,
+  recordSetup,
+  recordPlaybook,
+  recordFlow,
+  recordInteraction,
+  // Aggregation
+  aggregateEvents,
+  forceAggregation,
+  // Data access
+  getTelemetryData,
+  getAggregatedStats as getTelemetryAggregatedStats,  // Renamed to avoid conflict with stats-db
+  getSummary as getTelemetrySummary,  // Renamed for clarity
+  getRawEventCount,
+  // Formatting
+  formatSummaryAsMarkdown,
+  formatDataAsJson as formatTelemetryDataAsJson,  // Renamed for clarity
+} from './telemetry';
+export type {
+  // Event types
+  TelemetryEventType,
+  TelemetryEventBase,
+  CommandEvent,
+  CommandCategory,
+  ErrorEvent,
+  ErrorCategory as TelemetryErrorCategory,  // Renamed to avoid conflict with errors/messages.ts
+  SetupEvent,
+  SetupStep,
+  PlaybookEvent,
+  FlowEvent,
+  InteractionEvent,
+  InteractionType,
+  TargetType,
+  TelemetryEvent,
+  // Stats types
+  CommandStats,
+  ErrorStats,
+  SetupStats,
+  PlaybookStats,
+  AggregatedTelemetry,
+  TelemetrySummary,
+  // Data types
+  TelemetryData,
+} from './telemetry';
