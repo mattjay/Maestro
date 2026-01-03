@@ -540,11 +540,26 @@
 
 ### Performance Metrics
 
-- [ ] Show performance metrics to users
-  - [ ] Build times
-  - [ ] Test execution times
-  - [ ] Screenshot capture times
-  - [ ] Comparison with previous runs
+- [x] Show performance metrics to users
+  - [x] Build times
+  - [x] Test execution times
+  - [x] Screenshot capture times
+  - [x] Comparison with previous runs
+
+  **Implementation Notes (Jan 2, 2026):**
+  - Created comprehensive performance metrics module at `src/main/ios-tools/performance-metrics.ts`
+  - Core types: `MetricType`, `PerformanceRun`, `MetricStats`, `NamedMetricStats`, `RunComparison`, `MetricsSummary`
+  - Tracks 9 operation types: build, test, screenshot, flow, playbook, inspect, baseline_compare, app_launch, simulator_boot
+  - Recording functions: `recordBuildTime()`, `recordTestTime()`, `recordScreenshotTime()`, `recordFlowTime()`, `recordPlaybookTime()`, `recordInspectTime()`, `recordBaselineCompareTime()`, `recordAppLaunchTime()`, `recordSimulatorBootTime()`
+  - Statistics: `getMetricStats()`, `getNamedMetricStats()` for per-operation breakdowns
+  - Run comparison: `compareToHistory()` compares current run to historical data, detects records and performance changes
+  - Summary: `getMetricsSummary()` aggregates all metrics with trend detection (improving/stable/degrading)
+  - Historical trend analysis comparing older half vs newer half of runs for trend detection
+  - Storage: per-project metrics stored in `.maestro/ios-performance-metrics.json`
+  - Cleanup: automatic pruning of runs older than 30 days and over 100 per metric type
+  - Formatting: `formatRunComparison()`, `formatMetricStats()`, `formatMetricsSummary()`, `formatMetricsCompact()`, `formatMetricsAsJson()`
+  - Exported from `src/main/ios-tools/index.ts` with 30+ exports
+  - 68 unit tests covering all functionality including trend calculation
 
 ---
 

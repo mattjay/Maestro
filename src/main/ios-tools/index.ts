@@ -1569,3 +1569,62 @@ export type {
   // Data types
   TelemetryData,
 } from './telemetry';
+
+// =============================================================================
+// Performance Metrics (User-Facing)
+// =============================================================================
+
+export {
+  // Constants
+  METRICS_VERSION,
+  METRICS_DIRECTORY,
+  METRICS_FILENAME,
+  MAX_RUNS_PER_METRIC,
+  MAX_RUN_AGE_DAYS,
+  // Utility functions
+  getMetricsPath,
+  generateRunId,
+  createDefaultMetricsData,
+  // Data persistence
+  loadMetricsData,
+  saveMetricsData,
+  clearMetricsCache,
+  clearMetricsData,
+  // Recording operations
+  recordMetric,
+  recordBuildTime,
+  recordTestTime,
+  recordScreenshotTime,
+  recordFlowTime,
+  recordPlaybookTime,
+  recordInspectTime,
+  recordBaselineCompareTime,
+  recordAppLaunchTime,
+  recordSimulatorBootTime,
+  // Cleanup
+  cleanupOldRuns,
+  // Statistics & Analysis
+  getMetricStats,
+  getNamedMetricStats,
+  compareToHistory,
+  getMetricsSummary,
+  getRecentRuns,
+  // Formatting
+  formatDuration as formatMetricDuration,  // Renamed to avoid conflict
+  formatRunComparison,
+  formatMetricStats,
+  formatMetricsSummary,
+  formatMetricsAsJson,
+  formatMetricsCompact,
+} from './performance-metrics';
+export type {
+  // Types
+  MetricType,
+  PerformanceRun,
+  MetricStats,
+  NamedMetricStats,
+  RunComparison,
+  MetricsSummary,
+  PerformanceMetricsData,
+  RecordMetricOptions,
+} from './performance-metrics';
