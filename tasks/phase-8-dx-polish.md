@@ -493,11 +493,24 @@
 
 ### Quick Actions
 
-- [ ] Add iOS quick actions to toolbar
-  - [ ] 📷 Quick screenshot
-  - [ ] 🔍 Quick inspect
-  - [ ] ▶️ Run last flow
-  - [ ] 🔄 Restart app
+- [x] Add iOS quick actions to toolbar
+  - [x] 📷 Quick screenshot
+  - [x] 🔍 Quick inspect
+  - [x] ▶️ Run last flow
+  - [x] 🔄 Restart app
+
+  **Implementation Notes (Jan 2, 2026):**
+  - Created `IOSQuickActionsMenu` component at `src/renderer/components/IOSQuickActionsMenu.tsx`
+  - Dropdown menu with 4 quick actions: Quick Screenshot (/ios.snapshot), Quick Inspect (/ios.inspect), Run Last Flow (/ios.run_flow --last), Restart App (/ios.app.restart)
+  - Action availability based on simulator/app status (disabled with explanatory messages)
+  - Visual feedback with icons, descriptions, and unavailable reasons
+  - Footer hint to boot simulator when not running
+  - Integrated into MainPanel.tsx header, next to GitStatusWidget
+  - Uses `useIOSStatusOptional` hook for iOS status context
+  - Uses `queueMicrotask` pattern to send commands via AI terminal
+  - Compact mode support (icon-only) for narrow panels
+  - `data-tour="ios-quick-actions"` attribute for onboarding tour
+  - 22 unit tests covering rendering, menu interaction, action execution, availability, and visual feedback
 
 ---
 

@@ -6,10 +6,12 @@ import { InputArea } from './InputArea';
 import { FilePreview, FilePreviewHandle } from './FilePreview';
 import { ErrorBoundary } from './ErrorBoundary';
 import { GitStatusWidget } from './GitStatusWidget';
+import { IOSQuickActionsMenu } from './IOSQuickActionsMenu';
 import { AgentSessionsBrowser } from './AgentSessionsBrowser';
 import { TabBar } from './TabBar';
 import { gitService } from '../services/git';
 import { useGitStatus } from '../contexts/GitStatusContext';
+import { useIOSStatusOptional } from '../contexts/IOSStatusContext';
 import { formatShortcutKeys } from '../utils/shortcutFormatter';
 import { useAgentCapabilities, useHoverTooltip } from '../hooks';
 import type { Session, Theme, Shortcut, FocusArea, BatchRunState } from '../types';
@@ -444,6 +446,11 @@ export const MainPanel = React.memo(forwardRef<MainPanelHandle, MainPanelProps>(
     uncommittedChanges: gitStatusData.fileCount,
   } : null;
 
+  // iOS status from context (optional - may not be mounted)
+  const iosStatusContext = useIOSStatusOptional();
+  const iosStatusData = activeSession && iosStatusContext ? iosStatusContext.getStatus(activeSession.id) : undefined;
+  const iosEnabled = activeSession && iosStatusContext ? iosStatusContext.isIOSEnabled(activeSession.id) : false;
+
   // Copy notification state (centered flash notice)
   const [copyNotification, setCopyNotification] = useState<string | null>(null);
 
@@ -504,6 +511,17 @@ export const MainPanel = React.memo(forwardRef<MainPanelHandle, MainPanelProps>(
       console.error('Failed to copy to clipboard:', err);
     }
   };
+
+  // Handler to send an iOS command to the AI terminal
+  const handleIOSCommand = useCallback((command: string) => {
+    // Set the input value and immediately process it
+    setInputValue(command);
+    // Use a microtask to ensure the input value is set before processing
+    // This ensures the command is sent after React's state update
+    queueMicrotask(() => {
+      processInput();
+    });
+  }, [setInputValue, processInput]);
 
   // Show log viewer
   if (logViewerOpen) {
@@ -759,6 +777,18 @@ export const MainPanel = React.memo(forwardRef<MainPanelHandle, MainPanelProps>(
                 compact={useCompactGitWidget}
               />
 
+              {/* iOS Quick Actions Menu - shows when iOS is enabled for session */}
+              {iosEnabled && (
+                <IOSQuickActionsMenu
+                  session={activeSession}
+                  theme={theme}
+                  simulatorStatus={iosStatusData?.simulatorStatus || 'unknown'}
+                  appStatus={iosStatusData?.appStatus || 'unknown'}
+                  iosEnabled={iosEnabled}
+                  onSendCommand={handleIOSCommand}
+                  compact={useCompactGitWidget}
+                />
+              )}
 
             </div>
 
